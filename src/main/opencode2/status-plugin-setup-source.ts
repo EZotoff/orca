@@ -1,64 +1,78 @@
 export function getOpenCode2SetupSource(): string[] {
   return String.raw`
 async function setupOpenCode2Status(ctx) {
-  const controller = new AbortController();
-  const client = { session: { get: (input, options) => ctx.session.get(input, options) } };
-  const hooks = await OrcaOpenCodeStatusPlugin({ client });
-  if (!hooks.event) return async () => {};
-  const promptRegistration = await ctx.session.hook("prompt", async (properties) => {
-    await hooks.event({ event: { type: "session.next.prompt.admitted", properties } });
-  });
-  const consume = async () => {
-    for await (const input of ctx.event.subscribe({ signal: controller.signal })) {
-      if (controller.signal.aborted) break;
-      let type = input.type;
-      let properties = input.data;
-      if (type === "session.created") {
-        properties = { info: { ...properties, id: properties.sessionID } };
-      } else if (type === "session.execution.started") {
-        type = "session.status";
-        properties = { ...properties, status: { type: "busy" } };
-      } else if (type === "session.execution.succeeded" || type === "session.execution.failed" || type === "session.execution.interrupted") {
-        type = "session.status";
-        properties = { ...properties, status: { type: "idle" } };
-      } else if (type === "permission.asked") {
-        properties = { ...properties, permission: properties.action, patterns: properties.resources };
-      } else if (type === "form.created") {
-        const form = properties.form;
-        // Why: OpenCode 2 raises the same form for its own pickers and for MCP
-        // elicitations; only its question tool stamps kind "question", and only
-        // that form is a question the pane owner was actually asked.
-        if (!form || !form.metadata || form.metadata.kind !== "question") continue;
-        type = "question.asked";
-        properties = {
-          ...form,
-          questions: form.fields.map((field) => ({
-            header: field.title || form.title,
-            question: field.description || field.title || form.title,
-            options: (field.options || []).map((option) => ({ label: option.label || option.value, description: option.description || "" })),
-            multiple: field.type === "multiselect",
-          })),
-        };
-      } else if (type === "form.replied" || type === "form.cancelled") {
-        // A resolution for an ignored form is inert: the blocker key carries the
-        // form id, so it simply matches nothing.
-        type = type === "form.replied" ? "question.replied" : "question.rejected";
-        properties = { ...properties, requestID: properties.id };
-      } else if (type === "session.text.started" || type === "session.text.delta" || type === "session.text.ended") {
-        type = type.replace("session.", "session.next.");
+  const noop = async () => {};
+  // Why: OpenCode may probe setup() with no context during startup, and the setup
+  // API shape can drift between releases. Never throw from setup — a throw surfaces
+  // as an 'orca-opencode-status' plugin failed error in the TUI, which is worse
+  // than silently running without status reporting.
+  try {
+    if (!ctx || typeof ctx.session?.hook !== "function" || typeof ctx.event?.subscribe !== "function") return noop;
+    const controller = new AbortController();
+    const client = { session: { get: (input, options) => ctx.session.get(input, options) } };
+    const hooks = await OrcaOpenCodeStatusPlugin({ client });
+    if (!hooks || typeof hooks.event !== "function") return noop;
+    const promptRegistration = await ctx.session.hook("prompt", async (properties) => {
+      await hooks.event({ event: { type: "session.next.prompt.admitted", properties } });
+    });
+    const consume = async () => {
+      for await (const input of ctx.event.subscribe({ signal: controller.signal })) {
+        if (controller.signal.aborted) break;
+        let type = input.type;
+        let properties = input.data;
+        if (type === "session.created") {
+          properties = { info: { ...properties, id: properties.sessionID } };
+        } else if (type === "session.execution.started") {
+          type = "session.status";
+          properties = { ...properties, status: { type: "busy" } };
+        } else if (type === "session.execution.succeeded" || type === "session.execution.failed" || type === "session.execution.interrupted") {
+          type = "session.status";
+          properties = { ...properties, status: { type: "idle" } };
+        } else if (type === "permission.asked") {
+          properties = { ...properties, permission: properties.action, patterns: properties.resources };
+        } else if (type === "form.created") {
+          const form = properties.form;
+          // Why: OpenCode 2 raises the same form for its own pickers and for MCP
+          // elicitations; only its question tool stamps kind "question", and only
+          // that form is a question the pane owner was actually asked.
+          if (!form || !form.metadata || form.metadata.kind !== "question") continue;
+          type = "question.asked";
+          properties = {
+            ...form,
+            questions: form.fields.map((field) => ({
+              header: field.title || form.title,
+              question: field.description || field.title || form.title,
+              options: (field.options || []).map((option) => ({ label: option.label || option.value, description: option.description || "" })),
+              multiple: field.type === "multiselect",
+            })),
+          };
+        } else if (type === "form.replied" || type === "form.cancelled") {
+          // A resolution for an ignored form is inert: the blocker key carries the
+          // form id, so it simply matches nothing.
+          type = type === "form.replied" ? "question.replied" : "question.rejected";
+          properties = { ...properties, requestID: properties.id };
+        } else if (type === "session.text.started" || type === "session.text.delta" || type === "session.text.ended") {
+          type = type.replace("session.", "session.next.");
+        }
+        await hooks.event({ event: { type, properties } });
       }
-      await hooks.event({ event: { type, properties } });
-    }
-  };
-  const consuming = consume().catch((error) => {
-    if (!controller.signal.aborted) console.warn("[orca-hook] event subscription failed:", error.message);
-  });
-  return async () => {
-    controller.abort();
-    await promptRegistration.dispose();
-    await consuming;
-    await hooks.dispose();
-  };
+    };
+    const consuming = consume().catch((error) => {
+      if (!controller.signal.aborted) console.warn("[orca-hook] event subscription failed:", error.message);
+    });
+    return async () => {
+      try {
+        controller.abort();
+        await promptRegistration?.dispose?.();
+        await consuming;
+        await hooks.dispose?.();
+      } catch {
+        // Why: cleanup runs during plugin unload; a throw here also fails the plugin.
+      }
+    };
+  } catch {
+    return noop;
+  }
 }
 `.split('\n')
 }
