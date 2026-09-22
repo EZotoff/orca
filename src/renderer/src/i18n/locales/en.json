@@ -17616,6 +17616,11 @@
         "blocked": "Goal blocked",
         "limited": "Goal limited",
         "attachmentsUnsupported": "Remove attachments before setting a goal."
+      },
+      "contextUsage": {
+        "label": "Context {{used}} of {{window}} tokens, {{percent}}% used",
+        "title": "Context",
+        "estimated": "Estimated from the last response."
       }
     },
     "tab": {
