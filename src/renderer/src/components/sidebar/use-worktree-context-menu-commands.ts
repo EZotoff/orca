@@ -43,7 +43,6 @@ export function useWorktreeContextMenuCommands(args: {
     window.api.ui.writeClipboardText(args.worktree.path)
   }, [args])
   const handleCopyName = useCallback(() => {
-    // Why: same fallback as main's mergeWorktree, so the copy matches `name:` selectors.
     window.api.ui.writeClipboardText(resolveWorktreeDisplayName(args.worktree))
   }, [args])
   const handleToggleRead = useCallback(() => {

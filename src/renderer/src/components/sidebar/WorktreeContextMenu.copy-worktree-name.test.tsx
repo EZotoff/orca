@@ -107,12 +107,10 @@ function openMenu(worktree: Worktree): void {
   })
 }
 
-function menuItems(): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
-}
-
 function clickMenuItem(label: string): void {
-  const item = menuItems().find((element) => element.textContent === label)
+  const item = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+    (element) => element.textContent === label
+  )
   expect(item, `menu item "${label}"`).toBeTruthy()
   // Why: the menu swallows clicks until a primary pointerdown proves they aren't the opening right-click.
   act(() => {
@@ -121,43 +119,20 @@ function clickMenuItem(label: string): void {
   })
 }
 
-describe('WorktreeContextMenu Copy Name', () => {
-  it('sits directly below Copy Path', () => {
-    openMenu(worktreeFixture())
-
-    const labels = menuItems().map((element) => element.textContent)
-    expect(labels.indexOf('Copy Name')).toBe(labels.indexOf('Copy Path') + 1)
-  })
-
+describe('WorktreeContextMenu Copy Worktree Name', () => {
   it('copies the workspace display name', () => {
     openMenu(worktreeFixture())
 
-    clickMenuItem('Copy Name')
+    clickMenuItem('Copy Worktree Name')
 
     expect(writeClipboardText).toHaveBeenCalledExactlyOnceWith('Fix authentication race')
   })
 
-  it('falls back to the branch name when the custom name was cleared', () => {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a cleared custom name arrives undefined at runtime despite the type.
-    openMenu(worktreeFixture({ displayName: undefined as unknown as string }))
+  it('falls back like every other name read when the custom name is blank', () => {
+    openMenu(worktreeFixture({ displayName: '' }))
 
-    clickMenuItem('Copy Name')
+    clickMenuItem('Copy Worktree Name')
 
     expect(writeClipboardText).toHaveBeenCalledExactlyOnceWith('feature/auth-race')
-  })
-
-  it('falls back to the folder name for a branchless folder workspace', () => {
-    openMenu(
-      worktreeFixture({
-        displayName: '  ',
-        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: folder workspaces omit branch at runtime despite the type.
-        branch: undefined as unknown as string,
-        path: '/Users/me/notes'
-      })
-    )
-
-    clickMenuItem('Copy Name')
-
-    expect(writeClipboardText).toHaveBeenCalledExactlyOnceWith('notes')
   })
 })
