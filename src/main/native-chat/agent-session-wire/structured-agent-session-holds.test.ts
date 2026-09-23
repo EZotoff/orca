@@ -174,6 +174,26 @@ describe('holds', () => {
     holds.dispose()
   })
 
+  it('hands a child a write resumed for no holder to the release clock', async () => {
+    let child = false
+    const evict = vi.fn(async () => {
+      child = false
+    })
+    const holds = new StructuredAgentSessionHolds({
+      resume: async () => {
+        child = true
+      },
+      hasProviderChild: () => child,
+      isTurnActive: () => false,
+      evict,
+      graceMs: 1
+    })
+
+    await holds.resumeForWrite('session-1')
+    await vi.waitFor(() => expect(evict).toHaveBeenCalledWith('session-1'))
+    holds.dispose()
+  })
+
   it('fails a write-capable hold when resume proves no provider child', async () => {
     const holds = new StructuredAgentSessionHolds({
       resume: async () => {},
