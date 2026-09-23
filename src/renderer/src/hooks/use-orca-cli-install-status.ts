@@ -43,7 +43,10 @@ export function useOrcaCliInstallStatus(
   const probeKey = getOrcaCliInstallTargetKey(activeSkillRuntime)
   // Why: the probe is keyed by target, not by the caller's runtime object identity.
   const runtimeRef = useRef(activeSkillRuntime)
-  runtimeRef.current = activeSkillRuntime
+  // Why: refresh runs from effects and event handlers, so the ref is current by then without a render-time write.
+  useEffect(() => {
+    runtimeRef.current = activeSkillRuntime
+  }, [activeSkillRuntime])
   const [probe, setProbe] = useState<ProbeState>(INITIAL_PROBE_STATE)
   const sequenceRef = useRef(0)
 
