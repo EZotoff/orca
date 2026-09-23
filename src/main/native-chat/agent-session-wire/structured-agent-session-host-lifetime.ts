@@ -203,10 +203,13 @@ export function createStructuredAgentSessionHolds(
       ),
     evict: input.close,
     hasProviderChild: (sessionId) => hasProviderChild(context, sessionId),
-    isTurnActive: (sessionId) => {
-      const session = context.sessions.get(sessionId)
-      return session
-        ? activeStructuredAgentSessionTurnId(session.journal.snapshot().items) !== null
+    // A pending submission is a message the provider has not taken yet, such as one held for a
+    // start that has not landed; evicting would refuse it. A settled `unknown` owes nothing more.
+    hasOwedWork: (sessionId) => {
+      const journal = context.sessions.get(sessionId)?.journal
+      return journal
+        ? activeStructuredAgentSessionTurnId(journal.snapshot().items) !== null ||
+            journal.pendingSubmissions().length > 0
         : false
     },
     onError: (error) => context.deps.onEventSinkError?.(error),

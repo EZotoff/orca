@@ -6,15 +6,15 @@
 // user already asked for must finish: the provider is mid-answer, the journal has an open turn
 // marker, and stopping the child there strands both.
 //
-// So the clock arms when the last holder leaves, and a tick that finds a turn still running RE-ARMS
-// instead of evicting. That is what makes the wait start at the later of the two events rather than
-// at whichever came first.
+// So the clock arms when the last holder leaves, and a tick that finds work still owed — a turn
+// running, or a message sent but not yet taken by the provider — RE-ARMS instead of evicting. That
+// is what makes the wait start at the later of the two events rather than at whichever came first.
 
 export const STRUCTURED_AGENT_SESSION_RELEASE_GRACE_MS = 15_000
 
 export type StructuredAgentSessionReleaseClockDeps = {
-  /** Never evict mid-turn; a true answer re-arms the clock instead. */
-  isTurnActive: (sessionId: string) => boolean
+  /** Never evict while work is owed; a true answer re-arms the clock instead. */
+  hasOwedWork: (sessionId: string) => boolean
   /** Re-checked at fire time: a holder may have arrived while the timer ran. */
   isHeld: (sessionId: string) => boolean
   evict: (sessionId: string) => Promise<void>
@@ -64,7 +64,7 @@ export class StructuredAgentSessionReleaseClock {
     if (this.deps.isHeld(sessionId)) {
       return
     }
-    if (this.deps.isTurnActive(sessionId)) {
+    if (this.deps.hasOwedWork(sessionId)) {
       this.arm(sessionId)
       return
     }
