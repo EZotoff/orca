@@ -26,11 +26,18 @@ describe('WorktreeCatalogVersion ordering', () => {
     expect(laterWorktreeCatalogVersion(host(5), host(2))).toEqual(host(5))
   })
 
+  it('keeps the held object for an equal version, so a no-op listing patches no state', () => {
+    const applied = host(5)
+    expect(laterWorktreeCatalogVersion(applied, host(5))).toBe(applied)
+  })
+
   it('recognizes the wire shape and nothing looser', () => {
     expect(isWorktreeCatalogVersion({ epoch: 'e', sequence: 1 })).toBe(true)
     expect(isWorktreeCatalogVersion({ epoch: 'e' })).toBe(false)
     expect(isWorktreeCatalogVersion({ sequence: 1 })).toBe(false)
     expect(isWorktreeCatalogVersion(null)).toBe(false)
     expect(isWorktreeCatalogVersion('e:1')).toBe(false)
+    expect(isWorktreeCatalogVersion({ epoch: 'e', sequence: '1' })).toBe(false)
+    expect(isWorktreeCatalogVersion({ epoch: 'e', sequence: Number.NaN })).toBe(false)
   })
 })

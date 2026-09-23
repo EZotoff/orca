@@ -1,5 +1,6 @@
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import {
+  isWorktreeCatalogVersion,
   isWorktreeCatalogVersionBefore,
   laterWorktreeCatalogVersion,
   type WorktreeCatalogVersion
@@ -28,8 +29,9 @@ export function isStaleWorktreeCatalogPublication(
   hostId: ExecutionHostId,
   version: WorktreeCatalogVersion | undefined
 ): boolean {
-  if (!version) {
-    // Why: a host that predates the stamp gets today's behavior; the field is optional on the wire.
+  if (!isWorktreeCatalogVersion(version)) {
+    // Why: a host that predates the stamp, or sends a shape this client cannot order, gets today's
+    // behavior; the field is optional on the wire.
     return false
   }
   const applied = state.worktreeCatalogVersionByRepoHost[worktreeCatalogVersionKey(repoId, hostId)]
@@ -43,7 +45,7 @@ export function appliedWorktreeCatalogVersionPatch(
   hostId: ExecutionHostId,
   version: WorktreeCatalogVersion | undefined
 ): Partial<WorktreeCatalogVersionState> {
-  if (!version) {
+  if (!isWorktreeCatalogVersion(version)) {
     return {}
   }
   const key = worktreeCatalogVersionKey(repoId, hostId)

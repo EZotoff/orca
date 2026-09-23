@@ -22,7 +22,8 @@ export function isWorktreeCatalogVersion(value: unknown): value is WorktreeCatal
     'epoch' in value &&
     typeof value.epoch === 'string' &&
     'sequence' in value &&
-    typeof value.sequence === 'number'
+    typeof value.sequence === 'number' &&
+    Number.isFinite(value.sequence)
   )
 }
 
@@ -42,5 +43,6 @@ export function laterWorktreeCatalogVersion(
   if (!applied || applied.epoch !== incoming.epoch) {
     return incoming
   }
-  return incoming.sequence >= applied.sequence ? incoming : applied
+  // Why strict: an equal version keeps the held object, so a no-op listing patches no state.
+  return incoming.sequence > applied.sequence ? incoming : applied
 }

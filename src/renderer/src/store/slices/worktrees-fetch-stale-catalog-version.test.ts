@@ -4,6 +4,7 @@ import type { WorktreeCatalogVersion } from '../../../../shared/worktree/catalog
 import { makeDetectedResult, qualifyDetectedResult } from './worktrees-detected-listing-fixtures'
 import { makeWorktree } from './worktrees-slice-test-fixtures'
 import { worktreeCatalogVersionKey } from './worktrees/listing/worktree-catalog-version-state'
+import { completeSameIdHostScopedRemoval } from './worktrees/teardown/host-qualified-worktree-removal'
 import {
   createTestStore,
   mockApi,
@@ -14,6 +15,11 @@ import {
 vi.mock('sonner', () => ({
   toast: { warning: vi.fn(), info: vi.fn(), success: vi.fn(), error: vi.fn(), dismiss: vi.fn() }
 }))
+
+// Why reset, not clear: a queued one-shot listing an earlier case left unconsumed must not leak.
+beforeEach(() => {
+  mockApi.worktrees.listDetected.mockReset()
+})
 
 const HOST = 'host-epoch'
 const APPLIED_BY_CREATE: WorktreeCatalogVersion = { epoch: HOST, sequence: 7 }
@@ -54,17 +60,26 @@ describe('fetchWorktrees with a listing versioned before an applied create', () 
     resetWorktreeSliceModuleMemory()
   })
 
-  it("neither tears down the created worktree's terminals nor purges it", async () => {
+  it("neither tears down the created worktree's terminals nor purges it, then lists again", async () => {
     const store = createTestStore()
     const { created, surviving } = seed(store)
-    mockApi.worktrees.listDetected.mockImplementationOnce(async (args) =>
-      qualifyDetectedResult(
-        args,
-        makeDetectedResult('repo1', [surviving], { catalogVersion: { epoch: HOST, sequence: 6 } })
+    mockApi.worktrees.listDetected
+      .mockImplementationOnce(async (args) =>
+        qualifyDetectedResult(
+          args,
+          makeDetectedResult('repo1', [surviving], { catalogVersion: { epoch: HOST, sequence: 6 } })
+        )
       )
-    )
+      .mockImplementationOnce(async (args) =>
+        qualifyDetectedResult(
+          args,
+          makeDetectedResult('repo1', [created, surviving], {
+            catalogVersion: { epoch: HOST, sequence: 7 }
+          })
+        )
+      )
 
-    await store.getState().fetchWorktrees('repo1')
+    await expect(store.getState().fetchWorktrees('repo1')).resolves.toBe(true)
 
     expect(mockApi.runtime.call).not.toHaveBeenCalledWith(
       expect.objectContaining({ method: 'worktree.teardownMissingTerminals' })
@@ -74,9 +89,12 @@ describe('fetchWorktrees with a listing versioned before an applied create', () 
       surviving.id
     ])
     expect(store.getState().tabsByWorktree[created.id]).toBeDefined()
+    // Why: the refused listing may be the caller's only answer (a change event that joined it), so
+    // one listing follows, and it scans at or past the applied version.
+    expect(mockApi.worktrees.listDetected).toHaveBeenCalledTimes(2)
     expect(
       store.getState().worktreeCatalogVersionByRepoHost[worktreeCatalogVersionKey('repo1', 'local')]
-    ).toEqual(APPLIED_BY_CREATE)
+    ).toBe(APPLIED_BY_CREATE)
   })
 
   it('control: a listing versioned after the create tears down and purges as before', async () => {
@@ -101,5 +119,117 @@ describe('fetchWorktrees with a listing versioned before an applied create', () 
     expect(
       store.getState().worktreeCatalogVersionByRepoHost[worktreeCatalogVersionKey('repo1', 'local')]
     ).toEqual({ epoch: HOST, sequence: 8 })
+  })
+})
+
+// Why this suite exists: absence from a listing is how a client learns of a delete, so presence
+// in one is how a removed row comes back. The removal reply's version must be on record before a
+// listing scanned ahead of the removal can land.
+describe('a listing versioned before an applied removal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetRemoteRuntimeMocks()
+    resetWorktreeSliceModuleMemory()
+  })
+
+  it('does not bring the removed worktree back', async () => {
+    const store = createTestStore()
+    const { created, surviving } = seed(store)
+    mockApi.worktrees.remove.mockResolvedValueOnce({
+      catalogVersion: { epoch: HOST, sequence: 9 }
+    })
+
+    await store.getState().removeWorktree({ id: created.id, executionHostId: null })
+    expect(store.getState().worktreesByRepo.repo1?.map((w) => w.id)).toEqual([surviving.id])
+
+    mockApi.worktrees.listDetected.mockImplementation(async (args) =>
+      qualifyDetectedResult(
+        args,
+        makeDetectedResult('repo1', [created, surviving], {
+          catalogVersion: { epoch: HOST, sequence: 8 }
+        })
+      )
+    )
+    await store.getState().fetchWorktrees('repo1')
+
+    expect(store.getState().worktreesByRepo.repo1?.map((w) => w.id)).toEqual([surviving.id])
+  })
+})
+
+describe('catalog version bookkeeping', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetRemoteRuntimeMocks()
+    resetWorktreeSliceModuleMemory()
+  })
+
+  it('a repeated listing at the applied version changes no state', async () => {
+    const store = createTestStore()
+    const { created, surviving } = seed(store)
+    mockApi.worktrees.listDetected.mockImplementation(async (args) =>
+      qualifyDetectedResult(
+        args,
+        makeDetectedResult('repo1', [created, surviving], {
+          catalogVersion: { epoch: HOST, sequence: 7 }
+        })
+      )
+    )
+    await store.getState().fetchWorktrees('repo1')
+    const settled = store.getState()
+
+    await store.getState().fetchWorktrees('repo1')
+
+    expect(store.getState()).toBe(settled)
+  })
+
+  it('a version this client cannot order is treated as unstamped', async () => {
+    const store = createTestStore()
+    const { surviving } = seed(store)
+    mockApi.worktrees.listDetected.mockImplementationOnce(async (args) =>
+      qualifyDetectedResult(args, {
+        ...makeDetectedResult('repo1', [surviving]),
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: simulates a host publishing a shape this client does not know.
+        catalogVersion: { epoch: HOST, sequence: '9' } as unknown as WorktreeCatalogVersion
+      })
+    )
+
+    await store.getState().fetchWorktrees('repo1')
+
+    // Unstamped listings keep the pre-version behavior: applied, and nothing recorded.
+    expect(store.getState().worktreesByRepo.repo1?.map((w) => w.id)).toEqual([surviving.id])
+    expect(
+      store.getState().worktreeCatalogVersionByRepoHost[worktreeCatalogVersionKey('repo1', 'local')]
+    ).toBe(APPLIED_BY_CREATE)
+  })
+})
+
+describe('a removal on one of two hosts that share a worktree id', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetRemoteRuntimeMocks()
+    resetWorktreeSliceModuleMemory()
+  })
+
+  it("records the removal's version for the removed host", async () => {
+    const store = createTestStore()
+    const { created } = seed(store)
+    const removedVersion = { epoch: 'ssh-host-epoch', sequence: 4 }
+
+    await completeSameIdHostScopedRemoval({
+      set: store.setState,
+      get: store.getState,
+      worktreeId: created.id,
+      requiredExecutionHostId: 'ssh:ssh-1',
+      removalResult: { catalogVersion: removedVersion },
+      removalRoute: null,
+      target: { kind: 'local' },
+      worktreeBeforeRemoval: created,
+      suppressPreservedBranchToast: true,
+      rowAlreadyDropped: true
+    })
+
+    const versions = store.getState().worktreeCatalogVersionByRepoHost
+    expect(versions[worktreeCatalogVersionKey('repo1', 'ssh:ssh-1')]).toEqual(removedVersion)
+    expect(versions[worktreeCatalogVersionKey('repo1', 'local')]).toBe(APPLIED_BY_CREATE)
   })
 })

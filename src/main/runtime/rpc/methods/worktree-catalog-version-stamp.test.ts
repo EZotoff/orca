@@ -64,28 +64,39 @@ describe('worktree mutation replies carry the catalog version', () => {
     })
   })
 
-  it('worktree.rm stamps the version once the worktree resolves, and stays unstamped when it does not', async () => {
-    const resolving = stubRuntime({
+  it('worktree.rm stamps an id selector from its repo without resolving it a second time', async () => {
+    const showManagedWorktree = vi.fn()
+    const runtime = stubRuntime({
       getRuntimeId: () => 'test-runtime',
       listRepos: () => [repo],
-      showManagedWorktree: vi.fn().mockResolvedValue({ repoId: repo.id, hostId: 'local' }),
+      showManagedWorktree,
       removeManagedWorktree: vi.fn(async () => {
         bumpLocalWorktreeScanGeneration(repo.id)
         return {}
       })
     })
 
-    const stamped = await dispatch(resolving, 'worktree.rm', { worktree: 'id:wt-1' })
+    const stamped = await dispatch(runtime, 'worktree.rm', {
+      worktree: `id:${repo.id}::/workspace/wt-1`,
+      hostId: 'local'
+    })
+
     expect(stamped).toMatchObject({
       result: { removed: true, catalogVersion: getLocalWorktreeCatalogVersion(repo.id) }
     })
+    expect(showManagedWorktree).not.toHaveBeenCalled()
+  })
 
-    const unresolved = stubRuntime({
-      ...resolving,
-      showManagedWorktree: vi.fn().mockRejectedValue(new Error('selector_not_found')),
+  it('worktree.rm leaves a selector that names no repo unstamped', async () => {
+    const runtime = stubRuntime({
+      getRuntimeId: () => 'test-runtime',
+      listRepos: () => [repo],
+      showManagedWorktree: vi.fn().mockResolvedValue({ repoId: repo.id, hostId: 'local' }),
       removeManagedWorktree: vi.fn().mockResolvedValue({})
     })
-    const bare = await dispatch(unresolved, 'worktree.rm', { worktree: 'id:wt-gone' })
+
+    const bare = await dispatch(runtime, 'worktree.rm', { worktree: 'path:/workspace/wt-1' })
+
     expect(bare).toMatchObject({ result: { removed: true } })
     expect(JSON.stringify(bare)).not.toContain('catalogVersion')
   })

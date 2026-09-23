@@ -4,6 +4,8 @@ import {
   resolveAutomationWorkspaceProvenance
 } from '../../../automations/workspace-provenance'
 import { getLocalWorktreeCatalogVersion } from '../../../local-worktree-scan-generation'
+import { getExplicitWorktreeIdSelector } from '../../runtime-worktree-selection'
+import { splitWorktreeId } from '../../../../shared/worktree/id'
 import { buildCliWorkspaceProvenance } from '../../../../shared/cli-workspace-provenance'
 import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-name-provenance'
 import { defineMethod } from '../core'
@@ -239,12 +241,10 @@ export const WORKTREE_METHODS = [
           }
         }
       }
-      // Why before the removal: afterwards the selector no longer resolves. A selector that
-      // already fails to resolve leaves the reply unstamped, which clients treat as today.
-      const repoId = await runtime
-        .showManagedWorktree(params.worktree)
-        .then((worktree) => worktree.repoId)
-        .catch(() => undefined)
+      // Why parsed, not resolved: an `id:` selector (what clients send) names its repo, and a second
+      // resolution costs a scan and throws for an id two hosts share. Other selectors stay unstamped.
+      const explicitWorktreeId = getExplicitWorktreeIdSelector(params.worktree)
+      const repoId = explicitWorktreeId ? splitWorktreeId(explicitWorktreeId)?.repoId : undefined
       const result = await runtime.removeManagedWorktree(params.worktree, {
         force: params.force === true,
         runHooks: params.runHooks === true,

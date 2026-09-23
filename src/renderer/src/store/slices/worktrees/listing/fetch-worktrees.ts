@@ -41,6 +41,13 @@ export function createFetchWorktrees(
     repoId: string,
     options?: WorktreeFetchOptions | DirectSshWorktreeFetchOptions
   ): Promise<boolean | HostQualifiedDetectedWorktreeResult> {
+    return fetchWorktreesAttempt(repoId, options, true)
+  }
+  async function fetchWorktreesAttempt(
+    repoId: string,
+    options: WorktreeFetchOptions | DirectSshWorktreeFetchOptions | undefined,
+    relistIfStale: boolean
+  ): Promise<boolean | HostQualifiedDetectedWorktreeResult> {
     const directCallerAuthority =
       options && 'directSshAuthority' in options ? options.directSshAuthority : undefined
     try {
@@ -114,6 +121,16 @@ export function createFetchWorktrees(
         refresh
       })
       if (!admitted) {
+        // Why: a caller that joined a listing already in flight (a change event's refresh) may get
+        // only that older answer, and nothing else would follow it. One new listing scans at or past
+        // the applied version, so it is admitted.
+        if (
+          relistIfStale &&
+          !directCallerAuthority &&
+          isStaleWorktreeCatalogPublication(get(), repoId, hostId, refresh.result.catalogVersion)
+        ) {
+          return fetchWorktreesAttempt(repoId, options, false)
+        }
         return directCallerAuthority
           ? (staleDetectedWorktreeProviderResult(refresh) ?? false)
           : false
