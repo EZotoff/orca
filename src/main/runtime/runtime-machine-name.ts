@@ -3,7 +3,9 @@ import { runProcess } from '../../shared/child-process/run-process'
 import { normalizeMachineName } from '../../shared/machine-name'
 
 const MACOS_COMPUTER_NAME = '/usr/sbin/scutil'
-const MACOS_COMPUTER_NAME_TIMEOUT_MS = 1_000
+// Why: status publishers wait for this lookup, and `orca status` probes them with a 1 s budget;
+// scutil answers in milliseconds, so a shorter cap keeps a slow lookup from reading as "starting".
+const MACOS_COMPUTER_NAME_TIMEOUT_MS = 500
 const MACOS_COMPUTER_NAME_MAX_OUTPUT_BYTES = 4 * 1024
 
 type MachineNameReader = () => string | undefined
