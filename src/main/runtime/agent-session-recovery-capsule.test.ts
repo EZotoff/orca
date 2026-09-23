@@ -256,11 +256,6 @@ describe('durable restart offers', () => {
   // An older build parses entries with a two-state enum and throws on anything else, which would
   // cost it every offer. Its schema ignores unknown top-level keys, so failures live under one.
   it('writes failures in a file an older build still reads its offers from', async () => {
-    await capsule.record([marker(), marker({ sessionId: 'second' })], NOW)
-    await fileFailure()
-    await capsule.beginResume([SESSION], 'operation-retry', NOW)
-    const raw: unknown = JSON.parse(await readFile(filePath, 'utf8'))
-
     const olderEntry = z.object({
       state: z.enum(['pending', 'in-progress']),
       operationId: z.string().min(1).optional(),
@@ -273,12 +268,19 @@ describe('durable restart offers', () => {
       entries: z.array(z.unknown()),
       dismissedAt: z.number().int().nonnegative().optional()
     })
-    const older = olderCapsule.parse(raw)
-    expect(older.entries.map((entry) => olderEntry.parse(entry).state).sort()).toEqual([
-      'in-progress',
-      'pending'
-    ])
-    expect(raw).toMatchObject({ failed: [{ marker: { sessionId: SESSION } }] })
+    const olderStates = async () =>
+      olderCapsule
+        .parse(JSON.parse(await readFile(filePath, 'utf8')))
+        .entries.map((entry) => olderEntry.parse(entry).state)
+    await capsule.record([marker(), marker({ sessionId: 'second' })], NOW)
+
+    await fileFailure()
+    expect(await olderStates()).toEqual(['pending'])
+    await capsule.beginResume([SESSION], 'operation-retry', NOW)
+    expect((await olderStates()).sort()).toEqual(['in-progress', 'pending'])
+    expect(JSON.parse(await readFile(filePath, 'utf8'))).toMatchObject({
+      failed: [{ marker: { sessionId: SESSION } }]
+    })
   })
 
   it('rolls a failed acquisition back to a pending offer', async () => {
