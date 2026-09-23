@@ -33,6 +33,13 @@ type ProbeState = {
 
 const INITIAL_PROBE_STATE: ProbeState = { key: null, status: null, checked: false, loading: false }
 
+export const ORCA_CLI_INSTALL_STATE_EVENT = 'orca:cli-install-state'
+
+/** Tell every mounted reader (checklist panel, sidebar progress) to re-read the CLI status. */
+export function notifyOrcaCliInstallStateChanged(): void {
+  window.dispatchEvent(new CustomEvent(ORCA_CLI_INSTALL_STATE_EVENT))
+}
+
 function getProbeTargetKind(runtime: OrcaCliSkillRuntime): ProbeTargetKind {
   if (runtime.installDisabledReason) {
     return 'install-disabled'
@@ -104,13 +111,17 @@ export function useOrcaCliInstallStatus(
     // Why: users register the CLI from Settings or a shell, so re-read on return.
     window.addEventListener('focus', refresh)
     window.addEventListener(ORCHESTRATION_SETUP_STATE_EVENT, refresh)
+    window.addEventListener(ORCA_CLI_INSTALL_STATE_EVENT, refresh)
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => {
       // Why: bump the sequence so a response for a retired runtime cannot land.
       sequenceRef.current += 1
       window.removeEventListener('focus', refresh)
       window.removeEventListener(ORCHESTRATION_SETUP_STATE_EVENT, refresh)
+      window.removeEventListener(ORCA_CLI_INSTALL_STATE_EVENT, refresh)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      // Why: a later re-enable must not present the retired result as settled before it re-reads.
+      setProbe(INITIAL_PROBE_STATE)
     }
   }, [probeEnabled, refresh])
 

@@ -55,6 +55,18 @@ export function getOrcaCliRegistrationStatus(
       detail
     }
   }
+  // Why: a null PATH read means the host could not inspect PATH, and the install path refuses to mutate it.
+  if (status?.pathConfigured === null) {
+    return {
+      label: translate(
+        'auto.components.feature.wall.orca.cli.registration.status.pathUnknown',
+        'Could not check PATH'
+      ),
+      tone: 'error',
+      registered: false,
+      detail
+    }
+  }
   if (status?.pathConfigured === false) {
     return {
       label: translate(
@@ -83,6 +95,7 @@ export function isOrcaCliRegistrationNeeded(readiness: OrcaCliReadiness): boolea
     !readiness.orcaCliUnverifiable &&
     !readiness.orcaCliChecking &&
     !readiness.orcaCliRegistered &&
-    readiness.orcaCliStatus?.supported !== false
+    readiness.orcaCliStatus?.supported !== false &&
+    readiness.orcaCliStatus?.pathConfigured !== null
   )
 }

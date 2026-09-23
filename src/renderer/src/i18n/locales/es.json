@@ -12643,6 +12643,7 @@
                   "503dfe3cc0": "Comprobando",
                   "d6a8b109f1": "Registrada",
                   "965fb4c9cb": "No está en el PATH",
+                  "pathUnknown": "No se pudo comprobar el PATH",
                   "aeee102e9b": "No registrada"
                 }
               }

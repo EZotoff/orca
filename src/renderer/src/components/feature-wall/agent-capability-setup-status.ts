@@ -44,7 +44,6 @@ export type AgentCapabilityReadiness = {
 export type AgentCapabilitySetupStatus = {
   readiness: AgentCapabilityReadiness
   installStatus: Record<OnboardingFeatureSetupId, AgentCapabilityInstallStatus>
-  refreshOrcaCli: () => void
 }
 
 export function useAgentCapabilitySetupStatus(): AgentCapabilitySetupStatus {
@@ -109,7 +108,7 @@ export function useAgentCapabilitySetupStatus(): AgentCapabilitySetupStatus {
     [browserUseSkill, computerUsePermissionStatus, computerUseSkill, orchestrationSkill]
   )
 
-  return { readiness, installStatus, refreshOrcaCli: orcaCli.refresh }
+  return { readiness, installStatus }
 }
 
 export function getDefaultAgentCapabilitySetupSelection(

@@ -12723,6 +12723,7 @@
                   "503dfe3cc0": "检查中",
                   "d6a8b109f1": "已注册",
                   "965fb4c9cb": "不在 PATH 中",
+                  "pathUnknown": "无法检查 PATH",
                   "aeee102e9b": "未注册"
                 }
               }

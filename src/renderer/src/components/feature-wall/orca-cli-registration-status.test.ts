@@ -78,6 +78,24 @@ describe('getOrcaCliRegistrationStatus', () => {
     ).toEqual({ label: 'Not on PATH', tone: 'pending', registered: false, detail: null })
   })
 
+  it('reports an unreadable PATH as an error the user cannot fix from here', () => {
+    expect(
+      getOrcaCliRegistrationStatus({
+        ...NOT_REGISTERED,
+        orcaCliStatus: cliStatus({
+          platform: 'win32',
+          pathConfigured: null,
+          detail: 'Orca could not check your Windows user PATH.'
+        })
+      })
+    ).toEqual({
+      label: 'Could not check PATH',
+      tone: 'error',
+      registered: false,
+      detail: 'Orca could not check your Windows user PATH.'
+    })
+  })
+
   it('reports a missing command, or no readable status, as not registered', () => {
     expect(getOrcaCliRegistrationStatus(NOT_REGISTERED)).toEqual({
       label: 'Not registered',
@@ -107,6 +125,13 @@ describe('isOrcaCliRegistrationNeeded', () => {
       isOrcaCliRegistrationNeeded({
         ...NOT_REGISTERED,
         orcaCliStatus: cliStatus({ supported: false, state: 'unsupported' })
+      })
+    ).toBe(false)
+    // Why: the install path refuses to run when the PATH read is unknown.
+    expect(
+      isOrcaCliRegistrationNeeded({
+        ...NOT_REGISTERED,
+        orcaCliStatus: cliStatus({ platform: 'win32', pathConfigured: null })
       })
     ).toBe(false)
   })

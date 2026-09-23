@@ -14611,7 +14611,8 @@
                   "503dfe3cc0": "Checking",
                   "d6a8b109f1": "Registered",
                   "965fb4c9cb": "Not on PATH",
-                  "aeee102e9b": "Not registered"
+                  "aeee102e9b": "Not registered",
+                  "pathUnknown": "Could not check PATH"
                 }
               }
             }

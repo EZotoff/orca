@@ -7,6 +7,7 @@ import type { CliInstallStatus } from '../../../shared/cli-install-types'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { notifyOrchestrationSetupStateChanged } from '@/lib/orchestration-setup-state'
 import {
+  notifyOrcaCliInstallStateChanged,
   useOrcaCliInstallStatus,
   type OrcaCliInstallStatusState,
   type OrcaCliSkillRuntime
@@ -158,6 +159,41 @@ describe('useOrcaCliInstallStatus', () => {
 
     expect(getInstallStatus).toHaveBeenCalledTimes(2)
     expect(latestState?.registered).toBe(true)
+  })
+
+  it('re-reads every mounted instance when the CLI install state changes', async () => {
+    getInstallStatus.mockResolvedValueOnce(cliStatus({ state: 'not_installed' }))
+    getInstallStatus.mockResolvedValueOnce(cliStatus())
+    await render(HOST_RUNTIME)
+    await flush()
+    expect(latestState?.registered).toBe(false)
+
+    await act(async () => {
+      notifyOrcaCliInstallStateChanged()
+    })
+    await flush()
+
+    expect(getInstallStatus).toHaveBeenCalledTimes(2)
+    expect(latestState?.registered).toBe(true)
+  })
+
+  it('does not present the previous result as settled when re-enabled', async () => {
+    const second = deferred<CliInstallStatus>()
+    getInstallStatus.mockResolvedValueOnce(cliStatus())
+    getInstallStatus.mockReturnValueOnce(second.promise)
+    await render(HOST_RUNTIME, true)
+    await flush()
+    expect(latestState).toMatchObject({ checked: true, registered: true })
+
+    await render(HOST_RUNTIME, false)
+    expect(latestState).toMatchObject({ checked: false, registered: false })
+
+    await render(HOST_RUNTIME, true)
+    expect(latestState).toMatchObject({ checked: false, loading: true, registered: false })
+
+    second.resolve(cliStatus({ state: 'not_installed' }))
+    await flush()
+    expect(latestState).toMatchObject({ checked: true, registered: false })
   })
 
   it('does not probe while disabled', async () => {

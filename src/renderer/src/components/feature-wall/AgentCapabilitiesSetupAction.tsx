@@ -25,6 +25,7 @@ import { FullDiskAccessSetupPrompt } from './FullDiskAccessSetupPrompt'
 import { OrcaCliRegistrationStatusRow } from './OrcaCliRegistrationStatusRow'
 import { isOrcaCliRegistrationNeeded } from './orca-cli-registration-status'
 import { ensureOrcaCliAvailableForAgentSkillTerminal } from '@/lib/agent-skill-cli-prerequisite'
+import { notifyOrcaCliInstallStateChanged } from '@/hooks/use-orca-cli-install-status'
 import { ensureWslCliAvailableForAgentSkillTerminal } from '../settings/CliSkillRuntimeSetup'
 import { translate } from '@/i18n/i18n'
 
@@ -34,7 +35,7 @@ export function AgentCapabilitiesSetupAction(props: {
 }): React.JSX.Element {
   const { onBrowserUseSkillInstalledChange, onOrchestrationSkillInstalledChange } = props
   const capabilitySetupStatus = useAgentCapabilitySetupStatus()
-  const { readiness, refreshOrcaCli } = capabilitySetupStatus
+  const { readiness } = capabilitySetupStatus
   const featureSetupDefaultsAppliedRef = useRef(false)
   const featureSetupChangedByUserRef = useRef(false)
   const [featureSetup, setFeatureSetup] = useState<OnboardingFeatureSetupSelection>(
@@ -89,7 +90,8 @@ export function AgentCapabilitiesSetupAction(props: {
           : ensureOrcaCliAvailableForAgentSkillTerminal())
       } finally {
         setSetupBusyLabel(null)
-        refreshOrcaCli()
+        // Why: the sidebar progress reads the CLI through its own hook instance, so broadcast.
+        notifyOrcaCliInstallStateChanged()
       }
       return
     }
@@ -147,14 +149,13 @@ export function AgentCapabilitiesSetupAction(props: {
     } finally {
       setSetupBusyLabel(null)
       // Why: the setup-state event fires before the CLI install, so it alone reads stale state.
-      refreshOrcaCli()
+      notifyOrcaCliInstallStateChanged()
     }
   }, [
     activeSkillRuntime,
     featureSetup,
     featureSetupCommand,
     recordFeatureInteraction,
-    refreshOrcaCli,
     setupBusyLabel
   ])
   const cliNeedsRegistration =
