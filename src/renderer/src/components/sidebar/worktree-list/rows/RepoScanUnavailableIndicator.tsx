@@ -5,11 +5,8 @@ import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../../../../../shared/repo-types'
-import { getRepoExecutionHostId } from '../../../../../../shared/execution-host'
-import {
-  classifyWorktreeScanFailure,
-  type WorktreeScanFailureKind
-} from '../../../../../../shared/worktree-scan-failure'
+import type { WorktreeScanFailureKind } from '../../../../../../shared/worktree-scan-failure'
+import { isMachineWideLocalScanFailure, resolveRepoScanFailure } from './repo-scan-failure-kind'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle
@@ -32,7 +29,9 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
   const detected = useAppStore((s) => s.detectedWorktreesByRepo[repo.id])
   const fetchWorktrees = useAppStore((s) => s.fetchWorktrees)
   const [pending, setPending] = React.useState(false)
-  if (!detected || detected.authoritative || !detected.unavailableReason) {
+  const failure = resolveRepoScanFailure(repo, detected)
+  // Why: machine-wide failures are explained once by the sidebar banner, not on every repo.
+  if (!failure || isMachineWideLocalScanFailure(failure)) {
     return null
   }
   const title = translate(
@@ -44,12 +43,7 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
     'auto.components.sidebar.RepoScanUnavailableIndicator.retry',
     'Retry scan'
   )
-  const executionHostId = getRepoExecutionHostId(repo)
-  const isLocalHost = executionHostId === 'local' && !repo.connectionId
-  const isLocalMac = isLocalHost && navigator.userAgent.includes('Mac')
-  const failureKind: WorktreeScanFailureKind =
-    detected.failureKind ??
-    (isLocalMac ? classifyWorktreeScanFailure(detected.unavailableReason) : 'unknown')
+  const { executionHostId, isLocalMac, kind: failureKind, reason } = failure
   const failureMessageByKind: Partial<Record<WorktreeScanFailureKind, string>> = {
     'xcode-license': translate(
       'auto.components.sidebar.RepoScanUnavailableIndicator.xcodeLicense',
@@ -64,14 +58,14 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
       'A Git-related executable could not run because its CPU architecture is incompatible with this execution host. Install Git and related tools for the host architecture.'
     )
   }
-  const failureMessage = failureMessageByKind[failureKind] ?? detected.unavailableReason
+  const failureMessage = failureMessageByKind[failureKind] ?? reason
   const fixCommand = isLocalMac ? fixCommandForFailureKind(failureKind) : undefined
   const diagnosticText = [
     `Repository: ${repo.displayName}`,
     ...(isLocalMac
       ? [`Path: ${repo.path}`, 'Client platform: macOS']
       : [`Execution host: ${executionHostId}`]),
-    `Failure: ${detected.unavailableReason}`
+    `Failure: ${reason}`
   ].join('\n')
   const copyText = async (value: string): Promise<void> => {
     await window.api.ui.writeClipboardText(value)
@@ -118,7 +112,7 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
             <div className="text-muted-foreground">
               {translate(
                 'auto.components.sidebar.RepoScanUnavailableIndicator.retained',
-                'Existing worktrees are kept until a scan succeeds. Click to retry.'
+                'Existing worktrees are kept until a scan succeeds. Click the warning icon to retry.'
               )}
             </div>
             <div className="flex items-center justify-start gap-3 border-t border-border/60 pt-1">
