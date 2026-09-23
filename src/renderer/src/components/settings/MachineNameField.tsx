@@ -50,14 +50,6 @@ export function MachineNameField({
           )
         }
         aria-describedby={descriptionId}
-        // Why: some hosts mount this inside a form whose submit adds a host. Enter commits the name
-        // (blur flushes the draft) instead of submitting a half-filled host form.
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault()
-            event.currentTarget.blur()
-          }
-        }}
       />
       <p id={descriptionId} className="text-xs text-muted-foreground">
         {publishedMachineName

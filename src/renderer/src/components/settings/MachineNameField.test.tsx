@@ -77,14 +77,15 @@ describe('MachineNameField', () => {
     expect(mocks.getStatus).not.toHaveBeenCalled()
   })
 
-  it('commits on Enter without submitting an enclosing host form', async () => {
-    // Why: the add-host dialogs mount this field inside a form whose submit saves a host.
+  it('lets Enter submit an enclosing host form like its sibling inputs, and still commits the name', async () => {
+    // Why: the SSH add form mounts this field beside inputs where Enter submits. A name typed just
+    // before that submit is committed when the form closes, so it is never lost.
     mocks.getStatus.mockResolvedValue({ machineName: 'm4airs-Air' })
     const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault())
     mocks.holder.state = { settings: { machineName: '' }, updateSettings: mocks.updateSettings }
-    render(
+    const { unmount } = render(
       <form onSubmit={onSubmit}>
-        <MachineNameField id="add-remote-host-machine-name" />
+        <MachineNameField id="ssh-target-machine-name" />
         <button type="submit">Save</button>
       </form>
     )
@@ -92,8 +93,11 @@ describe('MachineNameField', () => {
 
     await user.type(screen.getByRole('textbox', { name: 'Machine name' }), 'build-server{Enter}')
 
-    expect(onSubmit).not.toHaveBeenCalled()
-    expect(mocks.updateSettings).toHaveBeenCalledWith({ machineName: 'build-server' })
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(mocks.updateSettings).not.toHaveBeenCalled()
+
+    unmount()
+    expect(mocks.updateSettings).toHaveBeenCalledExactlyOnceWith({ machineName: 'build-server' })
   })
 
   it('keys the input, label, and caption off the mount id so two surfaces never collide', async () => {
