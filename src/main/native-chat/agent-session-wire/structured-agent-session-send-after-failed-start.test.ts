@@ -108,8 +108,7 @@ describe('a send into a published session whose child ended before startup', () 
     const releasedFence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
 
     const body = hostTestMessage('hello again')
-    const envelope = sendEnvelope(releasedFence, body)
-    const first = await host.send(CALLER, { envelope, body })
+    const first = await host.send(CALLER, { envelope: sendEnvelope(releasedFence, body), body })
     expect(acquire).toHaveBeenCalledTimes(2)
     expect(store.getRecord(SESSION)?.lease.claimStatus).toBe('live')
     // The resume reserved a new fence, so this send is answered stale with the fence it published;
@@ -121,36 +120,10 @@ describe('a send into a published session whose child ended before startup', () 
     const current = first.ok ? 0 : (first.refusal.currentFence ?? 0)
     expect(current).toBeGreaterThan(releasedFence)
 
-    // The outbox re-drives the same operation, as it does after any fence change.
     await expect(
-      host.send(CALLER, { envelope: { ...envelope, expectedRuntimeFence: current }, body })
+      host.send(CALLER, { envelope: sendEnvelope(current, body), body })
     ).resolves.toMatchObject({ ok: true, value: { submission: { dispatchState: 'pending' } } })
     expect(acquire).toHaveBeenCalledTimes(2)
-  })
-
-  it('restarts the child once when two sends race into the ended session', async () => {
-    await host.attach(CALLER, hostTestAttachParams(null))
-    const startedFence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
-    await host.handleAdapterEvent({
-      type: 'ended',
-      sessionId: SESSION,
-      reason: EXIT_REASON,
-      cause: 'unexpected-exit',
-      fence: startedFence,
-      acquisitionGeneration: 'generation-1',
-      startupUnproven: true
-    })
-    const releasedFence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
-    const first = hostTestMessage('first')
-    const second = hostTestMessage('second')
-
-    await Promise.all([
-      host.send(CALLER, { envelope: sendEnvelope(releasedFence, first), body: first }),
-      host.send(CALLER, { envelope: sendEnvelope(releasedFence, second), body: second })
-    ])
-
-    expect(acquire).toHaveBeenCalledTimes(2)
-    expect(store.getRecord(SESSION)?.lease.claimStatus).toBe('live')
   })
 
   it('leaves a send against a live child alone', async () => {

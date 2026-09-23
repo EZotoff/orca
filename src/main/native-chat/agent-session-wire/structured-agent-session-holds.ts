@@ -51,19 +51,8 @@ export class StructuredAgentSessionHolds {
 
   /** A write reaching a session with no child is the user asking for it back: the same resume a
    *  first hold runs, without taking a holder, since the surface that sent already holds one. */
-  async resumeForWrite(sessionId: string): Promise<void> {
-    if (this.deps.hasProviderChild(sessionId)) {
-      return
-    }
-    await this.deps.resume(sessionId)
-    // A writer that holds nothing (a one-shot send) still leaves a child something must release.
-    if (
-      !this.disposed &&
-      !this.holders.isHeld(sessionId) &&
-      this.deps.hasProviderChild(sessionId)
-    ) {
-      this.clock.arm(sessionId)
-    }
+  resumeForWrite(sessionId: string): Promise<void> {
+    return this.deps.hasProviderChild(sessionId) ? Promise.resolve() : this.deps.resume(sessionId)
   }
 
   async hold(
