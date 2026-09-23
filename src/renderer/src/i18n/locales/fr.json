@@ -6836,7 +6836,8 @@
           "5cb5475664": "Confirmer avant de fermer les onglets épinglés",
           "36b2a5dc6d": "Afficher une boîte de dialogue de confirmation avant de fermer un onglet épinglé.",
           "projectRuntime": "Runtime des projets",
-          "projectRuntimeDescription": "Runtime par défaut pour les projets Windows locaux qui ne le remplacent pas."
+          "projectRuntimeDescription": "Runtime par défaut pour les projets Windows locaux qui ne le remplacent pas.",
+          "thisComputer": "Cet ordinateur"
         },
         "GeneralSupportSection": {
           "af7d9f4396": "Merci pour votre soutien !",
@@ -9410,6 +9411,20 @@
             }
           }
         },
+        "machine": {
+          "name": {
+            "search": {
+              "title": "Nom de la machine",
+              "description": "Choisissez le nom sous lequel les autres appareils et hôtes affichent cet ordinateur.",
+              "machineName": "nom de la machine",
+              "machine": "machine",
+              "hostname": "hostname",
+              "computer": "ordinateur",
+              "rename": "renommer",
+              "name": "nom"
+            }
+          }
+        },
         "mobile": {
           "emulator": {
             "search": {
@@ -9490,17 +9505,7 @@
               "4a0c826f3d": "code",
               "3c1807a81a": "QR",
               "7fb728fb2b": "Appairez un appareil mobile en scannant un code QR.",
-              "d49925710a": "Appairage mobile",
-              "machineName": {
-                "title": "Nom de la machine",
-                "description": "Choisissez le nom sous lequel les appareils appairés affichent cet ordinateur.",
-                "keyword": {
-                  "machine": "machine",
-                  "hostname": "hostname",
-                  "computer": "ordinateur",
-                  "rename": "renommer"
-                }
-              }
+              "d49925710a": "Appairage mobile"
             }
           },
           "settings": {
@@ -10680,10 +10685,10 @@
           "step2RelayDescription": "Facultatif. Choisissez l'adresse Wi‑Fi ou Tailscale que votre téléphone utilisera à proximité — généralement plus rapide que Relay. Relay reste fonctionnel quand vous êtes loin.",
           "step2RelayDisclosure": "Utiliser aussi un chemin local plus rapide"
         },
-        "MobileMachineNameField": {
+        "MachineNameField": {
           "label": "Nom de la machine",
-          "description": "Les appareils appairés voient « {{name}} ». Laissez vide pour utiliser le nom de l’ordinateur.",
-          "pending": "Les appareils appairés voient ce nom. Laissez vide pour utiliser le nom d’ordinateur détecté.",
+          "description": "Les autres appareils et hôtes voient « {{name}} ». Laissez vide pour utiliser le nom de l’ordinateur.",
+          "pending": "Les autres appareils et hôtes voient ce nom. Laissez vide pour utiliser le nom d’ordinateur détecté.",
           "placeholder": "Détecté automatiquement"
         },
         "MobileRelayBetaAvailability": {

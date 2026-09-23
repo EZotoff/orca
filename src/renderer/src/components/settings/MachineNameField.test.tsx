@@ -23,15 +23,15 @@ const mocks = vi.hoisted(() => {
 vi.mock('@/store', () => ({ useAppStore: mocks.useAppStore }))
 vi.mock('../../store', () => ({ useAppStore: mocks.useAppStore }))
 
-import { MobileMachineNameField } from './MobileMachineNameField'
+import { MachineNameField } from './MachineNameField'
 
-function renderField(machineName: string) {
+function renderField(machineName: string, id?: string) {
   mocks.holder.state = { settings: { machineName }, updateSettings: mocks.updateSettings }
-  render(<MobileMachineNameField />)
+  render(<MachineNameField id={id} />)
   return { user: userEvent.setup() }
 }
 
-describe('MobileMachineNameField', () => {
+describe('MachineNameField', () => {
   beforeEach(() => {
     mocks.getStatus.mockReset()
     mocks.updateSettings.mockReset().mockResolvedValue(undefined)
@@ -41,7 +41,10 @@ describe('MobileMachineNameField', () => {
     })
   })
 
-  afterEach(() => cleanup())
+  afterEach(() => {
+    cleanup()
+    Reflect.deleteProperty(window, '__ORCA_WEB_CLIENT__')
+  })
 
   it('shows the detected name as the blank default and lets the user set an override', async () => {
     mocks.getStatus.mockResolvedValue({ machineName: 'm4airs-Air' })
@@ -50,7 +53,7 @@ describe('MobileMachineNameField', () => {
     expect(await screen.findByPlaceholderText('m4airs-Air')).toBeVisible()
     expect(
       screen.getByText(
-        'Paired devices see “m4airs-Air”. Leave this blank to use the computer’s own name.'
+        'Other devices and hosts see “m4airs-Air”. Leave this blank to use the computer’s own name.'
       )
     ).toBeVisible()
 
@@ -68,9 +71,50 @@ describe('MobileMachineNameField', () => {
 
     expect(
       screen.getByText(
-        'Paired devices see “QA Override Desk”. Leave this blank to use the computer’s own name.'
+        'Other devices and hosts see “QA Override Desk”. Leave this blank to use the computer’s own name.'
       )
     ).toBeVisible()
     expect(mocks.getStatus).not.toHaveBeenCalled()
+  })
+
+  it('commits on Enter without submitting an enclosing host form', async () => {
+    // Why: the add-host dialogs mount this field inside a form whose submit saves a host.
+    mocks.getStatus.mockResolvedValue({ machineName: 'm4airs-Air' })
+    const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault())
+    mocks.holder.state = { settings: { machineName: '' }, updateSettings: mocks.updateSettings }
+    render(
+      <form onSubmit={onSubmit}>
+        <MachineNameField id="add-remote-host-machine-name" />
+        <button type="submit">Save</button>
+      </form>
+    )
+    const user = userEvent.setup()
+
+    await user.type(screen.getByRole('textbox', { name: 'Machine name' }), 'build-server{Enter}')
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(mocks.updateSettings).toHaveBeenCalledWith({ machineName: 'build-server' })
+  })
+
+  it('keys the input, label, and caption off the mount id so two surfaces never collide', async () => {
+    mocks.getStatus.mockResolvedValue({ machineName: 'm4airs-Air' })
+    renderField('', 'ssh-target-machine-name')
+    await act(async () => {})
+
+    const input = screen.getByRole('textbox', { name: 'Machine name' })
+    expect(input).toHaveAttribute('id', 'ssh-target-machine-name')
+    expect(input).toHaveAccessibleDescription(
+      'Other devices and hosts see “m4airs-Air”. Leave this blank to use the computer’s own name.'
+    )
+  })
+
+  it('renders nothing in the web client, which has no machine of its own to name', async () => {
+    Object.defineProperty(window, '__ORCA_WEB_CLIENT__', { configurable: true, value: true })
+    mocks.getStatus.mockResolvedValue({ machineName: 'remote-host' })
+    mocks.holder.state = { settings: { machineName: '' }, updateSettings: mocks.updateSettings }
+    const { container } = render(<MachineNameField />)
+    await act(async () => {})
+
+    expect(container).toBeEmptyDOMElement()
   })
 })

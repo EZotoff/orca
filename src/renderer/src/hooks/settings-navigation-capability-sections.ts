@@ -182,7 +182,10 @@ export function buildSetupSettingsSections({
         'Workspace defaults, app setup, and maintenance.'
       ),
       icon: SlidersHorizontal,
-      searchEntries: getGeneralPaneSearchEntries({ includeProjectRuntime: isLocalWindowsHost }),
+      searchEntries: getGeneralPaneSearchEntries({
+        includeProjectRuntime: isLocalWindowsHost,
+        includeMachineName: showDesktopOnlySettings
+      }),
       group: 'setup'
     },
     {

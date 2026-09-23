@@ -6071,7 +6071,8 @@
           "5cb5475664": "ピン留めしたタブを閉じる前に確認",
           "36b2a5dc6d": "ピン留めしたタブを閉じる前に確認ダイアログを表示します。",
           "projectRuntime": "プロジェクトのランタイム",
-          "projectRuntimeDescription": "個別に指定していないローカル Windows プロジェクトの既定のランタイム。"
+          "projectRuntimeDescription": "個別に指定していないローカル Windows プロジェクトの既定のランタイム。",
+          "thisComputer": "このコンピューター"
         },
         "GeneralSupportSection": {
           "af7d9f4396": "サポートありがとうございます!",
@@ -8608,6 +8609,20 @@
             }
           }
         },
+        "machine": {
+          "name": {
+            "search": {
+              "title": "マシン名",
+              "description": "他のデバイスやホストでこのコンピューターを表示する名前を選びます。",
+              "machineName": "マシン名",
+              "machine": "マシン",
+              "hostname": "ホスト名",
+              "computer": "コンピューター",
+              "rename": "名前変更",
+              "name": "名前"
+            }
+          }
+        },
         "mobile": {
           "emulator": {
             "search": {
@@ -8688,17 +8703,7 @@
               "4a0c826f3d": "コード",
               "3c1807a81a": "qr",
               "7fb728fb2b": "QR コードをスキャンしてモバイルデバイスをペアリングします。",
-              "d49925710a": "モバイルペアリング",
-              "machineName": {
-                "title": "マシン名",
-                "description": "ペアリングされたデバイスでこのコンピューターを表示する名前を選びます。",
-                "keyword": {
-                  "machine": "マシン",
-                  "hostname": "ホスト名",
-                  "computer": "コンピューター",
-                  "rename": "名前変更"
-                }
-              }
+              "d49925710a": "モバイルペアリング"
             }
           },
           "settings": {
@@ -9897,10 +9902,10 @@
           "step2RelayDescription": "任意。近く（同じ Wi‑Fi または Tailscale）にいるときにスマホが使うアドレスを選びます。通常は Relay より高速です。外出中は引き続き Relay が使われます。",
           "step2RelayDisclosure": "より速いローカル経路も使う"
         },
-        "MobileMachineNameField": {
+        "MachineNameField": {
           "label": "マシン名",
-          "description": "ペアリングされたデバイスには「{{name}}」と表示されます。空欄にするとコンピューター自身の名前を使います。",
-          "pending": "ペアリングされたデバイスにはこの名前が表示されます。空欄にすると検出されたコンピューター名を使います。",
+          "description": "他のデバイスやホストには「{{name}}」と表示されます。空欄にするとコンピューター自身の名前を使います。",
+          "pending": "他のデバイスやホストにはこの名前が表示されます。空欄にすると検出されたコンピューター名を使います。",
           "placeholder": "自動検出"
         },
         "MobileRelayBetaAvailability": {

@@ -6137,7 +6137,8 @@
           "5cb5475664": "关闭固定标签页前确认",
           "36b2a5dc6d": "关闭固定标签页前显示确认对话框。",
           "projectRuntime": "项目运行时",
-          "projectRuntimeDescription": "不覆盖此项的本地 Windows 项目的默认运行时。"
+          "projectRuntimeDescription": "不覆盖此项的本地 Windows 项目的默认运行时。",
+          "thisComputer": "这台电脑"
         },
         "GeneralSupportSection": {
           "af7d9f4396": "感谢您的支持！",
@@ -8641,6 +8642,20 @@
             }
           }
         },
+        "machine": {
+          "name": {
+            "search": {
+              "title": "机器名称",
+              "description": "选择其他设备和主机用来显示这台电脑的名称。",
+              "machineName": "机器名称",
+              "machine": "机器",
+              "hostname": "主机名",
+              "computer": "电脑",
+              "rename": "重命名",
+              "name": "名称"
+            }
+          }
+        },
         "mobile": {
           "emulator": {
             "search": {
@@ -8721,17 +8736,7 @@
               "4a0c826f3d": "代码",
               "3c1807a81a": "qr",
               "7fb728fb2b": "通过扫描二维码来配对手机设备。",
-              "d49925710a": "手机配对",
-              "machineName": {
-                "title": "机器名称",
-                "description": "选择配对设备用来显示这台电脑的名称。",
-                "keyword": {
-                  "machine": "机器",
-                  "hostname": "主机名",
-                  "computer": "电脑",
-                  "rename": "重命名"
-                }
-              }
+              "d49925710a": "手机配对"
             }
           },
           "settings": {
@@ -9967,10 +9972,10 @@
           "step2RelayDescription": "可选。选择手机在附近（同一 Wi‑Fi 或 Tailscale）时使用的地址，通常比 Relay 更快。外出时仍走 Relay。",
           "step2RelayDisclosure": "也可使用更快的本地连接"
         },
-        "MobileMachineNameField": {
+        "MachineNameField": {
           "label": "机器名称",
-          "description": "配对设备会看到“{{name}}”。留空则使用这台电脑自己的名称。",
-          "pending": "配对设备会看到此名称。留空则使用检测到的电脑名称。",
+          "description": "其他设备和主机会看到“{{name}}”。留空则使用这台电脑自己的名称。",
+          "pending": "其他设备和主机会看到此名称。留空则使用检测到的电脑名称。",
           "placeholder": "自动检测"
         },
         "MobileRelayBetaAvailability": {

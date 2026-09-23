@@ -6076,7 +6076,8 @@
           "5cb5475664": "고정된 탭을 닫기 전에 확인",
           "36b2a5dc6d": "고정된 탭을 닫기 전에 확인 대화상자를 표시합니다.",
           "projectRuntime": "프로젝트 런타임",
-          "projectRuntimeDescription": "별도로 재정의하지 않은 로컬 Windows 프로젝트의 기본 런타임입니다."
+          "projectRuntimeDescription": "별도로 재정의하지 않은 로컬 Windows 프로젝트의 기본 런타임입니다.",
+          "thisComputer": "이 컴퓨터"
         },
         "GeneralSupportSection": {
           "af7d9f4396": "지원해 주셔서 감사합니다!",
@@ -8576,6 +8577,20 @@
             }
           }
         },
+        "machine": {
+          "name": {
+            "search": {
+              "title": "머신 이름",
+              "description": "다른 장치와 호스트에서 이 컴퓨터를 표시할 이름을 선택합니다.",
+              "machineName": "머신 이름",
+              "machine": "머신",
+              "hostname": "호스트 이름",
+              "computer": "컴퓨터",
+              "rename": "이름 변경",
+              "name": "이름"
+            }
+          }
+        },
         "mobile": {
           "emulator": {
             "search": {
@@ -8656,17 +8671,7 @@
               "4a0c826f3d": "코드",
               "3c1807a81a": "qr",
               "7fb728fb2b": "QR 코드를 스캔하여 모바일 장치를 페어링하세요.",
-              "d49925710a": "모바일 페어링",
-              "machineName": {
-                "title": "머신 이름",
-                "description": "페어링된 장치에서 이 컴퓨터를 표시할 이름을 선택합니다.",
-                "keyword": {
-                  "machine": "머신",
-                  "hostname": "호스트 이름",
-                  "computer": "컴퓨터",
-                  "rename": "이름 변경"
-                }
-              }
+              "d49925710a": "모바일 페어링"
             }
           },
           "settings": {
@@ -9902,10 +9907,10 @@
           "step2RelayDescription": "선택 사항. 근처에 있을 때(같은 Wi‑Fi 또는 Tailscale) 휴대폰이 사용할 주소를 고르세요. 보통 Relay보다 빠릅니다. 외부에 있을 때는 여전히 Relay를 사용합니다.",
           "step2RelayDisclosure": "더 빠른 로컬 경로도 사용"
         },
-        "MobileMachineNameField": {
+        "MachineNameField": {
           "label": "머신 이름",
-          "description": "페어링된 장치에는 “{{name}}”(으)로 표시됩니다. 비워 두면 컴퓨터 자체의 이름을 사용합니다.",
-          "pending": "페어링된 장치에는 이 이름이 표시됩니다. 비워 두면 감지된 컴퓨터 이름을 사용합니다.",
+          "description": "다른 장치와 호스트에는 “{{name}}”(으)로 표시됩니다. 비워 두면 컴퓨터 자체의 이름을 사용합니다.",
+          "pending": "다른 장치와 호스트에는 이 이름이 표시됩니다. 비워 두면 감지된 컴퓨터 이름을 사용합니다.",
           "placeholder": "자동으로 감지됨"
         },
         "MobileRelayBetaAvailability": {

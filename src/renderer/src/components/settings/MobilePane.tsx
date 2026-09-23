@@ -9,7 +9,7 @@ import {
 import { useMobilePairingDevicePolling } from './mobile-pairing-device-polling'
 import { useMobilePairedDeviceRevocation } from './use-mobile-paired-device-revocation'
 import type { MobileNetworkInterface } from './mobile-network-interface-selection'
-import { MobileMachineNameField } from './MobileMachineNameField'
+import { MachineNameField } from './MachineNameField'
 import { MobilePairingQrSection } from './MobilePairingQrSection'
 import { MobilePairedDevicesSection } from './MobilePairedDevicesSection'
 import { MobileAutoRestoreFitSection } from './MobileAutoRestoreFitSection'
@@ -365,7 +365,7 @@ export function MobilePane(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      <MobileMachineNameField />
+      <MachineNameField id="mobile-machine-name" />
 
       <MobilePairingSetupSection
         connectionMode={connectionMode}

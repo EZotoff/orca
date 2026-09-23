@@ -2,6 +2,7 @@ import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { matchesSettingsSearch, normalizeSettingsSearchQuery } from './settings-search'
+import { getMachineNameSearchEntries } from './machine-name-search'
 
 const getNetworkInterfaceSearchEntries = createLocalizedCatalog(() => [
   {
@@ -121,33 +122,13 @@ export const getMobilePaneSearchEntries = createLocalizedCatalog(() => [
       ...translateSearchKeyword('auto.components.settings.mobile.pane.search.dbccde3a60', 'close')
     ]
   },
-  {
-    title: translate(
-      'auto.components.settings.mobile.pane.search.machineName.title',
-      'Machine name'
-    ),
-    description: translate(
-      'auto.components.settings.mobile.pane.search.machineName.description',
-      'Choose the name paired devices list this computer under.'
-    ),
+  // Why: the machine name is one setting shown on several panes; the Mobile pane only adds its
+  // own keyword so "mobile machine name" still lands here.
+  ...getMachineNameSearchEntries().map((entry) => ({
+    ...entry,
     keywords: [
       ...translateSearchKeyword('auto.components.settings.mobile.pane.search.6db86f445f', 'mobile'),
-      ...translateSearchKeyword(
-        'auto.components.settings.mobile.pane.search.machineName.keyword.machine',
-        'machine'
-      ),
-      ...translateSearchKeyword(
-        'auto.components.settings.mobile.pane.search.machineName.keyword.hostname',
-        'hostname'
-      ),
-      ...translateSearchKeyword(
-        'auto.components.settings.mobile.pane.search.machineName.keyword.computer',
-        'computer'
-      ),
-      ...translateSearchKeyword(
-        'auto.components.settings.mobile.pane.search.machineName.keyword.rename',
-        'rename'
-      )
+      ...(entry.keywords ?? [])
     ]
-  }
+  }))
 ])

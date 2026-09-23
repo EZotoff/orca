@@ -109,6 +109,21 @@ describe('GeneralPane search entries', () => {
     expect(matchesSettingsSearch('red underline', entries)).toBe(true)
   })
 
+  it('lands machine-name searches on the This computer section', () => {
+    const entries = getGeneralPaneSearchEntries()
+
+    expect(matchesSettingsSearch('machine name', entries)).toBe(true)
+    expect(matchesSettingsSearch('hostname', entries)).toBe(true)
+    expect(matchesSettingsSearch('rename', entries)).toBe(true)
+  })
+
+  it('omits the machine name for the web client, which has no machine of its own to name', () => {
+    const entries = getGeneralPaneSearchEntries({ includeMachineName: false })
+
+    expect(matchesSettingsSearch('machine name', entries)).toBe(false)
+    expect(matchesSettingsSearch('hostname', entries)).toBe(false)
+  })
+
   it('makes the running-terminal confirmation setting searchable', () => {
     const entries = getGeneralPaneSearchEntries()
 

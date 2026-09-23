@@ -6086,7 +6086,8 @@
           "5cb5475664": "Confirmar antes de cerrar pestañas fijadas",
           "36b2a5dc6d": "Muestra un diálogo de confirmación antes de cerrar una pestaña fijada.",
           "projectRuntime": "Runtime del proyecto",
-          "projectRuntimeDescription": "Runtime predeterminado para proyectos locales de Windows que no lo sobrescriben."
+          "projectRuntimeDescription": "Runtime predeterminado para proyectos locales de Windows que no lo sobrescriben.",
+          "thisComputer": "Este equipo"
         },
         "GeneralSupportSection": {
           "af7d9f4396": "¡Gracias por el apoyo!",
@@ -8586,6 +8587,20 @@
             }
           }
         },
+        "machine": {
+          "name": {
+            "search": {
+              "title": "Nombre del equipo",
+              "description": "Elige el nombre con el que otros dispositivos y hosts muestran este equipo.",
+              "machineName": "nombre del equipo",
+              "machine": "máquina",
+              "hostname": "hostname",
+              "computer": "equipo",
+              "rename": "renombrar",
+              "name": "nombre"
+            }
+          }
+        },
         "mobile": {
           "emulator": {
             "search": {
@@ -8666,17 +8681,7 @@
               "4a0c826f3d": "código",
               "3c1807a81a": "QR",
               "7fb728fb2b": "Empareje un dispositivo móvil escaneando un código QR.",
-              "d49925710a": "Emparejamiento móvil",
-              "machineName": {
-                "title": "Nombre del equipo",
-                "description": "Elige el nombre con el que los dispositivos emparejados muestran este equipo.",
-                "keyword": {
-                  "machine": "máquina",
-                  "hostname": "hostname",
-                  "computer": "equipo",
-                  "rename": "renombrar"
-                }
-              }
+              "d49925710a": "Emparejamiento móvil"
             }
           },
           "settings": {
@@ -9897,10 +9902,10 @@
           "step2RelayDescription": "Opcional. Elige la dirección Wi‑Fi o Tailscale que el teléfono usará cuando esté cerca — suele ser más rápido que Relay. Relay sigue funcionando cuando estás fuera.",
           "step2RelayDisclosure": "También usar una ruta local más rápida"
         },
-        "MobileMachineNameField": {
+        "MachineNameField": {
           "label": "Nombre del equipo",
-          "description": "Los dispositivos emparejados ven “{{name}}”. Déjalo en blanco para usar el nombre propio del equipo.",
-          "pending": "Los dispositivos emparejados ven este nombre. Déjalo en blanco para usar el nombre detectado del equipo.",
+          "description": "Otros dispositivos y hosts ven “{{name}}”. Déjalo en blanco para usar el nombre propio del equipo.",
+          "pending": "Otros dispositivos y hosts ven este nombre. Déjalo en blanco para usar el nombre detectado del equipo.",
           "placeholder": "Detectado automáticamente"
         },
         "MobileRelayBetaAvailability": {
