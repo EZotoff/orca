@@ -108,6 +108,15 @@ describe('MachineNameField', () => {
     )
   })
 
+  it('places a host class on its own root so a grid slot disappears with it', async () => {
+    mocks.getStatus.mockResolvedValue({ machineName: 'm4airs-Air' })
+    mocks.holder.state = { settings: { machineName: '' }, updateSettings: mocks.updateSettings }
+    const { container } = render(<MachineNameField className="mp-pairing-machine" />)
+    await act(async () => {})
+
+    expect(container.firstElementChild).toHaveClass('mp-pairing-machine', 'space-y-2')
+  })
+
   it('renders nothing in the web client, which has no machine of its own to name', async () => {
     Object.defineProperty(window, '__ORCA_WEB_CLIENT__', { configurable: true, value: true })
     mocks.getStatus.mockResolvedValue({ machineName: 'remote-host' })

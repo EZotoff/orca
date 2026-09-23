@@ -1,6 +1,7 @@
 import { useAppStore } from '../../store'
 import { translate } from '@/i18n/i18n'
 import { isWebClientLocation } from '@/lib/web-client-location'
+import { cn } from '@/lib/utils'
 import { MACHINE_NAME_MAX_LENGTH } from '../../../../shared/machine-name'
 import { DebouncedSettingsTextInput } from './DebouncedSettingsTextInput'
 import { usePublishedMachineName } from './use-published-machine-name'
@@ -8,6 +9,8 @@ import { usePublishedMachineName } from './use-published-machine-name'
 type MachineNameFieldProps = {
   /** Distinct per mount so two surfaces in one DOM never share an input id. */
   id?: string
+  /** Applied to the root so a grid host can place the field without a wrapper that outlives it. */
+  className?: string
 }
 
 /**
@@ -15,7 +18,8 @@ type MachineNameFieldProps = {
  * default. One machine-wide setting, so every pairing or connect surface mounts this same field.
  */
 export function MachineNameField({
-  id = 'machine-name'
+  id = 'machine-name',
+  className
 }: MachineNameFieldProps): React.JSX.Element | null {
   const machineName = useAppStore((s) => s.settings?.machineName ?? '')
   const updateSettings = useAppStore((s) => s.updateSettings)
@@ -29,7 +33,7 @@ export function MachineNameField({
   }
 
   return (
-    <div className="space-y-2">
+    <div className={cn('space-y-2', className)}>
       <label htmlFor={id} className="text-xs font-medium text-foreground">
         {translate('auto.components.settings.MachineNameField.label', 'Machine name')}
       </label>

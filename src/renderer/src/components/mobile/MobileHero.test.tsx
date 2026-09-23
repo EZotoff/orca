@@ -28,8 +28,8 @@ vi.mock('./WindowsFirewallNotice', () => ({
 }))
 
 vi.mock('../settings/MachineNameField', () => ({
-  MachineNameField: ({ id }: { id?: string }) => (
-    <div data-testid="machine-name-field" data-id={id} />
+  MachineNameField: ({ id, className }: { id?: string; className?: string }) => (
+    <div data-testid="machine-name-field" data-id={id} className={className} />
   )
 }))
 
@@ -378,7 +378,9 @@ describe('HeroFlow height', () => {
     expect(field).toHaveAttribute('data-id', 'mobile-hero-machine-name')
     const qr = screen.getByRole('img', { name: 'Pairing QR' })
     expect(field.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(field.parentElement).toHaveClass('mp-pairing-machine')
+    // Why: the class rides on the field itself so the web client, where it renders nothing, gets
+    // no empty grid row.
+    expect(field).toHaveClass('mp-pairing-machine')
   })
 
   it('demotes the network address picker to a disclosure on Orca Relay', async () => {
