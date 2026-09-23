@@ -179,7 +179,7 @@ export function resolveClaudePaneStatus(
     })
   })
 }
-/** Sync the Claude lead-turn record when the SERVER infers an interrupt outside the hook stream (Ctrl+C or Esc with no Stop, which is what current Claude does on every cancel); else a later child lifecycle event resurrects the cancelled pane. This is the primary source of `mainAgent.outcome: 'cancellation'` in the CLI lane. */
+/** Sync the Claude lead-turn record when the SERVER infers an interrupt outside the hook stream (Ctrl+C with no Stop; current Claude sends no hook on a cancel, and a bare Esc is never inferred for Claude); else a later child lifecycle event resurrects the cancelled pane. This is the primary source of `mainAgent.outcome: 'cancellation'` in the CLI lane. */
 export function markClaudeLeadTurnInterrupted(state: HookListenerState, paneKey: string): void {
   setClaudeMainAgentTurnState(state, paneKey, { state: 'done', outcome: 'cancellation' })
   state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
