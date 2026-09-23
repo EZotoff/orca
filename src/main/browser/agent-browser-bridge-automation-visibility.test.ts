@@ -185,15 +185,13 @@ describe('AgentBrowserBridge', () => {
     expect(createdProxyIds).toEqual([200])
   })
 
-  it('runs commands queued behind a leased command against the re-registered page', async () => {
+  it('rejects commands queued behind a leased command whose page swaps guests', async () => {
     const tabs = new Map([['tab-1', 100]])
     const wc100 = mockWebContents(100)
     const wc200 = {
       ...mockWebContents(200, 'https://example.com/reloaded', 'Reloaded'),
       printToPDF: vi.fn(async () => Buffer.from('pdf'))
     }
-    wc100.debugger.sendCommand.mockResolvedValue({})
-    wc200.debugger.sendCommand.mockResolvedValue({})
     webContentsFromIdMock.mockImplementation((id: number) =>
       id === 100 ? wc100 : id === 200 ? wc200 : null
     )
@@ -203,7 +201,9 @@ describe('AgentBrowserBridge', () => {
       () =>
         new Promise<() => void>((resolve) => {
           releaseLease = () => {
+            // Why: mirrors browser:registerGuest, which reports the new guest to the bridge in the same tick.
             tabs.set('tab-1', 200)
+            void b.onProcessSwap('tab-1', 200, 100)
             resolve(() => {})
           }
         })
@@ -212,32 +212,16 @@ describe('AgentBrowserBridge', () => {
       mockBrowserManager(tabs, undefined, { acquireAutomationVisibility })
     )
     b.setActiveTab(100)
-
-    succeedWith({ snapshot: 'before' })
-    await b.snapshot()
+    succeedWith(null)
 
     const pdf = b.pdf(undefined, 'tab-1')
     await vi.waitFor(() => expect(releaseLease).not.toBeNull())
     const click = b.mouseClick(10, 20, 'left', undefined, 'tab-1')
-    succeedWith({ snapshot: 'after' })
-    const snapshot = b.snapshot(undefined, 'tab-1')
     releaseLease!()
 
-    await pdf
-    await click
-    await expect(snapshot).resolves.toEqual({ browserPageId: 'tab-1', snapshot: 'after' })
-    expect(wc100.debugger.sendCommand).not.toHaveBeenCalledWith(
-      'Input.dispatchMouseEvent',
-      expect.anything()
-    )
-    expect(wc200.debugger.sendCommand).toHaveBeenCalledWith(
-      'Input.dispatchMouseEvent',
-      expect.anything()
-    )
-    const createdProxyIds = CdpWsProxyMock.instances.map(
-      (instance) => (instance as { _wc?: { id?: number } })._wc?.id
-    )
-    expect(createdProxyIds).toEqual([100, 200])
+    await expect(click).rejects.toMatchObject({ code: 'browser_tab_closed' })
+    await expect(pdf).resolves.toEqual({ data: Buffer.from('pdf').toString('base64') })
+    expect(wc200.printToPDF).toHaveBeenCalled()
   })
 
   it('preserves intercept routes when automation visibility re-registers the webview', async () => {
@@ -258,6 +242,7 @@ describe('AgentBrowserBridge', () => {
     const acquireAutomationVisibility = vi.fn(async () => {
       if (reregisterOnVisibility) {
         tabs.set('tab-1', 200)
+        void b.onProcessSwap('tab-1', 200, 100)
       }
       return vi.fn()
     })

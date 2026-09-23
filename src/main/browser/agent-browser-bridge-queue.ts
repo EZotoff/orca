@@ -59,12 +59,11 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
     options: EnqueueTargetedCommandOptions = {}
   ): Promise<T> {
     this.assertCommandAdmission()
-    // Why: pick only the page here; its guest webContents can be re-registered while the command waits in the queue.
-    const pageId = this.resolveCommandTarget(
+    const { browserPageId: pageId } = this.resolveCommandTarget(
       worktreeId,
       browserPageId,
       options.requireScopedTarget
-    ).browserPageId
+    )
     const sessionName = `${ORCA_TAB_SESSION_PREFIX}${pageId}`
 
     return new Promise<T>((resolve, reject) => {
@@ -74,7 +73,7 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
         this.commandQueues.set(sessionName, queue)
       }
       queue.push({
-        execute: () => this.executeQueuedCommand(sessionName, worktreeId, pageId, execute, options),
+        execute: () => this.executeQueuedCommand(worktreeId, pageId, execute, options),
         resolve: resolve as (value: unknown) => void,
         reject
       })
@@ -83,13 +82,13 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
   }
 
   protected async executeQueuedCommand<T>(
-    sessionName: string,
     worktreeId: string | undefined,
     browserPageId: string,
     execute: (sessionName: string, target: ResolvedBrowserCommandTarget) => Promise<T>,
     options: EnqueueTargetedCommandOptions
   ): Promise<T> {
     this.assertCommandAdmission()
+    const sessionName = `${ORCA_TAB_SESSION_PREFIX}${browserPageId}`
     // Why: inactive panes are display:none; the automation lease makes only this target paintable without selecting it.
     const restore = options.needsPaint
       ? await this.browserManager.acquireAutomationVisibility(
@@ -97,42 +96,15 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
         )
       : undefined
     try {
-      // Why: resolve after the lease, since making a parked webview paintable can re-register the page.
-      return await execute(
-        sessionName,
-        await this.resolveSessionTarget(sessionName, worktreeId, browserPageId, options)
-      )
+      // Why: the page's guest can change while queued; bind to the one current at execution.
+      const target = this.resolveCommandTarget(worktreeId, browserPageId)
+      if (options.ensureSession !== false) {
+        await this.ensureSession(sessionName, browserPageId, target.webContentsId)
+      }
+      return await execute(sessionName, target)
     } finally {
       restore?.()
     }
-  }
-
-  protected async resolveSessionTarget(
-    sessionName: string,
-    worktreeId: string | undefined,
-    browserPageId: string,
-    options: EnqueueTargetedCommandOptions
-  ): Promise<ResolvedBrowserCommandTarget> {
-    const target = this.resolveCommandTarget(worktreeId, browserPageId)
-    if (options.ensureSession === false) {
-      return target
-    }
-    const boundWebContentsId = this.sessions.get(sessionName)?.webContentsId
-    if (boundWebContentsId === undefined || boundWebContentsId === target.webContentsId) {
-      await this.ensureSession(sessionName, target.browserPageId, target.webContentsId)
-      return target
-    }
-
-    if (this.activeWebContentsId === boundWebContentsId) {
-      this.activeWebContentsId = target.webContentsId
-    }
-    if (worktreeId && this.activeWebContentsPerWorktree.get(worktreeId) === boundWebContentsId) {
-      this.activeWebContentsPerWorktree.set(worktreeId, target.webContentsId)
-    }
-
-    // Why: the page was re-registered with a new guest webContents; the session still drives the old one.
-    await this.restartSessionForTarget(sessionName, target.browserPageId, target.webContentsId)
-    return target
   }
 
   protected async processQueue(sessionName: string): Promise<void> {
