@@ -38,6 +38,12 @@ function ShellEnvironmentNamesField({
     inputRef.current?.focus()
   }
 
+  const remove = (savedName: string): void => {
+    onChange(savedNames.filter((entry) => entry !== savedName))
+    // The chip's own button unmounts with it, so keyboard focus would otherwise drop to the page.
+    inputRef.current?.focus()
+  }
+
   return (
     <div className="space-y-2">
       <Label htmlFor={NAME_INPUT_ID}>
@@ -93,7 +99,7 @@ function ShellEnvironmentNamesField({
               <Button
                 size="icon-xs"
                 variant="ghost"
-                onClick={() => onChange(savedNames.filter((entry) => entry !== savedName))}
+                onClick={() => remove(savedName)}
                 aria-label={translate(
                   'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNameRemove',
                   'Remove {{value0}}',

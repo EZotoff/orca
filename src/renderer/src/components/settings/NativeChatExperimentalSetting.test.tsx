@@ -168,7 +168,7 @@ describe('NativeChatExperimentalSetting shell environment', () => {
     expect(input.value).toBe('')
   })
 
-  it('removes one entry from its chip', () => {
+  it('removes one entry from its chip and moves focus to the input', () => {
     const updateSettings = vi.fn()
     const { container } = renderSetting(
       {
@@ -184,6 +184,7 @@ describe('NativeChatExperimentalSetting shell environment', () => {
     expect(updateSettings).toHaveBeenCalledWith({
       nativeChatShellEnvironmentVariables: ['HTTPS_PROXY', 'NO_PROXY']
     })
+    expect(document.activeElement).toBe(nameInput(container))
   })
 
   it('keeps a half-typed name across an unrelated settings re-render', () => {
