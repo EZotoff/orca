@@ -100,6 +100,8 @@ async function createHarness(options: { attached?: boolean; transport?: boolean 
     }),
     cancelTurn: async () => ({ cancelled: true }),
     answerPrompt: async () => undefined,
+    // A failed acquisition is proven gone, as the real adapters prove it.
+    releaseAcquisition: async () => true,
     setOption
   }
   const host = new StructuredAgentSessionHost({

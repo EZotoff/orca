@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runKeyedSerializedOperation } from '../../cli/keyed-promise-queue'
+import type { StructuredAgentSessionResumeOutcome } from './structured-agent-session-hold-resume'
 import { StructuredAgentSessionHolds } from './structured-agent-session-holds'
 
 const GRACE_MS = 15_000
@@ -22,6 +23,7 @@ function resumeHarness() {
   const resume = vi.fn(async () => {
     await resumeGate.promise
     child = true
+    return { ok: true as const }
   })
   const holds = new StructuredAgentSessionHolds({
     resume,
@@ -206,6 +208,7 @@ describe('a surface leaving while its structured session resumes', () => {
       resume: async () => {
         child = true
         await gate.promise
+        return { ok: true as const }
       },
       serialize: keyedSerialize(),
       hasProviderChild: () => child,
@@ -232,10 +235,11 @@ describe('a surface leaving while its structured session resumes', () => {
   it('starts a fresh resume once the failed one has settled', async () => {
     let child = false
     const resume = vi
-      .fn<() => Promise<void>>()
+      .fn<() => Promise<StructuredAgentSessionResumeOutcome>>()
       .mockRejectedValueOnce(new Error('first acquisition failed'))
       .mockImplementationOnce(async () => {
         child = true
+        return { ok: true }
       })
     const holds = new StructuredAgentSessionHolds({
       resume,

@@ -21,7 +21,6 @@ import type {
 import { releaseStoredStructuredAgentSessionOwner } from './structured-agent-session-lease-release'
 import { resumeHeldStructuredAgentSession } from './structured-agent-session-hold-resume'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
-import { attachStructuredAgentSessionUnderSerialize } from './structured-agent-session-attach-orchestration'
 import { settleStructuredAgentSessionDeadGeneration } from './structured-agent-session-dead-generation-settlement'
 
 export type StructuredAgentSessionLifetimeContext = {
@@ -174,15 +173,12 @@ export function createStructuredAgentSessionHolds(
 ): StructuredAgentSessionHolds {
   const context = attachContext()
   return new StructuredAgentSessionHolds({
-    resume: (sessionId) => {
-      const current = attachContext()
-      return resumeHeldStructuredAgentSession({
+    resume: (sessionId) =>
+      resumeHeldStructuredAgentSession({
         sessionId,
-        context: current,
-        attach: (params) =>
-          attachStructuredAgentSessionUnderSerialize(current, 'trusted-local:surface-hold', params)
-      })
-    },
+        context: attachContext(),
+        callerKey: 'trusted-local:surface-hold'
+      }),
     serialize: (sessionId, task) => attachContext().serialize(sessionId, task),
     evict: close,
     hasProviderChild: (sessionId) => hasProviderChild(context, sessionId),

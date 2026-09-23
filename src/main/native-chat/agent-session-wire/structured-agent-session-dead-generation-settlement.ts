@@ -32,6 +32,15 @@ export function unexpectedProviderExitOutcome(reason?: string): string {
     : UNEXPECTED_PROVIDER_EXIT_OUTCOME
 }
 
+/** A restart that produced no child, answered to the send that asked for it; its cause is the
+ *  whole story, and nothing is remembered, so the next try is a fresh one. */
+export function providerRestartFailureOutcome(reason?: string): string {
+  const detail = exitReasonDetail(reason)
+  return detail
+    ? `This chat's agent could not be restarted: ${detail}. Retry, or start a new chat.`
+    : "This chat's agent stopped and could not be restarted. Retry, or start a new chat."
+}
+
 /** A start that never finished has no response to interrupt; its cause is the whole story. */
 export function providerStartupFailureOutcome(reason?: string): string {
   const detail = exitReasonDetail(reason)

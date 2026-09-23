@@ -28,6 +28,7 @@ let root: string
 let store: AgentSessionRecordStore
 let host: StructuredAgentSessionHost
 let acquire: Mock<StructuredAgentSessionAdapter['acquire']>
+let spawnChild: StructuredAgentSessionAdapter['acquire']
 let dispatch: Mock<StructuredAgentSessionAdapter['dispatch']>
 let hostErrors: unknown[]
 
@@ -36,7 +37,7 @@ beforeEach(async () => {
   resetHostTestOperationIds()
   hostErrors = []
   let generation = 0
-  acquire = vi.fn(async ({ fence, spawnToken }) => ({
+  spawnChild = async ({ fence, spawnToken }) => ({
     process: { hostId: 'local', pid: 4242, processStartTimeMs: 1_700_000_000_000, spawnToken },
     acquisitionGeneration: `generation-${++generation}`,
     link: {
@@ -48,7 +49,8 @@ beforeEach(async () => {
       mintedAtFence: fence,
       observedAt: NOW
     }
-  }))
+  })
+  acquire = vi.fn(spawnChild)
   dispatch = vi.fn(async () => ({
     state: 'accepted' as const,
     providerIdentity: {
@@ -98,6 +100,17 @@ function sendParams(text: string, operationId = hostTestOperationId()) {
     })
   }
   return { envelope, body }
+}
+
+/** Every status row the chat shows, oldest first; none when the session is not even readable. */
+function journalStatuses(): string[] {
+  if (!host.hasSession(SESSION)) {
+    return []
+  }
+  const history = host.history({ sessionId: SESSION, direction: 'tail' })
+  return history.ok
+    ? history.page.items.flatMap((item) => (item.body.kind === 'status' ? [item.body.text] : []))
+    : []
 }
 
 /** The child timed out or exited: its lease is handed back and the host holds no session. */
@@ -378,7 +391,7 @@ describe('a send with no live owner', () => {
     expect(host['holds'].isReleasePending(SESSION)).toBe(false)
   })
 
-  it('refuses for good when the owner cannot be restarted', async () => {
+  it('refuses for good when the owner cannot be restarted, saying why in the answer and in the chat', async () => {
     await loseOwner()
     acquire.mockRejectedValue(new Error('no provider thread to resume'))
 
@@ -388,7 +401,11 @@ describe('a send with no live owner', () => {
       ok: false,
       refusal: {
         code: 'agent_session_owner_unrecoverable',
-        message: expect.stringMatching(/new chat/)
+        message: expect.stringMatching(
+          /no provider thread to resume.*Retry, or start a new chat\.$/
+        ),
+        // The failed attach proved its child gone: nothing runs for this session.
+        ownerVerdict: 'exited'
       }
     })
     expect(dispatch).not.toHaveBeenCalled()
@@ -396,6 +413,54 @@ describe('a send with no live owner', () => {
     expect(
       agentSessionRefusalOperationState('agentSession.send', 'agent_session_owner_unrecoverable')
     ).toBe('settled-rejected')
+    // The same status row a failed start leaves, so the reason outlives the error strip.
+    expect(journalStatuses()).toEqual([expect.stringContaining('no provider thread to resume')])
+
+    // Nothing is remembered: a Retry under a new id is a fresh attempt, and this one succeeds.
+    acquire.mockReset()
+    acquire.mockImplementation(spawnChild)
+    await expect(host.send(CALLER, sendParams('nothing to resume'))).resolves.toMatchObject({
+      ok: true
+    })
+  })
+
+  it('runs the send as the lease stands when the restart met a lease someone else is settling', async () => {
+    await loseOwner()
+    vi.spyOn(host['holds'], 'ensureProviderChild').mockResolvedValueOnce({
+      ok: false,
+      refusal: {
+        code: 'execution_owner_reconciling',
+        message: 'Another runtime is still adjudicating this lease.'
+      }
+    })
+
+    const result = await host.send(CALLER, sendParams('owner being settled'))
+
+    // The ordinary lease check answers, retryably; nothing terminal and nothing in the chat.
+    expect(result).toMatchObject({
+      ok: false,
+      refusal: { code: 'agent_session_ownership_unknown' }
+    })
+    expect(acquire).not.toHaveBeenCalled()
+    expect(journalStatuses()).toEqual([])
+  })
+
+  it('runs the send as the lease stands when the restart itself faults', async () => {
+    await loseOwner()
+    vi.spyOn(host['holds'], 'ensureProviderChild').mockRejectedValueOnce(
+      new Error('spawn-token mint failed')
+    )
+
+    const result = await host.send(CALLER, sendParams('bookkeeping failed'))
+
+    expect(result).toMatchObject({
+      ok: false,
+      refusal: { code: 'agent_session_ownership_unknown' }
+    })
+    expect(hostErrors).toContainEqual(
+      expect.objectContaining({ message: 'spawn-token mint failed' })
+    )
+    expect(journalStatuses()).toEqual([])
   })
 
   it('keeps a second surface holder taken during an auto-restart, and starts nothing for it', async () => {

@@ -5,7 +5,8 @@
 // yet" and resends forever — and only a surface hold could ever make a new child. Now the send
 // makes sure it has an owner as a step of its own serialized admission: a released lease where
 // resume is allowed gets a child first; anything else runs as it is and meets the lease check.
-// A restart that fails for good refuses with a code the client stops on.
+// A restart that fails for good refuses with a code the client stops on, carrying the cause, and
+// writes that cause into the chat the way a start that failed does, so the user sees why.
 //
 // The ledger's answer comes first, so a send it already holds a row for restarts nothing:
 // admission replays or refuses it whoever owns the session now, and a closed session is made
@@ -22,25 +23,39 @@ import type {
   AgentSessionMutationEnvelope,
   AgentSessionWireRefusal
 } from '../../../shared/agent-session-wire'
+import type { AgentSessionWireRefusalCode } from '../../../shared/agent-session-wire-refusals'
+import { boundJournalStatusText } from '../agent-session-journal/journal-prompt-body-bounds'
+import { providerRestartFailureOutcome } from './structured-agent-session-dead-generation-settlement'
 import type { StructuredAgentSessionHostSession } from './structured-agent-session-host-types'
 import type { StructuredAgentSessionMutationContext } from './structured-agent-session-host-mutations'
 import type { AgentSessionMutationSessionPreparation } from './structured-agent-session-mutation-admission'
 import { isResumableStructuredAgentSessionRecord } from './structured-agent-session-resume-eligibility'
 import { rewindRefusal } from './structured-rewind-refusal'
 
-export const AGENT_SESSION_OWNER_UNRECOVERABLE: AgentSessionWireRefusal = {
-  code: 'agent_session_owner_unrecoverable',
-  message: "This chat's agent stopped and could not be restarted. Retry, or start a new chat."
+/**
+ * What a refused resume means for the send that ran it. `transient`: the resume met a lease
+ * someone else is settling, which is not proof it cannot resume — the send runs as the lease
+ * stands and admission reports it. `terminal`: the restart itself failed; the send answers with
+ * the cause and stops the client's retry loop. A new wire code does not compile until it is
+ * classified here.
+ */
+const RESUME_REFUSAL_OUTCOME: Record<AgentSessionWireRefusalCode, 'transient' | 'terminal'> = {
+  execution_owner_reconciling: 'transient',
+  agent_session_conflict: 'transient',
+  agent_session_checkpoint_stale: 'transient',
+  agent_session_ownership_unknown: 'transient',
+  agent_session_operation_capacity: 'transient',
+  structured_agent_session_unsupported: 'terminal',
+  agent_session_operation_conflict: 'terminal',
+  agent_session_operation_expired: 'terminal',
+  agent_session_operation_invalid: 'terminal',
+  agent_session_operation_unknown: 'terminal',
+  agent_session_item_revision_stale: 'terminal',
+  agent_session_already_resolved: 'terminal',
+  agent_session_identity_required: 'terminal',
+  agent_session_journal_unreadable: 'terminal',
+  agent_session_owner_unrecoverable: 'terminal'
 }
-
-// A resume refused this way met a lease someone else is settling — not proof it cannot resume.
-const TRANSIENT_RESUME_REFUSALS: ReadonlySet<string> = new Set([
-  'execution_owner_reconciling',
-  'agent_session_conflict',
-  'agent_session_checkpoint_stale',
-  'agent_session_ownership_unknown',
-  'agent_session_operation_capacity'
-])
 
 /** Why the record refuses any send right now, whoever owns it; null when a send may run. */
 export function structuredAgentSessionSendBlock(
@@ -83,11 +98,13 @@ export function structuredAgentSessionSendNeedsOwner(
   )
 }
 
+type SendPreparationContext = Pick<
+  StructuredAgentSessionMutationContext,
+  'deps' | 'sessions' | 'holds' | 'restoreReadable' | 'publish' | 'now'
+>
+
 export async function prepareStructuredAgentSessionSend(
-  context: Pick<
-    StructuredAgentSessionMutationContext,
-    'deps' | 'sessions' | 'holds' | 'restoreReadable'
-  >,
+  context: SendPreparationContext,
   envelope: AgentSessionMutationEnvelope,
   ledger: 'admit' | 'replay',
   record: AgentSessionRecord
@@ -100,16 +117,82 @@ export async function prepareStructuredAgentSessionSend(
     return { ok: true, envelope }
   }
   if (structuredAgentSessionSendNeedsOwner(context.sessions.get(sessionId), record)) {
-    try {
-      await context.holds.ensureProviderChild(sessionId)
-    } catch (error) {
-      if (!(error instanceof Error && TRANSIENT_RESUME_REFUSALS.has(error.message))) {
-        context.deps.onEventSinkError?.({ sessionId, error })
-        return { ok: false, refusal: AGENT_SESSION_OWNER_UNRECOVERABLE }
-      }
+    const refusal = await restartOwnerForSend(context, sessionId)
+    if (refusal) {
+      return { ok: false, refusal }
     }
   }
   return { ok: true, envelope: admitAtResumedFence(context.sessions.get(sessionId), envelope) }
+}
+
+/** One restart attempt. Answers with the refusal that ends the send, or null when the send goes
+ *  on to admission — after a child, after a transient refusal, or after a fault in the restart's
+ *  own bookkeeping, which is reported and never gates the user's action. */
+async function restartOwnerForSend(
+  context: SendPreparationContext,
+  sessionId: string
+): Promise<AgentSessionWireRefusal | null> {
+  let resumed: Awaited<ReturnType<typeof context.holds.ensureProviderChild>>
+  try {
+    resumed = await context.holds.ensureProviderChild(sessionId)
+  } catch (error) {
+    context.deps.onEventSinkError?.({ sessionId, error })
+    return null
+  }
+  if (resumed.ok || RESUME_REFUSAL_OUTCOME[resumed.refusal.code] === 'transient') {
+    return null
+  }
+  const refusal = ownerUnrecoverableRefusal(resumed.refusal)
+  context.deps.onEventSinkError?.({
+    sessionId,
+    error: new Error(`${resumed.refusal.code}: ${resumed.refusal.message}`)
+  })
+  await recordFailedRestart(context, sessionId, refusal.message)
+  return refusal
+}
+
+/** The client stops on the code; the message says why, and the verdict — when the failed attach
+ *  proved its child gone — tells a client that nothing is running for the session. */
+function ownerUnrecoverableRefusal(cause: AgentSessionWireRefusal): AgentSessionWireRefusal {
+  return {
+    code: 'agent_session_owner_unrecoverable',
+    message: providerRestartFailureOutcome(cause.message),
+    ...(cause.ownerVerdict ? { ownerVerdict: cause.ownerVerdict } : {})
+  }
+}
+
+/** The same status row a start that failed leaves in the chat, so the reason outlives the error
+ *  strip. The journal is made readable for it when the failed attach left none behind. */
+async function recordFailedRestart(
+  context: SendPreparationContext,
+  sessionId: string,
+  text: string
+): Promise<void> {
+  try {
+    if (!context.sessions.has(sessionId)) {
+      await context.restoreReadable(sessionId)
+    }
+    const session = context.sessions.get(sessionId)
+    if (!session) {
+      return
+    }
+    const settlementId = `failed-restart:${sessionId}:${session.fence}:${context.now()}`
+    await session.journal.appendLifecycleBatch({
+      settlementId,
+      fence: session.fence,
+      recovered: true,
+      mutations: [
+        {
+          kind: 'item',
+          identity: { provider: 'orca', clientMessageId: settlementId },
+          body: { kind: 'status', text: boundJournalStatusText(text) }
+        }
+      ]
+    })
+    context.publish(sessionId, session.journal)
+  } catch (error) {
+    context.deps.onEventSinkError?.({ sessionId, error })
+  }
 }
 
 /** A writer current as of the owner this child replaced is current now: the restart was the only

@@ -1,4 +1,3 @@
-import { attachStructuredAgentSessionUnderSerialize } from './structured-agent-session-attach-orchestration'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import type { StructuredAgentSessionLifecycleEvent } from './structured-agent-session-adapter'
 import type {
@@ -77,23 +76,23 @@ export class StructuredAgentSessionEventRecovery {
     // has already replaced the owner, and this attach then refuses on the stale ticket rather than
     // spawning a second child against the fence it moved.
     try {
-      await this.context.serialize(ticket.sessionId, () => {
-        const attachContext = this.context.attachContext()
-        return resumeHeldStructuredAgentSession({
+      const resumed = await this.context.serialize(ticket.sessionId, () =>
+        resumeHeldStructuredAgentSession({
           sessionId: ticket.sessionId,
-          context: attachContext,
-          attach: (params) =>
-            attachStructuredAgentSessionUnderSerialize(
-              attachContext,
-              'trusted-local:provider-exit-recovery',
-              params,
-              {
-                admitRecoveryTicket: () =>
-                  isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)
-              }
-            )
+          context: this.context.attachContext(),
+          callerKey: 'trusted-local:provider-exit-recovery',
+          attachOptions: {
+            admitRecoveryTicket: () =>
+              isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)
+          }
         })
-      })
+      )
+      if (!resumed.ok && isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)) {
+        this.context.onBarrierError(
+          ticket.sessionId,
+          new Error(`${resumed.refusal.code}: ${resumed.refusal.message}`)
+        )
+      }
     } catch (error) {
       if (isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)) {
         this.context.onBarrierError(ticket.sessionId, error)

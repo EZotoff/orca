@@ -21,11 +21,11 @@ import {
   type StructuredAgentSessionReleaseClockDeps
 } from './structured-agent-session-release-clock'
 import { StructuredAgentSessionHolders } from './structured-agent-session-holders'
+import type { StructuredAgentSessionResumeOutcome } from './structured-agent-session-hold-resume'
 
 export type StructuredAgentSessionHoldsDeps = {
-  /** Attaches a provider child, for a caller already inside `serialize`. Throws the refusal code
-   *  when it cannot. */
-  resume: (sessionId: string) => Promise<void>
+  /** Attaches a provider child, for a caller already inside `serialize`. */
+  resume: (sessionId: string) => Promise<StructuredAgentSessionResumeOutcome>
   serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
   /** Whether evicting this session would actually free anything. */
   hasProviderChild: (sessionId: string) => boolean
@@ -71,15 +71,30 @@ export class StructuredAgentSessionHolds {
     if (options.resume === false) {
       return
     }
+    let resumed: StructuredAgentSessionResumeOutcome
     try {
-      await this.deps.serialize(sessionId, () => this.ensureProviderChild(sessionId))
+      resumed = await this.deps.serialize(sessionId, () => this.ensureProviderChild(sessionId))
     } catch (error) {
-      // Only the holder this call added, at the incarnation it added: a same-ID hold that left
-      // and came back while this one waited owns the holder now, and its own attempt decides it.
-      if (!alreadyHeld && incarnation !== undefined) {
-        this.release(sessionId, holderId, incarnation)
-      }
+      this.releaseFailedHold(sessionId, holderId, alreadyHeld, incarnation)
       throw error
+    }
+    if (!resumed.ok) {
+      this.releaseFailedHold(sessionId, holderId, alreadyHeld, incarnation)
+      // The RPC surface raises a refusal as its code.
+      throw new Error(resumed.refusal.code)
+    }
+  }
+
+  /** Only the holder this call added, at the incarnation it added: a same-ID hold that left and
+   *  came back while this one waited owns the holder now, and its own attempt decides it. */
+  private releaseFailedHold(
+    sessionId: string,
+    holderId: string,
+    alreadyHeld: boolean,
+    incarnation: symbol | undefined
+  ): void {
+    if (!alreadyHeld && incarnation !== undefined) {
+      this.release(sessionId, holderId, incarnation)
     }
   }
 
@@ -92,18 +107,28 @@ export class StructuredAgentSessionHolds {
    * next caller to make its own. With no surface holding the session afterwards, the child goes
    * on the same clock a departed surface would start.
    */
-  async ensureProviderChild(sessionId: string): Promise<void> {
+  async ensureProviderChild(sessionId: string): Promise<StructuredAgentSessionResumeOutcome> {
     if (this.deps.hasProviderChild(sessionId)) {
-      return
+      return { ok: true }
     }
-    await this.deps.resume(sessionId)
+    const resumed = await this.deps.resume(sessionId)
+    if (!resumed.ok) {
+      return resumed
+    }
     if (!this.deps.hasProviderChild(sessionId)) {
-      throw new Error('agent_session_ownership_unknown')
+      return {
+        ok: false,
+        refusal: {
+          code: 'agent_session_ownership_unknown',
+          message: 'The session attached without a provider child to write to.'
+        }
+      }
     }
     // The last surface can disconnect before acquisition makes a child available to release.
     if (!this.disposed && !this.holders.isHeld(sessionId)) {
       this.clock.arm(sessionId)
     }
+    return { ok: true }
   }
 
   /** Journal activity; only an unheld session's pending release notices. */

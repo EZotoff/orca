@@ -178,6 +178,7 @@ describe('holds', () => {
     let child = false
     const resume = vi.fn(async () => {
       child = true
+      return { ok: true as const }
     })
     const holds = new StructuredAgentSessionHolds({
       resume,
@@ -206,6 +207,7 @@ describe('holds', () => {
     const resume = vi.fn(async () => {
       await gate.promise
       child = true
+      return { ok: true as const }
     })
     const serialize = keyedSerialize()
     const holds = new StructuredAgentSessionHolds({
@@ -222,7 +224,7 @@ describe('holds', () => {
     const hold = holds.hold('session-1', 'chat-1')
     gate.resolve()
 
-    await expect(writer).resolves.toBeUndefined()
+    await expect(writer).resolves.toEqual({ ok: true })
     await hold
     // The hold ran after the writer's step and found the child: nothing to resume.
     expect(resume).toHaveBeenCalledOnce()
@@ -238,6 +240,7 @@ describe('holds', () => {
     const holds = new StructuredAgentSessionHolds({
       resume: async () => {
         child = true
+        return { ok: true as const }
       },
       serialize,
       hasProviderChild: () => child,
@@ -256,7 +259,7 @@ describe('holds', () => {
   it('never arms the clock for a session with nothing to stop', async () => {
     const evict = vi.fn(async () => {})
     const holds = new StructuredAgentSessionHolds({
-      resume: async () => {},
+      resume: async () => ({ ok: true as const }),
       serialize: keyedSerialize(),
       hasProviderChild: () => false,
       isTurnActive: () => false,
@@ -275,7 +278,7 @@ describe('holds', () => {
 
   it('fails a write-capable hold when resume proves no provider child', async () => {
     const holds = new StructuredAgentSessionHolds({
-      resume: async () => {},
+      resume: async () => ({ ok: true as const }),
       serialize: keyedSerialize(),
       hasProviderChild: () => false,
       isTurnActive: () => false,
