@@ -25,6 +25,7 @@ import {
   type ClaudeManagedAccountGateSettings
 } from '../native-chat/claude-structured-managed-account-support'
 import { resolveClaudeCommand } from '../codex-cli/command'
+import { withoutInheritedClaudeConfigDir } from './claude-config-dir-pin'
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
 
 export const CLAUDE_DEFAULT_SETTING_SOURCES = ['user', 'project', 'local'] as const
@@ -69,24 +70,6 @@ function cloneDefinedEnv(env: NodeJS.ProcessEnv | Record<string, string>): Recor
   for (const [key, value] of Object.entries(env)) {
     if (value !== undefined) {
       next[key] = value
-    }
-  }
-  return next
-}
-
-/**
- * The record owns the Claude home and the acquisition pin (claudeConfigDirEnvPatch) is its sole
- * emitter: a shell-exported CLAUDE_CONFIG_DIR left in the base would flip that pin's comparison
- * and force an explicit pin to the CLI default, which moves the CLI off its default Keychain item.
- */
-function withoutInheritedClaudeConfigDir(
-  env: Record<string, string>,
-  platform: NodeJS.Platform
-): Record<string, string> {
-  const next = { ...env }
-  for (const key of Object.keys(next)) {
-    if ((platform === 'win32' ? key.toUpperCase() : key) === 'CLAUDE_CONFIG_DIR') {
-      delete next[key]
     }
   }
   return next
