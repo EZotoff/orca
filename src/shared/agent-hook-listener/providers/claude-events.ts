@@ -80,7 +80,7 @@ export function normalizeClaudeEvent(
       claudeMainAgentTurnInterrupted(previousLead))
       ? true
       : undefined
-  // Why: a verdict, never a guess — a plain Stop stays absent, so a cancel can never read as a
+  // Why: absent means unknown — a plain Stop never becomes `success`, so a cancel can never read as a
   // success. Current Claude sends NO hook on a cancel and no `is_interrupt` on Stop, so the
   // cancellation normally arrives through Orca's own inferred interrupt
   // (`markClaudeLeadTurnInterrupted`) and is carried forward here; `is_interrupt` on a turn

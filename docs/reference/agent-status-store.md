@@ -202,10 +202,13 @@ so a settled main agent whose subagent still runs reads `working`. `mainAgent` a
 "what is the main agent itself doing", which the fold used to destroy at publish
 time; every guard that reconstructed a fragment of it (`fromChildWork`, the
 persisted `claudeLeadBoundaryChildOnly` flag) is now derived from `mainAgent` plus
-the row's child evidence instead of stored. `outcome` is the provider's verdict
-on the main agent's most recent finished turn, present only while `mainAgent.state` is
-`done`; a plain end of turn carries none, because absent means unknown and a
-provider that omits its interrupt flag must not turn a cancel into a success.
+the row's child evidence instead of stored. `outcome` is the recorded verdict on
+the main agent's most recent finished turn, present only while `mainAgent.state` is
+`done`. It is reported by the provider, or is a `cancellation` Orca inferred
+from the user's own interrupt keystroke (the journal's turn outcome, by
+contrast, is never inferred). A plain end of turn carries none, because absent
+means unknown and a provider that omits its interrupt flag must not turn a
+cancel into a success.
 In the Claude hook lane the cancellation comes primarily from Orca's own
 inferred interrupt (`markClaudeLeadTurnInterrupted`), because current Claude
 sends no hook at all on a cancel and no `is_interrupt` on Stop; that flag on a

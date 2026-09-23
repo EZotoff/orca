@@ -7,8 +7,9 @@ import type { AgentJournalTurnOutcome } from './agent-turn-outcome'
  *  Persisted on disk and carried on every wire, so its shape is permanent. */
 export type AgentMainAgentStatus = {
   state: AgentStatusState
-  /** The provider's verdict on the main agent's most recent finished turn. Present only while
-   *  `state` is `done`; a new turn clears it. ABSENT MEANS UNKNOWN — a plain Stop never
+  /** The recorded verdict on the main agent's most recent finished turn: reported by the
+   *  provider, or `cancellation` inferred from the user's own interrupt keystroke. Present only
+   *  while `state` is `done`; a new turn clears it. ABSENT MEANS UNKNOWN — a plain Stop never
    *  infers `success`, because an older provider that omits its interrupt flag would turn
    *  a cancel into a false success. */
   outcome?: AgentJournalTurnOutcome

@@ -194,7 +194,7 @@ export const AGENT_JOURNAL_TURN_LIFECYCLE_STATES = [
 ] as const
 export type AgentJournalTurnLifecycleState = (typeof AGENT_JOURNAL_TURN_LIFECYCLE_STATES)[number]
 
-// The provider verdict vocabulary lives in agent-turn-outcome.ts so the agent-status
+// The turn verdict vocabulary lives in agent-turn-outcome.ts so the agent-status
 // row can share it without importing the journal; re-exported to keep one import site.
 export { AGENT_JOURNAL_TURN_OUTCOMES, type AgentJournalTurnOutcome } from './agent-turn-outcome'
 

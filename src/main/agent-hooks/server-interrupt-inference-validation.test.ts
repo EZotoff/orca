@@ -399,4 +399,47 @@ describe('the main agent fact on an inferred interrupt', () => {
       vi.useRealTimers()
     }
   })
+
+  it('keeps an already settled main agent behind a watch loop as it was', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000)
+    try {
+      const server = new AgentHookServer()
+      const settled = { state: 'done' as const, stateStartedAt: 800 }
+      server.ingestRemote(
+        {
+          paneKey: PANE,
+          tabId: 'tab-1',
+          worktreeId: 'wt-1',
+          payload: {
+            state: 'working',
+            workingMode: 'monitoring',
+            prompt: 'watch it',
+            agentType: 'grok',
+            mainAgent: settled
+          }
+        },
+        'conn-1'
+      )
+      const baseline = server.getStatusSnapshot()[0]
+      vi.setSystemTime(1_500)
+      expect(
+        server.inferInterrupt({
+          paneKey: PANE,
+          baselineUpdatedAt: baseline.receivedAt,
+          baselineStateStartedAt: baseline.stateStartedAt,
+          baselinePrompt: 'watch it',
+          baselineAgentType: 'grok',
+          intent: 'ctrl-c'
+        })
+      ).toBe(true)
+      expect(server.getStatusSnapshot()[0]).toMatchObject({
+        state: 'done',
+        interrupted: true,
+        mainAgent: settled
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

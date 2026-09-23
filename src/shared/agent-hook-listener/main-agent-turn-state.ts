@@ -4,7 +4,8 @@ import type { AgentJournalTurnOutcome } from '../agent-turn-outcome'
 /** The Claude main agent's own turn record, published on every row as `mainAgent`. */
 export type ClaudeLeadTurnState = {
   state: AgentStatusState
-  /** The provider's verdict on the turn this record closed; only meaningful while `state` is done.
+  /** The recorded verdict on the turn this record closed (the provider's, or a `cancellation`
+   *  Orca inferred from the interrupt keystroke); only meaningful while `state` is done.
    *  `cancellation` is what the fold reads as an interrupt. */
   outcome?: AgentJournalTurnOutcome
   /** When `state` first appeared; the main agent's own clock, distinct from the gated row's. */

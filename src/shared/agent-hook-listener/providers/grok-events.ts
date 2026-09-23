@@ -200,7 +200,7 @@ export function normalizeGrokEvent(
   if (!leadState) {
     return null
   }
-  // Why: the provider's verdict, never inferred — a plain `stop` stays absent.
+  // Why: only Grok's own cancel and failure events carry a verdict — a plain `stop` stays absent.
   const outcome = isGrokEvent(eventName, 'stop_cancelled')
     ? ('cancellation' as const)
     : isGrokEvent(eventName, 'stop_failure')
