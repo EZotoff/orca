@@ -1,0 +1,3 @@
+# Large unpacked build output is a persistent local artifact, not tracked.
+# The SHA256SUMS manifest inside each artifact dir is force-added.
+base-*-unpacked/
