@@ -27,6 +27,8 @@ export type ScriptedClaudeBehavior = {
   spawnHangs?: boolean
   /** The CLI exits with this diagnostic before its spawn returns, or while its start time is read. */
   exitsDuringSpawn?: { diagnostic: string; at: 'spawn' | 'start-time-read' }
+  /** Closing cannot prove the descendant tree gone, as when it was never snapshottable. */
+  closeUnproven?: boolean
 }
 
 export type ScriptedClaudeChild = {
@@ -115,7 +117,7 @@ export function createScriptedClaudeRuntime(sessionIds: readonly string[]) {
         send: async () => {},
         close: async () => {
           child.connection.closed = true
-          return true
+          return !behavior.closeUnproven
         }
       }
     }
