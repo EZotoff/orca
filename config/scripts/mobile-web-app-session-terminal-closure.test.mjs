@@ -425,8 +425,15 @@ const MERMAID_PACKAGE = 'node_modules/mermaid/'
  *
  *   modules        4215 -> 4216   (+1)
  *   local modules  1029 -> 1030   (+1)
+ *
+ * ZCode then joined the mobile agent catalog with its bundled icon, the same one local input
+ * to the shared agent picker that Muse's icon was. Measured: the only added module in the
+ * closure is `src/shared/agent-icons/zcode.png`.
+ *
+ *   modules        4216 -> 4217   (+1)
+ *   local modules  1030 -> 1031   (+1)
  */
-const SESSION_ROUTE_MODULES = 4216
+const SESSION_ROUTE_MODULES = 4217
 
 /** What the page enters this route through once the route is a switch with a `.web.tsx` sibling. */
 const ROUTE_ENTRY = [
