@@ -166,7 +166,8 @@ export default function IpynbViewer({
               : cell.source
             return (
               <section key={cellKey} className="group relative flex gap-2 py-1.5">
-                <div className="flex w-12 shrink-0 justify-center pt-1">
+                {/* Mirrors the code surface's border and padding so the count shares the first line's box. */}
+                <div className="flex w-12 shrink-0 justify-center border-y border-transparent py-1">
                   {cell.kind === 'code' ? (
                     <IpynbRunPrompt
                       executionCount={cell.executionCount}

@@ -76,7 +76,7 @@ export function IpynbToolbarButton({
   )
 }
 
-/** VS Code-style gutter: a run button slot that appears on hover or focus above a fixed `[n]` count. */
+/** VS Code-style gutter: a fixed `[n]` count with a run button slot below it, shown on hover or focus. */
 export function IpynbRunPrompt({
   executionCount,
   running,
@@ -87,8 +87,12 @@ export function IpynbRunPrompt({
   onRun: () => void
 }): React.JSX.Element {
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      {/* Why: `invisible` keeps the slot's box, so revealing the button never moves the count. */}
+    <div className="flex flex-col items-center">
+      {/* h-5 matches one code line, so the count sits on the first line's centre. */}
+      <span className="flex h-5 items-center font-mono text-[11px] text-muted-foreground">
+        [{running ? '*' : (executionCount ?? ' ')}]
+      </span>
+      {/* Why: `invisible` keeps the slot's box, so revealing the button never moves anything. */}
       <div className={cn(!running && 'invisible group-focus-within:visible group-hover:visible')}>
         <IpynbToolbarButton
           label={translate('auto.components.editor.IpynbViewer.859bf9fc21', 'Run cell')}
@@ -98,9 +102,6 @@ export function IpynbRunPrompt({
           {running ? <Loader2 className="animate-spin" /> : <Play />}
         </IpynbToolbarButton>
       </div>
-      <span className="font-mono text-[11px] text-muted-foreground">
-        [{running ? '*' : (executionCount ?? ' ')}]
-      </span>
     </div>
   )
 }

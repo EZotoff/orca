@@ -106,7 +106,7 @@ describe('previewPositionAtPoint', () => {
 })
 
 describe('notebook run prompt', () => {
-  it('keeps the count in place and shows [*] with a disabled run button while running', () => {
+  it('shows the count above the run button and [*] with the button disabled while running', () => {
     const { rerender } = render(
       <IpynbRunPrompt executionCount={3} running={false} onRun={vi.fn()} />,
       { wrapper: TooltipProvider }
