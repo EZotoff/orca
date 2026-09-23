@@ -36,6 +36,7 @@ import type {
 import { parsePaneKey } from '../../shared/stable-pane-id'
 import { wakeFolderRepoGitUpgradeWatch } from '../ipc/folder-repo-git-upgrade-wake'
 import { runWorktreeChangeInvalidators } from '../ipc/worktree-change-invalidators'
+import { MACHINE_NAME_PUBLISH_WAIT_MS } from './runtime-machine-name'
 
 type RuntimeStatusHost = {
   getAvailableAuthoritativeWindow(): unknown
@@ -147,9 +148,12 @@ export class OrcaRuntimeWithGetStatus extends OrcaRuntimeWithGetRuntimeId {
     return this.machineName.read()
   }
 
-  /** Settles once the machine-name lookup has landed, so a status publisher never leaks the bare hostname. */
+  /**
+   * Waits for the machine-name lookup up to the publish budget. A status read leaks the bare
+   * hostname only while a slow lookup is still running; the next read carries what it found.
+   */
   machineNameReady(): Promise<void> {
-    return this.machineName.ready()
+    return this.machineName.readyWithin(MACHINE_NAME_PUBLISH_WAIT_MS)
   }
 
   setPtyController(controller: RuntimePtyController | null): void {
