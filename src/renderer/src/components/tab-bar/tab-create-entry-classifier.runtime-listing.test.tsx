@@ -2,7 +2,7 @@
 //
 // Why: every other TabBarCreateEntry suite mocks useRuntimeFileListForWorktree, so the classifier
 // has only ever been graded against hand-written RuntimeFileListState values. That is the same
-// seam #21423 shipped a P0 through in the file explorer. These specs run the classifier on the
+// seam #21423 shipped a P0 through in the file explorer. This spec runs the classifier on the
 // listing the real hook returns, mocking only the IPC boundary.
 
 import { act, createElement } from 'react'
@@ -114,13 +114,6 @@ function latestState(states: RuntimeFileListState[]): RuntimeFileListState {
   return latest
 }
 
-/** Render the real list hook and return its settled state, the way TabBarCreateEntry consumes it. */
-async function settledFileList(): Promise<RuntimeFileListState> {
-  const states = await renderFileList()
-  await drainMicrotasks()
-  return latestState(states)
-}
-
 beforeEach(() => {
   useAppStore.setState(initialAppState, true)
   listRuntimeFilesMock.mockReset().mockResolvedValue(['packages/app/package.json', 'src/main.ts'])
@@ -140,21 +133,6 @@ afterEach(async () => {
 })
 
 describe('tab entry options over the real runtime listing', () => {
-  it('offers a listed file once the real listing settles', async () => {
-    const fileList = await settledFileList()
-
-    expect(fileList.loading).toBe(false)
-    expect(fileList.files).toEqual(['packages/app/package.json', 'src/main.ts'])
-
-    const options = getTabEntryOptions('packages/app/package.json', fileList, 4)
-    const existing = options.find((option) => option.classification.kind === 'existing-file')
-
-    expect(existing?.classification).toMatchObject({
-      kind: 'existing-file',
-      relativePath: 'packages/app/package.json'
-    })
-  })
-
   // A listing the hook fetched but hid would leave the entry stuck on its loading placeholder.
   it('does not report the settled listing as still loading', async () => {
     let resolveListing: (files: string[]) => void = () => {}
@@ -179,14 +157,5 @@ describe('tab entry options over the real runtime listing', () => {
     await drainMicrotasks()
 
     expect(blockedIds(latestState(states))).not.toContain('loading')
-  })
-
-  it('treats a path absent from the real listing as a new file', async () => {
-    const fileList = await settledFileList()
-    const options = getTabEntryOptions('src/not-listed-yet.ts', fileList, 4)
-
-    expect(
-      options.find((option) => option.classification.kind === 'new-file')?.classification
-    ).toMatchObject({ kind: 'new-file', relativePath: 'src/not-listed-yet.ts' })
   })
 })

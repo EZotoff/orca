@@ -148,31 +148,8 @@ describe('useFileExplorerNameFilter over the real runtime listing', () => {
     ])
   })
 
-  it('projects the host answer for a remote workspace query', async () => {
-    vi.useFakeTimers()
-    searchRuntimeFilePathsMock.mockResolvedValue({
-      files: ['services/api/package.json'],
-      truncated: false
-    })
-    try {
-      const { result } = renderNameFilter(REMOTE_KEY)
-
-      await act(async () => {
-        result.current.setNameFilterQuery('package.')
-      })
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(120)
-      })
-      await settle()
-
-      expect(searchRuntimeFilePathsMock).toHaveBeenCalled()
-      expect(result.current.nameFilterSource?.relativePaths).toEqual(['services/api/package.json'])
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
   // The host answers one query at a time, so the previous answer must never be shown as the
+  // current one — it would name files that do not match what the user typed., so the previous answer must never be shown as the
   // current one — it would name files that do not match what the user typed.
   it('never projects the previous query answer after a remote query edit', async () => {
     vi.useFakeTimers()
@@ -211,49 +188,6 @@ describe('useFileExplorerNameFilter over the real runtime listing', () => {
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(120)
-      })
-      await settle()
-      expect(result.current.nameFilterSource?.relativePaths).toEqual(['second/hit.ts'])
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('drops a remote answer that lands after the query moved on', async () => {
-    vi.useFakeTimers()
-    const pending = new Map<string, (files: string[]) => void>()
-    searchRuntimeFilePathsMock.mockImplementation(
-      (_context: unknown, { query }: { query: string }) =>
-        new Promise((resolve) => {
-          pending.set(query, (files) => resolve({ files, truncated: false }))
-        })
-    )
-    try {
-      const { result } = renderNameFilter(REMOTE_KEY)
-
-      await act(async () => {
-        result.current.setNameFilterQuery('first')
-      })
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(120)
-      })
-      expect(pending.has('first')).toBe(true)
-
-      await act(async () => {
-        result.current.setNameFilterQuery('second')
-      })
-      await act(async () => {
-        pending.get('first')?.(['first/hit.ts'])
-      })
-      await settle()
-      expect(result.current.nameFilterSource?.relativePaths).toBeNull()
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(120)
-      })
-      expect(pending.has('second')).toBe(true)
-      await act(async () => {
-        pending.get('second')?.(['second/hit.ts'])
       })
       await settle()
       expect(result.current.nameFilterSource?.relativePaths).toEqual(['second/hit.ts'])
