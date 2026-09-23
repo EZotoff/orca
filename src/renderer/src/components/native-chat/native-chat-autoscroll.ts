@@ -48,16 +48,23 @@ export type FollowIntent = {
   /** Whether the scroll event matches an offset the application registered. */
   programmatic: boolean
   geometry: ScrollGeometry
+  /** Offset at the previous scroll event. */
+  previousScrollTop: number
 }
 
 /** Whether the transcript should still follow the end after this offset.
  *
  *  Application writes preserve intent even when their delayed events arrive
- *  after the end moved. Reader events detach away from the end and reattach at
- *  it — against the re-arm band, never the wider near-bottom one. */
+ *  after the end moved. Reader events detach away from the end and reattach on
+ *  arriving at it — against the re-arm band, never the wider near-bottom one.
+ *  Arriving takes motion toward the end: a smooth scroll leaving the end marks
+ *  only its landing, and its first unmarked frames still sit inside the band. */
 export function nextFollowingEnd(intent: FollowIntent): boolean {
   if (intent.programmatic) {
     return intent.following
+  }
+  if (!intent.following && intent.geometry.scrollTop < intent.previousScrollTop) {
+    return false
   }
   return isNearBottom(intent.geometry, NATIVE_CHAT_FOLLOW_REARM_PX)
 }

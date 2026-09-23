@@ -99,7 +99,8 @@ export function useNativeChatTranscriptScroll({
         const following = nextFollowingEnd({
           following: followingRef.current,
           programmatic,
-          geometry
+          geometry,
+          previousScrollTop: previousScrollTopRef.current
         })
         followingRef.current = following
         if (!programmatic) {
