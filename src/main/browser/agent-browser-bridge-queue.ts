@@ -49,12 +49,7 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
     worktreeId: string | undefined,
     execute: (sessionName: string) => Promise<T>
   ): Promise<T> {
-    return this.enqueueTargetedCommand(
-      worktreeId,
-      undefined,
-      async (sessionName) => execute(sessionName),
-      { ensureVisible: false }
-    )
+    return this.enqueueTargetedCommand(worktreeId, undefined, execute)
   }
 
   protected async enqueueTargetedCommand<T>(
@@ -101,7 +96,7 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
     execute: (sessionName: string, target: ResolvedBrowserCommandTarget) => Promise<T>,
     options: EnqueueTargetedCommandOptions
   ): Promise<T> {
-    if (options.ensureVisible === false) {
+    if (!options.needsPaint) {
       return execute(sessionName, target)
     }
 

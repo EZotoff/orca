@@ -79,7 +79,23 @@ describe('AgentBrowserBridge', () => {
     bridge.setActiveTab(100)
   })
 
-  it('acquires an automation visibility lease while running snapshot commands', async () => {
+  it('does not lease automation visibility for ordinary commands', async () => {
+    const acquireAutomationVisibility = vi.fn(async () => () => {})
+    const b = new AgentBrowserBridge(
+      mockBrowserManager(undefined, undefined, { acquireAutomationVisibility })
+    )
+    b.setActiveTab(100)
+    webContentsFromIdMock.mockReturnValue(mockWebContents(100))
+
+    succeedWith({ snapshot: 'tree' })
+    await b.snapshot()
+    await b.click('@e1')
+    await b.mouseClick(10, 20)
+
+    expect(acquireAutomationVisibility).not.toHaveBeenCalled()
+  })
+
+  it('acquires an automation visibility lease while running exec commands', async () => {
     const lifecycleEvents: string[] = []
     const restore = vi.fn(() => {
       lifecycleEvents.push('restore-100')
@@ -96,17 +112,17 @@ describe('AgentBrowserBridge', () => {
     )
     b.setActiveTab(100)
 
-    let releaseSnapshot: (() => void) | null = null
+    let releaseExec: (() => void) | null = null
     execFileMock.mockImplementation(
       (_bin: string, args: string[], _opts: unknown, cb: ExecFileCallback) => {
         if (args.includes('close')) {
           cb(null, JSON.stringify({ success: true, data: null }), '')
           return
         }
-        if (args.includes('snapshot')) {
-          lifecycleEvents.push('command-snapshot')
-          releaseSnapshot = () => {
-            cb(null, JSON.stringify({ success: true, data: { snapshot: 'tree' } }), '')
+        if (args.includes('screenshot')) {
+          lifecycleEvents.push('command-exec')
+          releaseExec = () => {
+            cb(null, JSON.stringify({ success: true, data: { ok: true } }), '')
           }
           return
         }
@@ -114,24 +130,28 @@ describe('AgentBrowserBridge', () => {
       }
     )
 
-    const snapshot = b.snapshot()
+    const exec = b.exec('screenshot')
 
     await vi.waitFor(() => {
-      expect(releaseSnapshot).not.toBeNull()
+      expect(releaseExec).not.toBeNull()
     })
-    expect(lifecycleEvents).toEqual(['acquire-100', 'command-snapshot'])
+    expect(lifecycleEvents).toEqual(['acquire-100', 'command-exec'])
     expect(restore).not.toHaveBeenCalled()
 
-    releaseSnapshot!()
+    releaseExec!()
 
-    await expect(snapshot).resolves.toEqual({ browserPageId: 'tab-1', snapshot: 'tree' })
-    expect(lifecycleEvents).toEqual(['acquire-100', 'command-snapshot', 'restore-100'])
+    await expect(exec).resolves.toEqual({ ok: true })
+    expect(lifecycleEvents).toEqual(['acquire-100', 'command-exec', 'restore-100'])
   })
 
-  it('re-resolves the page after automation visibility re-registers the webview', async () => {
+  it('re-resolves the page when a pdf lease re-registers the webview', async () => {
     const tabs = new Map([['tab-1', 100]])
     const wc100 = mockWebContents(100)
-    const wc200 = mockWebContents(200, 'https://example.com/reloaded', 'Reloaded')
+    const printToPDF = vi.fn(async () => Buffer.from('pdf'))
+    const wc200 = {
+      ...mockWebContents(200, 'https://example.com/reloaded', 'Reloaded'),
+      printToPDF
+    }
     webContentsFromIdMock.mockImplementation((id: number) => {
       if (id === 100) {
         return wc100
@@ -153,10 +173,11 @@ describe('AgentBrowserBridge', () => {
     )
     b.setActiveTab(100)
 
-    succeedWith({ snapshot: 'tree' })
-    await expect(b.snapshot()).resolves.toEqual({ browserPageId: 'tab-1', snapshot: 'tree' })
+    succeedWith(null)
+    await expect(b.pdf()).resolves.toEqual({ data: Buffer.from('pdf').toString('base64') })
 
     expect(acquireAutomationVisibility).toHaveBeenCalledWith(100)
+    expect(printToPDF).toHaveBeenCalled()
     const createdProxyIds = CdpWsProxyMock.instances.map(
       (instance) => (instance as { _wc?: { id?: number } })._wc?.id
     )
@@ -201,7 +222,7 @@ describe('AgentBrowserBridge', () => {
 
     await b.interceptEnable(['https://old.example/**'])
     reregisterOnVisibility = true
-    await expect(b.snapshot()).resolves.toEqual({ browserPageId: 'tab-1', ok: true })
+    await expect(b.exec('get title')).resolves.toEqual({ ok: true })
 
     const routeCalls = commandCalls.filter(
       (args) => args.includes('network') && args.includes('route')
@@ -210,52 +231,6 @@ describe('AgentBrowserBridge', () => {
     expect(routeCalls.at(-1)).toContain('https://old.example/**')
     expect(routeCalls.at(-1)).toContain('--cdp')
     expect(routeCalls.at(-1)).toContain('9222')
-  })
-
-  it('clears stale sessions after direct CDP visibility re-registration', async () => {
-    const tabs = new Map([['tab-1', 100]])
-    const wc100 = mockWebContents(100)
-    const wc200 = mockWebContents(200, 'https://example.com/reloaded', 'Reloaded')
-    wc200.debugger.sendCommand.mockResolvedValue({})
-    webContentsFromIdMock.mockImplementation((id: number) => {
-      if (id === 100) {
-        return wc100
-      }
-      if (id === 200) {
-        return wc200
-      }
-      return null
-    })
-
-    let reregisterOnVisibility = false
-    const acquireAutomationVisibility = vi.fn(async () => {
-      if (reregisterOnVisibility) {
-        tabs.set('tab-1', 200)
-      }
-      return vi.fn()
-    })
-    const b = new AgentBrowserBridge(
-      mockBrowserManager(tabs, undefined, {
-        acquireAutomationVisibility
-      })
-    )
-    b.setActiveTab(100)
-
-    succeedWith({ snapshot: 'before' })
-    await b.snapshot()
-
-    reregisterOnVisibility = true
-    await expect(b.mouseClick(10, 20, 'right', undefined, 'tab-1')).resolves.toEqual({
-      clicked: { x: 10, y: 20, button: 'right', adjusted: false, handled: false }
-    })
-
-    succeedWith({ snapshot: 'after' })
-    await expect(b.snapshot()).resolves.toEqual({ browserPageId: 'tab-1', snapshot: 'after' })
-
-    const createdProxyIds = CdpWsProxyMock.instances.map(
-      (instance) => (instance as { _wc?: { id?: number } })._wc?.id
-    )
-    expect(createdProxyIds).toEqual([100, 200])
   })
 
   it('serializes screenshot visibility prep across sessions', async () => {
