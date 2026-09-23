@@ -42,7 +42,7 @@ export function useStructuredAgentSessionStatusSummary(
 export function useStructuredAgentSessionHostExecutionPhase(
   sessionId: string,
   target: RuntimeClientTarget
-): AgentSessionStatusSummary['hostExecutionPhase'] | null {
+): NonNullable<AgentSessionStatusSummary['hostExecutionPhase']> | null {
   const feed = useMemo(() => getStructuredAgentSessionStatusFeed(target), [target])
   useEffect(() => feed.activate(), [feed])
   return useSyncExternalStore(
