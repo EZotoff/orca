@@ -406,6 +406,34 @@ describe('AgentBrowserBridge', () => {
     await snapshot.catch(() => {})
   })
 
+  it('replays saved intercept routes onto the new guest after a process swap', async () => {
+    const tabs = new Map([['tab-1', 100]])
+    const b = new AgentBrowserBridge(mockBrowserManager(tabs))
+    b.setActiveTab(100)
+    webContentsFromIdMock.mockImplementation((id: number) =>
+      id === 100 || id === 200 ? mockWebContents(id) : null
+    )
+    const commandCalls: string[][] = []
+    execFileMock.mockImplementation(
+      (_bin: string, args: string[], _opts: unknown, cb: ExecFileCallback) => {
+        commandCalls.push(args)
+        cb(null, JSON.stringify({ success: true, data: { ok: true } }), '')
+      }
+    )
+
+    await b.interceptEnable(['https://old.example/**'])
+    tabs.set('tab-1', 200)
+    await b.onProcessSwap('tab-1', 200, 100)
+    await expect(b.exec('get title')).resolves.toEqual({ ok: true })
+
+    const routeCalls = commandCalls.filter(
+      (args) => args.includes('network') && args.includes('route')
+    )
+    expect(routeCalls).toHaveLength(2)
+    expect(routeCalls.at(-1)).toContain('https://old.example/**')
+    expect(routeCalls.at(-1)).toContain('--cdp')
+  })
+
   it('does not replay stale intercept routes after process swap when the first command disables routing', async () => {
     const tabs = new Map([['tab-1', 100]])
     const mgr = mockBrowserManager(tabs)
