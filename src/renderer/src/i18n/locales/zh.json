@@ -6050,7 +6050,7 @@
             "defaultViewTerminal": "终端聊天",
             "defaultViewNative": "Chat UI",
             "shellEnvNamesLabel": "从 shell 传递的变量",
-            "shellEnvNamePlaceholder": "HTTPS_PROXY",
+            "shellEnvNamePlaceholder": "变量名",
             "shellEnvNameAdd": "添加",
             "shellEnvNameRemove": "删除 {{value0}}",
             "shellEnvNamesEmpty": "尚未添加任何变量。",

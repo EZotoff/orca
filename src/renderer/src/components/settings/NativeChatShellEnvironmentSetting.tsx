@@ -67,7 +67,7 @@ function ShellEnvironmentNamesField({
           }}
           placeholder={translate(
             'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNamePlaceholder',
-            'HTTPS_PROXY'
+            'Variable name'
           )}
           autoCapitalize="none"
           autoCorrect="off"

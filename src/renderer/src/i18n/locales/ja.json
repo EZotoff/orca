@@ -5984,7 +5984,7 @@
             "defaultViewTerminal": "ターミナルチャット",
             "defaultViewNative": "Chat UI",
             "shellEnvNamesLabel": "シェルから渡す変数",
-            "shellEnvNamePlaceholder": "HTTPS_PROXY",
+            "shellEnvNamePlaceholder": "変数名",
             "shellEnvNameAdd": "追加",
             "shellEnvNameRemove": "{{value0}} を削除",
             "shellEnvNamesEmpty": "まだ変数は追加されていません。",

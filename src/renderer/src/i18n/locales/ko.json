@@ -5989,7 +5989,7 @@
             "defaultViewTerminal": "Terminal 채팅",
             "defaultViewNative": "Chat UI",
             "shellEnvNamesLabel": "셸에서 전달할 변수",
-            "shellEnvNamePlaceholder": "HTTPS_PROXY",
+            "shellEnvNamePlaceholder": "변수 이름",
             "shellEnvNameAdd": "추가",
             "shellEnvNameRemove": "{{value0}} 제거",
             "shellEnvNamesEmpty": "아직 추가된 변수가 없습니다.",

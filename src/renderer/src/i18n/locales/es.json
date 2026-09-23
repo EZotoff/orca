@@ -5999,7 +5999,7 @@
             "defaultViewTerminal": "Chat en terminal",
             "defaultViewNative": "Chat UI",
             "shellEnvNamesLabel": "Variables que se pasan desde tu shell",
-            "shellEnvNamePlaceholder": "HTTPS_PROXY",
+            "shellEnvNamePlaceholder": "Nombre de la variable",
             "shellEnvNameAdd": "Agregar",
             "shellEnvNameRemove": "Quitar {{value0}}",
             "shellEnvNamesEmpty": "Aún no se han agregado variables.",
