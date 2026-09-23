@@ -44,6 +44,8 @@ export type AgentLaunchFingerprintInput = {
   /** In: it is baked into the pane's PTY env and names the tab the caller placed, so a retry that
    *  reserved another pane must conflict rather than replay a key its placement cannot find. */
   paneKey?: string
+  /** In, for the same reason as `paneKey`: it names the chat tab the caller placed. */
+  sessionId?: string
   /**
    * `launchSource` is deliberately absent, and this is the reasoned exclusion rather than an
    * oversight: it is telemetry, so two launches differing only in which button produced them do the
@@ -67,7 +69,8 @@ export function computeAgentLaunchFingerprint(input: AgentLaunchFingerprintInput
     agentArgs: input.agentArgs,
     cwd: input.cwd,
     // Absent keys are dropped by the canonical form, so every digest without one is unchanged.
-    paneKey: input.paneKey
+    paneKey: input.paneKey,
+    sessionId: input.sessionId
   })
 }
 

@@ -19,6 +19,7 @@ import { isTuiAgent } from '../tui-agent-config'
 import type { TuiAgent } from '../tui-agent'
 import { WorktreeCreate } from './worktree-create-params'
 import { TerminalTabIdParam } from './agent-session-params'
+import { SessionId } from './structured-agent-session-params'
 
 const LaunchAgent = z
   .unknown()
@@ -104,7 +105,15 @@ export const AgentLaunch = z.object({
         isValidHostTerminalTabId(pane.tabId)
       )
     }, 'Malformed launch pane key')
-    .optional()
+    .optional(),
+  /**
+   * The chat session a structured launch should create, minted by a caller that places its own
+   * tabs: the structured counterpart of `paneKey`. The chat tab's id derives from it, so the caller
+   * can record its placement before the launch returns. Refused when a session with this id already
+   * exists. Ignored when the launch settles as a terminal; the outcome's `sessionId` says which
+   * session really exists.
+   */
+  sessionId: SessionId.optional()
 })
 
 export type AgentLaunchParams = z.infer<typeof AgentLaunch>
