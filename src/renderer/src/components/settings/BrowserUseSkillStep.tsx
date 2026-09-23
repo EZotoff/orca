@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { AgentSkillSetupPanel } from './AgentSkillSetupPanel'
 import type { LocalAgentRuntime } from './CliSkillRuntimeSetup'
+import type { AgentSkillSetupPanelProps } from './agent-skill-setup-panel-props'
 import { StepBadge } from './SetupStepBadge'
 import { translate } from '@/i18n/i18n'
 
@@ -14,7 +15,7 @@ type Props = {
   terminalShellOverride?: string
   terminalRuntime?: LocalAgentRuntime
   preInstallNotice?: ReactNode
-  getPrerequisiteStatus?: () => Promise<Awaited<ReturnType<typeof window.api.cli.getInstallStatus>>>
+  getPrerequisiteStatus?: AgentSkillSetupPanelProps['getPrerequisiteStatus']
   onBeforeOpenTerminal?: () => void | Promise<void>
   onRecheck: () => void | Promise<unknown>
 }

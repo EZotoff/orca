@@ -14,11 +14,11 @@ import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRunti
 import { AgentSkillSetupPanel } from '@/components/settings/AgentSkillSetupPanel'
 import {
   buildSkillCommandForRuntime,
-  ensureWslCliAvailableForAgentSkillTerminal,
-  getWslCliDistroRequest
+  ensureWslCliAvailableForAgentSkillTerminal
 } from '@/components/settings/CliSkillRuntimeSetup'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
+import { readOrcaCliInstallStatus } from '@/lib/orca-cli-install-status'
 
 export function BrowserUseSkillSetupCard(props: {
   compact?: boolean
@@ -66,13 +66,7 @@ export function BrowserUseSkillSetupCard(props: {
       installDisabled={Boolean(activeSkillRuntime.installDisabledReason)}
       terminalHeightPx={terminalHeightPx}
       preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
-      getPrerequisiteStatus={() =>
-        activeSkillRuntime.agentRuntime?.runtime === 'wsl'
-          ? window.api.cli.getWslInstallStatus(
-              getWslCliDistroRequest(activeSkillRuntime.agentRuntime)
-            )
-          : window.api.cli.getInstallStatus()
-      }
+      getPrerequisiteStatus={() => readOrcaCliInstallStatus(activeSkillRuntime)}
       onBeforeOpenTerminal={handleBeforeOpenTerminal}
       showRecheckWhenInstalled={false}
       onRecheck={skill.refresh}

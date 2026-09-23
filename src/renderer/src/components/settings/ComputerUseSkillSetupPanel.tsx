@@ -17,10 +17,10 @@ import { useAppStore } from '@/store'
 import { AgentSkillSetupPanel } from './AgentSkillSetupPanel'
 import {
   buildSkillCommandForRuntime,
-  ensureWslCliAvailableForAgentSkillTerminal,
-  getWslCliDistroRequest
+  ensureWslCliAvailableForAgentSkillTerminal
 } from './CliSkillRuntimeSetup'
 import { translate } from '@/i18n/i18n'
+import { readOrcaCliInstallStatus } from '@/lib/orca-cli-install-status'
 
 export function ComputerUseSkillSetupPanel(): React.JSX.Element {
   const activeSkillRuntime = useActiveProjectSkillRuntime()
@@ -66,13 +66,7 @@ export function ComputerUseSkillSetupPanel(): React.JSX.Element {
       installDisabled={Boolean(activeSkillRuntime.installDisabledReason)}
       icon={<MonitorCog className="size-5" />}
       preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
-      getPrerequisiteStatus={() =>
-        activeSkillRuntime.agentRuntime?.runtime === 'wsl'
-          ? window.api.cli.getWslInstallStatus(
-              getWslCliDistroRequest(activeSkillRuntime.agentRuntime)
-            )
-          : window.api.cli.getInstallStatus()
-      }
+      getPrerequisiteStatus={() => readOrcaCliInstallStatus(activeSkillRuntime)}
       onBeforeOpenTerminal={async () => {
         useAppStore.getState().recordFeatureInteraction('computer-use-setup')
         await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'

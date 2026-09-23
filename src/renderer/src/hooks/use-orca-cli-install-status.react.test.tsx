@@ -8,9 +8,11 @@ import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { notifyOrchestrationSetupStateChanged } from '@/lib/orchestration-setup-state'
 import {
   notifyOrcaCliInstallStateChanged,
-  useOrcaCliInstallStatus,
-  type OrcaCliInstallStatusState,
   type OrcaCliSkillRuntime
+} from '@/lib/orca-cli-install-status'
+import {
+  useOrcaCliInstallStatus,
+  type OrcaCliInstallStatusState
 } from './use-orca-cli-install-status'
 
 let mockRuntimeTarget: RuntimeClientTarget | null = { kind: 'local' }

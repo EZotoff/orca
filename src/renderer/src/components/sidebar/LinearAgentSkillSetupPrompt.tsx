@@ -20,8 +20,7 @@ import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import { cn } from '@/lib/utils'
 import {
   buildSkillCommandForRuntime,
-  ensureWslCliAvailableForAgentSkillTerminal,
-  getWslCliDistroRequest
+  ensureWslCliAvailableForAgentSkillTerminal
 } from '../settings/CliSkillRuntimeSetup'
 import {
   getLinearAgentSkillSetupInlineRuntimeCopy,
@@ -47,6 +46,7 @@ import {
   type LinearAgentSkillPromptSettings
 } from './linear-agent-skill-runtime'
 import { translate } from '@/i18n/i18n'
+import { readAgentRuntimeCliInstallStatus } from '@/lib/orca-cli-install-status'
 
 const LinearAgentSkillSetupDialog = lazyWithRetry(() => import('./LinearAgentSkillSetupDialog'), {
   reloadKey: 'linear-agent-skill-setup-dialog'
@@ -171,9 +171,7 @@ export function LinearAgentSkillSetupPrompt({
     }
     setCliLoading(true)
     try {
-      const nextStatus = await (agentRuntime.runtime === 'wsl'
-        ? window.api.cli.getWslInstallStatus(getWslCliDistroRequest(agentRuntime))
-        : window.api.cli.getInstallStatus())
+      const nextStatus = await readAgentRuntimeCliInstallStatus(agentRuntime)
       writeIfCurrent(() => setCliStatus(nextStatus))
     } catch {
       writeIfCurrent(() => setCliStatus(null))
@@ -296,11 +294,7 @@ export function LinearAgentSkillSetupPrompt({
         installed={skill.installed}
         loading={showCheckingModal || cliLoading || skill.loading}
         error={skill.error}
-        getPrerequisiteStatus={
-          agentRuntime.runtime === 'wsl'
-            ? () => window.api.cli.getWslInstallStatus(getWslCliDistroRequest(agentRuntime))
-            : undefined
-        }
+        getPrerequisiteStatus={() => readAgentRuntimeCliInstallStatus(agentRuntime)}
         onBeforeOpenTerminal={async () => {
           const requestIdentity = setupCheckIdentity
           const writeIfCurrent = (write: () => void): void => {

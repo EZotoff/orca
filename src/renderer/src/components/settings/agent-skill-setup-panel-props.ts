@@ -1,9 +1,11 @@
 import type { ComponentProps, ReactNode } from 'react'
 import type { Button } from '../ui/button'
+import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import type { LocalAgentRuntime } from './CliSkillRuntimeSetup'
 
 type AgentSkillSetupPanelVariant = 'card' | 'inline'
-type SkillPrerequisiteStatus = Awaited<ReturnType<typeof window.api.cli.getInstallStatus>>
+// Why: null means the runtime has no install target to read (it needs repair first).
+type SkillPrerequisiteStatus = CliInstallStatus | null
 
 export type AgentSkillSetupPanelProps = {
   title: string

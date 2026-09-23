@@ -25,6 +25,7 @@ import {
   notifyOrchestrationSetupStateChanged
 } from '@/lib/orchestration-setup-state'
 import type { EventProps } from '../../../../shared/telemetry-events'
+import { readAgentRuntimeCliInstallStatus } from '@/lib/orca-cli-install-status'
 
 export type OnboardingFeatureSetupId =
   | 'browserUse'
@@ -182,10 +183,7 @@ export function createOnboardingFeatureSetupDeps(
     agentRuntime?.runtime === 'wsl' ? getWslCliDistroRequest(agentRuntime) : undefined
   const isWsl = agentRuntime?.runtime === 'wsl'
   return {
-    getCliStatus: () =>
-      isWsl
-        ? window.api.cli.getWslInstallStatus(wslDistroRequest)
-        : window.api.cli.getInstallStatus(),
+    getCliStatus: () => readAgentRuntimeCliInstallStatus(agentRuntime),
     showCliRegistrationPrompt: showOrcaCliRegistrationPromptToast,
     installCli: () =>
       isWsl ? window.api.cli.installWsl(wslDistroRequest) : window.api.cli.install(),

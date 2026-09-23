@@ -23,9 +23,12 @@ import {
 } from '@/hooks/useInstalledAgentSkills'
 import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
 import {
+  notifyOrcaCliInstallStateChanged,
+  readOrcaCliInstallStatus
+} from '@/lib/orca-cli-install-status'
+import {
   buildSkillCommandForRuntime,
-  ensureWslCliAvailableForAgentSkillTerminal,
-  getWslCliDistroRequest
+  ensureWslCliAvailableForAgentSkillTerminal
 } from './CliSkillRuntimeSetup'
 
 type RecipeCatalogEntry = Awaited<
@@ -188,17 +191,12 @@ export function EphemeralVmsPane(): React.JSX.Element {
         installDisabled={Boolean(activeSkillRuntime.installDisabledReason)}
         icon={<Server className="size-5" />}
         preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
-        getPrerequisiteStatus={() =>
-          activeSkillRuntime.agentRuntime?.runtime === 'wsl'
-            ? window.api.cli.getWslInstallStatus(
-                getWslCliDistroRequest(activeSkillRuntime.agentRuntime)
-              )
-            : window.api.cli.getInstallStatus()
-        }
+        getPrerequisiteStatus={() => readOrcaCliInstallStatus(activeSkillRuntime)}
         onBeforeOpenTerminal={async () => {
           await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
             ? ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
             : ensureOrcaCliAvailableForAgentSkillTerminal())
+          notifyOrcaCliInstallStateChanged()
         }}
         onRecheck={refreshSkill}
         freshnessSkillName={

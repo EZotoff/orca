@@ -27,10 +27,10 @@ import { refreshSkillFreshness } from '@/hooks/useSkillFreshness'
 import { useAppStore } from '@/store'
 import {
   buildSkillCommandForRuntime,
-  ensureWslCliAvailableForAgentSkillTerminal,
-  getWslCliDistroRequest
+  ensureWslCliAvailableForAgentSkillTerminal
 } from '@/components/settings/CliSkillRuntimeSetup'
 import { translate } from '@/i18n/i18n'
+import { readOrcaCliInstallStatus } from '@/lib/orca-cli-install-status'
 
 type FloatingTerminalOrchestrationDialogProps = {
   open: boolean
@@ -155,13 +155,7 @@ export function FloatingTerminalOrchestrationDialog({
           hideHeader
           installLabel="Install CLI & skill"
           preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
-          getPrerequisiteStatus={() =>
-            activeSkillRuntime.agentRuntime?.runtime === 'wsl'
-              ? window.api.cli.getWslInstallStatus(
-                  getWslCliDistroRequest(activeSkillRuntime.agentRuntime)
-                )
-              : window.api.cli.getInstallStatus()
-          }
+          getPrerequisiteStatus={() => readOrcaCliInstallStatus(activeSkillRuntime)}
           onBeforeOpenTerminal={async () => {
             useAppStore.getState().recordFeatureInteraction('agent-orchestration-setup')
             await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
