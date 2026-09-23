@@ -38,6 +38,20 @@ export function useStructuredAgentSessionStatusSummary(
   return { summary, observation }
 }
 
+/** Only the host's startup phase, so a chat re-renders when that changes, not on every status. */
+export function useStructuredAgentSessionHostExecutionPhase(
+  sessionId: string,
+  target: RuntimeClientTarget
+): AgentSessionStatusSummary['hostExecutionPhase'] | null {
+  const feed = useMemo(() => getStructuredAgentSessionStatusFeed(target), [target])
+  useEffect(() => feed.activate(), [feed])
+  return useSyncExternalStore(
+    feed.subscribe,
+    () => feed.getSnapshot().get(sessionId)?.hostExecutionPhase ?? null,
+    () => null
+  )
+}
+
 function projectStatus(
   tab: StructuredTab,
   summary: AgentSessionStatusSummary | null,
