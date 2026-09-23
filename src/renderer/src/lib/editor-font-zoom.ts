@@ -51,5 +51,7 @@ export function resolveEditorFontFamily(settings?: EditorFontFamilySettings | nu
  * bare name; a plain element does not, so an unresolvable name like "SF Mono" drops to serif.
  */
 export function resolveEditorFontStack(settings?: EditorFontFamilySettings | null): string {
-  return buildFontFamily(settings?.editorFontFamily?.trim() || settings?.terminalFontFamily || '')
+  const family = settings?.editorFontFamily?.trim() || settings?.terminalFontFamily?.trim() || ''
+  // A comma list is already a CSS stack; quoting it would make it one unknown family name.
+  return family.includes(',') ? family : buildFontFamily(family)
 }
