@@ -12,6 +12,7 @@ const BUNDLED_RIPGREP_PLATFORMS = [
   'win32-arm64'
 ]
 const RIPGREP_PACKAGE_BIN_DIR = 'node_modules/@vscode/ripgrep-universal/bin'
+const RIPGREP_RESOURCE_DIR = 'ripgrep'
 
 function ripgrepBinaryName(platform) {
   return platform.startsWith('win32-') ? 'rg.exe' : 'rg'
@@ -20,11 +21,11 @@ function ripgrepBinaryName(platform) {
 const bundledRipgrepExtraResources = [
   {
     from: RIPGREP_PACKAGE_BIN_DIR,
-    to: 'ripgrep',
+    to: RIPGREP_RESOURCE_DIR,
     filter: BUNDLED_RIPGREP_PLATFORMS.map((platform) => `${platform}/**`)
   },
   // Why: the binaries statically link PCRE2 (and musl on Linux), whose licenses require the notice.
-  { from: 'resources/licenses/ripgrep', to: 'ripgrep/licenses' }
+  { from: 'resources/licenses/ripgrep', to: `${RIPGREP_RESOURCE_DIR}/licenses` }
 ]
 
 // Why: codesign would try to sign the Linux/Windows builds; they are inert data on macOS.
@@ -45,7 +46,12 @@ function assertBundledRipgrepInstalled(projectDir = join(__dirname, '..')) {
 
 function finalizePackagedRipgrep(resourcesDir) {
   for (const platform of BUNDLED_RIPGREP_PLATFORMS) {
-    const binaryPath = join(resourcesDir, 'ripgrep', platform, ripgrepBinaryName(platform))
+    const binaryPath = join(
+      resourcesDir,
+      RIPGREP_RESOURCE_DIR,
+      platform,
+      ripgrepBinaryName(platform)
+    )
     if (!existsSync(binaryPath)) {
       throw new Error(`Packaged app is missing bundled ripgrep: ${binaryPath}`)
     }
@@ -57,6 +63,8 @@ function finalizePackagedRipgrep(resourcesDir) {
 module.exports = {
   BUNDLED_RIPGREP_PLATFORMS,
   RIPGREP_PACKAGE_BIN_DIR,
+  RIPGREP_RESOURCE_DIR,
+  ripgrepBinaryName,
   assertBundledRipgrepInstalled,
   bundledRipgrepExtraResources,
   bundledRipgrepMacSignIgnore,

@@ -3,7 +3,6 @@ import { RELAY_BUILD_PLATFORMS, type RelayBuildPlatform } from './relay-artifact
 /**
  * Orca ships its own ripgrep for every relay platform (from @vscode/ripgrep-universal), so local,
  * WSL, and SSH searches never depend on the user having installed `rg`.
- * See docs/reference/bundled-ripgrep.md.
  */
 export const BUNDLED_RIPGREP_PLATFORMS: readonly RelayBuildPlatform[] = RELAY_BUILD_PLATFORMS
 export type BundledRipgrepPlatform = RelayBuildPlatform
