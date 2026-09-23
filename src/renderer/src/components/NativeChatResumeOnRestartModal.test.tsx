@@ -462,39 +462,54 @@ it('lets the failure notice open the list or forget the chats it counted', async
   ])
 })
 
-// The old toast said "1 chat could not be continued" and vanished. The outcome now stays on screen,
-// names the chat, and says what to do about it.
-it('stays open after a resume the host could not carry on and says what to do', async () => {
+/** Every button in the dialog, in order; row checkboxes are buttons too, so they are left out. */
+function dialogControls(): (string | null)[] {
+  return [...document.querySelectorAll('[role="dialog"] button:not([role="checkbox"])')].map(
+    (entry) => entry.textContent?.trim() || entry.getAttribute('aria-label')
+  )
+}
+
+// The old toast said "1 chat could not be continued" and vanished. The chat now stays in the same
+// dialog — same title, checkboxes and footer — with its row saying what went wrong and what to do.
+it('keeps a chat the resume could not carry on in the same dialog, with what to do', async () => {
+  let remaining: unknown[] = []
   rpc.mockImplementation(async (_target, method) =>
     method === 'agentSession.restartResumable'
-      ? { sessions: offered }
-      : {
+      ? { sessions: offered, failed: remaining }
+      : ((remaining = [failure('b')]),
+        {
           resumed: offered.map(({ sessionId }) => ({ sessionId, outcome: 'resumed' })),
           continued: [
             { sessionId: 'a', outcome: 'continued' },
             { sessionId: 'b', outcome: 'refused', reason: 'agent_session_restart_work_superseded' }
           ],
           sessions: [],
-          failed: [failure('b')]
-        }
+          failed: remaining
+        })
   )
   await mount(<NativeChatResumeOnRestartModal />)
   await act(async () => button('Resume 2 chats').click())
   const dialog = document.querySelector('[role="dialog"]')
   expect(dialog).not.toBeNull()
-  expect(dialog?.textContent).toContain('1 chat couldn’t be resumed')
-  // Both outcomes, one status icon each, named for assistive tech.
-  expect(
-    document.querySelector('[aria-label="Prompt a: Resumed and asked to continue"]')
-  ).not.toBeNull()
+  // Unchanged chrome: the title, the preference box, and the two footer actions.
+  expect(dialog?.textContent).toContain('Resume interrupted chats?')
+  expect(dialog?.textContent).toContain("Don't ask again (resume automatically)")
+  expect(dialog?.textContent).not.toContain('Dismiss failed')
+  // The resumed chat left the list as it always did; the failed one is a row with a checkbox.
+  expect(dialog?.textContent).not.toContain('Prompt a')
+  expect(document.querySelectorAll('[role="checkbox"]')).toHaveLength(2)
   expect(document.querySelector('[aria-label="Prompt b: Couldn’t resume"]')).not.toBeNull()
   expect(dialog?.textContent).toContain('To resume:')
   expect(dialog?.textContent).toContain('Open the chat and reply.')
-  // No checkboxes and no Resume button: nothing is on offer any more.
-  expect(document.querySelectorAll('[role="checkbox"]')).toHaveLength(0)
-  expect([...dialog!.querySelectorAll('button')].map((entry) => entry.textContent?.trim())).toEqual(
-    ['', 'Open chat', 'Dismiss failed', 'Close']
-  )
+  expect(dialogControls()).toEqual([
+    'Dismiss "Prompt b" in workspace',
+    'Open chat',
+    'Dismiss all',
+    'Resume 0 chats',
+    'Close'
+  ])
+  // A retry cannot fix newer work in the chat, so it is not pre-selected for one.
+  expect(checkbox(0).getAttribute('data-state')).toBe('unchecked')
 
   await act(async () => button('Open chat').click())
   expect(activate).toHaveBeenCalledWith({
@@ -507,65 +522,67 @@ it('stays open after a resume the host could not carry on and says what to do', 
   expect(document.querySelector('[role="dialog"]')).toBeNull()
 })
 
-it('retries a failed chat by name when a retry can succeed', async () => {
-  rpc.mockImplementation(async (_target, method) =>
-    method === 'agentSession.restartResumable'
-      ? { sessions: [], failed: [failure('b', 'agent_session_conflict')] }
-      : {
-          resumed: [{ sessionId: 'b', outcome: 'resumed' }],
-          continued: [{ sessionId: 'b', outcome: 'continued' }],
-          sessions: [],
-          failed: []
-        }
-  )
-  await mount(<NativeChatResumeOnRestartModal />)
-  // Old failures never raise the launch dialog by themselves; the status entry does.
-  expect(document.querySelector('[role="dialog"]')).toBeNull()
-  await act(async () => requestNativeChatResumeOnRestartDialog())
-  expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Close it, then retry.')
+// Selecting a failed row and pressing Resume is the retry; the row's own Retry does the same.
+it.each(['footer', 'row'] as const)(
+  'retries a failed chat by name from the %s when a retry can succeed',
+  async (from) => {
+    let failed = [failure('b', 'agent_session_conflict')]
+    rpc.mockImplementation(async (_target, method) =>
+      method === 'agentSession.restartResumable'
+        ? { sessions: [], failed }
+        : ((failed = []),
+          {
+            resumed: [{ sessionId: 'b', outcome: 'resumed' }],
+            continued: [{ sessionId: 'b', outcome: 'continued' }],
+            sessions: [],
+            failed
+          })
+    )
+    await mount(<NativeChatResumeOnRestartModal />)
+    // Old failures never raise the launch dialog by themselves; the status entry does.
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    await act(async () => requestNativeChatResumeOnRestartDialog())
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+      'Close it, then retry.'
+    )
+    // A retry can fix an ownership clash, so the row starts selected.
+    expect(checkbox(0).getAttribute('data-state')).toBe('checked')
 
-  await act(async () => button('Retry').click())
-  expect(rpc.mock.calls.at(-1)?.slice(1)).toEqual([
-    'agentSession.restartContinue',
-    { sessionIds: ['b'] }
-  ])
-  expect(toast).toHaveBeenCalledWith('Resumed 1 chat and asked it to continue')
-  // The retried chat now shows as resumed; nothing is left to act on.
-  expect(
-    document.querySelector('[aria-label="Prompt b: Resumed and asked to continue"]')
-  ).not.toBeNull()
-  expect(document.querySelector('[aria-label="Prompt b: Couldn’t resume"]')).toBeNull()
-})
+    await act(async () => button(from === 'footer' ? 'Resume 1 chat' : 'Retry').click())
+    expect(rpc.mock.calls.at(-1)?.slice(1)).toEqual([
+      'agentSession.restartContinue',
+      { sessionIds: ['b'] }
+    ])
+    expect(toast).toHaveBeenCalledWith('Resumed 1 chat and asked it to continue')
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  }
+)
 
-it('dismisses one failed chat by name and leaves the others', async () => {
+it('dismisses one failed chat by name, and every record through Dismiss all', async () => {
   rpc.mockImplementation(async (_target, method, params: { sessionIds?: string[] } | undefined) =>
     method === 'agentSession.restartResumable'
       ? { sessions: [], failed: [failure('a'), failure('b')] }
       : {
           dismissed: 1,
           sessions: [],
-          failed: [failure('a'), failure('b')].filter(
-            (entry) => !params?.sessionIds?.includes(entry.sessionId)
-          )
+          failed: params?.sessionIds
+            ? [failure('a'), failure('b')].filter(
+                (entry) => !params.sessionIds?.includes(entry.sessionId)
+              )
+            : []
         }
   )
   await mount(<NativeChatResumeOnRestartModal />)
   await act(async () => requestNativeChatResumeOnRestartDialog())
-  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-    '2 chats couldn’t be resumed'
-  )
+  expect(document.querySelectorAll('[role="checkbox"]')).toHaveLength(3)
   await act(async () => button('Dismiss "Prompt a" in workspace').click())
   expect(rpc.mock.calls.at(-1)?.slice(1)).toEqual([
     'agentSession.restartResumableDismiss',
     { sessionIds: ['a'] }
   ])
-  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-    '1 chat couldn’t be resumed'
-  )
-  await act(async () => button('Dismiss failed').click())
-  expect(rpc.mock.calls.at(-1)?.slice(1)).toEqual([
-    'agentSession.restartResumableDismiss',
-    { sessionIds: ['b'] }
-  ])
+  expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain('Prompt a')
+  expect(document.querySelectorAll('[role="checkbox"]')).toHaveLength(2)
+  await act(async () => button('Dismiss all').click())
+  expect(rpc.mock.calls.at(-1)?.slice(1)).toEqual(['agentSession.restartResumableDismiss', {}])
   expect(document.querySelector('[role="dialog"]')).toBeNull()
 })

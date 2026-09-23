@@ -5,14 +5,17 @@ import { getHostContextLabel } from '../../../shared/worktree/host-context-label
 import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 import type { AgentSessionWorkspaceKind } from '../../../shared/agent-session-record'
 import { useAppStore } from '../store'
+import { ResumeCandidateRow } from './NativeChatResumeOnRestartAgentRow'
 import {
   groupResumeCandidates,
   groupResumeWorkspacesByRepo,
   resolveResumeGroupHeader,
   resumeWorkspaceKind,
   type ResumeCandidate,
+  type ResumeFailure,
   type ResumeWorkspaceGroup
 } from './native-chat-resume-on-restart-grouping'
+import type { ResumeFailureAction } from './native-chat-resume-failure-guidance'
 
 export type { ResumeCandidate } from './native-chat-resume-on-restart-grouping'
 
@@ -30,6 +33,12 @@ export type { ResumeCandidate } from './native-chat-resume-on-restart-grouping'
  */
 
 type StoreState = ReturnType<typeof useAppStore.getState>
+
+/** Lets a row that an earlier resume could not carry on show what went wrong and what to do. */
+type FailureProps = {
+  failureFor?: (sessionId: string) => ResumeFailure | undefined
+  onFailureAction?: (action: ResumeFailureAction, sessionId: string) => void
+}
 
 function resolveWorkspaceWorktree(store: StoreState, workspaceId: string) {
   return (
@@ -104,19 +113,21 @@ function RepoHeader({ repoId }: { repoId: string | null }): React.JSX.Element {
   )
 }
 
-/** Draws one row. The workspace name is passed so accessible names can tell identical rows apart. */
-export type ResumeRowRenderer<T extends ResumeCandidate> = (
-  item: T,
-  workspaceName: string
-) => React.ReactNode
-
-function WorkspaceGroup<T extends ResumeCandidate>({
+function WorkspaceGroup({
   group,
-  renderRow
+  listedAt,
+  busy,
+  selected,
+  onToggle,
+  failureFor,
+  onFailureAction
 }: {
-  group: ResumeWorkspaceGroup<T>
-  renderRow: ResumeRowRenderer<T>
-}): React.JSX.Element {
+  group: ResumeWorkspaceGroup
+  listedAt: number
+  busy: boolean
+  selected: ReadonlySet<string>
+  onToggle: (sessionId: string, checked: boolean) => void
+} & FailureProps): React.JSX.Element {
   const name = useWorkspaceName(group.workspaceId)
   const first = group.candidates[0]
   const kind = first ? resumeWorkspaceKind(first) : 'git-worktree'
@@ -131,20 +142,40 @@ function WorkspaceGroup<T extends ResumeCandidate>({
         <WorktreeHostContextBadge label={hostLabel} />
       </div>
       <ul className="flex flex-col pl-1">
-        {group.candidates.map((item) => renderRow(item, name))}
+        {group.candidates.map((candidate) => (
+          <ResumeCandidateRow
+            key={candidate.sessionId}
+            candidate={candidate}
+            workspaceName={name}
+            listedAt={listedAt}
+            checked={selected.has(candidate.sessionId)}
+            disabled={busy}
+            onCheckedChange={(checked) => onToggle(candidate.sessionId, checked)}
+            failure={failureFor?.(candidate.sessionId)}
+            onFailureAction={onFailureAction}
+          />
+        ))}
       </ul>
     </section>
   )
 }
 
-export function ResumeOnRestartGroups<T extends ResumeCandidate>({
-  items,
-  renderRow
+export function ResumeOnRestartGroups({
+  candidates,
+  listedAt,
+  busy,
+  selected,
+  onToggle,
+  failureFor,
+  onFailureAction
 }: {
-  items: readonly T[]
-  renderRow: ResumeRowRenderer<T>
-}): React.JSX.Element {
-  const workspaces = groupResumeCandidates(items)
+  candidates: readonly ResumeCandidate[]
+  listedAt: number
+  busy: boolean
+  selected: ReadonlySet<string>
+  onToggle: (sessionId: string, checked: boolean) => void
+} & FailureProps): React.JSX.Element {
+  const workspaces = groupResumeCandidates(candidates)
   const repoIdFor = useRepoIdByWorkspace(workspaces.map((group) => group.workspaceId))
   const repoGroups = groupResumeWorkspacesByRepo(workspaces, repoIdFor)
   return (
@@ -154,7 +185,16 @@ export function ResumeOnRestartGroups<T extends ResumeCandidate>({
           <RepoHeader repoId={repoGroup.repoId} />
           <div className="flex flex-col gap-1.5 pl-2">
             {repoGroup.workspaces.map((workspace) => (
-              <WorkspaceGroup key={workspace.workspaceId} group={workspace} renderRow={renderRow} />
+              <WorkspaceGroup
+                key={workspace.workspaceId}
+                group={workspace}
+                listedAt={listedAt}
+                busy={busy}
+                selected={selected}
+                onToggle={onToggle}
+                failureFor={failureFor}
+                onFailureAction={onFailureAction}
+              />
             ))}
           </div>
         </section>

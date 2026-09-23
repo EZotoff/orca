@@ -34,15 +34,15 @@ export type ResumeFailure = ResumeCandidate & {
   reason: string
 }
 
-export type ResumeWorkspaceGroup<T extends ResumeCandidate = ResumeCandidate> = {
+export type ResumeWorkspaceGroup = {
   workspaceId: string
-  candidates: T[]
+  candidates: ResumeCandidate[]
 }
 
-export type ResumeRepoGroup<T extends ResumeCandidate = ResumeCandidate> = {
+export type ResumeRepoGroup = {
   /** The repo these workspaces belong to, or null for workspaces with no repo (folder workspaces). */
   repoId: string | null
-  workspaces: ResumeWorkspaceGroup<T>[]
+  workspaces: ResumeWorkspaceGroup[]
 }
 
 /**
@@ -67,10 +67,10 @@ export function resumeWorkspaceKind(candidate: ResumeCandidate): AgentSessionWor
 }
 
 /** Groups by workspace, preserving the order the host offered them so the list is stable. */
-export function groupResumeCandidates<T extends ResumeCandidate>(
-  candidates: readonly T[]
-): ResumeWorkspaceGroup<T>[] {
-  const groups = new Map<string, T[]>()
+export function groupResumeCandidates(
+  candidates: readonly ResumeCandidate[]
+): ResumeWorkspaceGroup[] {
+  const groups = new Map<string, ResumeCandidate[]>()
   for (const candidate of candidates) {
     const existing = groups.get(candidate.workspaceId)
     if (existing) {
@@ -88,11 +88,11 @@ export function groupResumeCandidates<T extends ResumeCandidate>(
  * `repoIdFor` comes from the store; workspaces it cannot place collapse into a single `null` group
  * rather than each inventing a header of its own.
  */
-export function groupResumeWorkspacesByRepo<T extends ResumeCandidate>(
-  workspaces: readonly ResumeWorkspaceGroup<T>[],
+export function groupResumeWorkspacesByRepo(
+  workspaces: readonly ResumeWorkspaceGroup[],
   repoIdFor: (workspaceId: string) => string | null
-): ResumeRepoGroup<T>[] {
-  const groups = new Map<string, ResumeRepoGroup<T>>()
+): ResumeRepoGroup[] {
+  const groups = new Map<string, ResumeRepoGroup>()
   for (const workspace of workspaces) {
     const repoId = repoIdFor(workspace.workspaceId)
     const key = repoId ?? '\0none'

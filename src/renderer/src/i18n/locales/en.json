@@ -1974,9 +1974,6 @@
         "dismissUnconfirmed": "Dismissing the resume offer was not confirmed — it may still be in the status bar.",
         "notContinuedOne": "1 chat couldn’t be resumed",
         "notContinuedMany": "{{value0}} chats couldn’t be resumed",
-        "failedBody": "Resumed chats were asked to check their last action before carrying on. A chat that couldn’t be resumed stays here and in the status bar until you open, retry, or dismiss it.",
-        "outcomeListLabel": "How each chat was resumed",
-        "dismissFailed": "Dismiss failed",
         "show": "Show",
         "dismiss": "Dismiss"
       },
@@ -17157,7 +17154,6 @@
         "openChat": "Open chat",
         "retry": "Retry",
         "dismiss": "Dismiss",
-        "continued": "Resumed and asked to continue",
         "unconfirmed": "Couldn’t confirm the chat was resumed",
         "failed": "Couldn’t resume",
         "statusFor": "{{value0}}: {{value1}}",

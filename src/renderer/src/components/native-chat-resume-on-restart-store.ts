@@ -5,7 +5,6 @@ import {
   announceRestartDismissUnconfirmed,
   announceRestartResults,
   announceRestartUnconfirmed,
-  restartChatsNotContinued,
   type RestartContinuationOutcome
 } from './native-chat-restart-action-notifications'
 import {
@@ -34,15 +33,12 @@ export type NativeChatRestartOffer = Readonly<{
   candidates: readonly ResumeCandidate[]
   /** Acted-on offers whose agent did not carry on, as the host still records them. */
   failed: readonly ResumeFailure[]
-  /** Chats the LAST action in this window carried on. Shown once beside any failures so the user
-   *  sees the whole outcome; the next host read clears them, since nothing durable backs them. */
-  settled: readonly ResumeCandidate[]
   /** Stamped when the list arrived. Row ages read against this rather than a render-time
    *  `Date.now()`, so they stay stable across re-renders and the render stays pure. */
   listedAt: number
 }>
 
-const EMPTY: NativeChatRestartOffer = { candidates: [], failed: [], settled: [], listedAt: 0 }
+const EMPTY: NativeChatRestartOffer = { candidates: [], failed: [], listedAt: 0 }
 let offer: NativeChatRestartOffer = EMPTY
 let launch: Promise<void> | undefined
 const listeners = new Set<() => void>()
@@ -100,7 +96,7 @@ async function readNativeChatRestartOffer(): Promise<HostOfferRead> {
       throw new Error('agent_session_restart_offer_invalid')
     }
     const failed = failedFrom(offered)
-    publish({ candidates: offered.sessions, failed, settled: [], listedAt: Date.now() })
+    publish({ candidates: offered.sessions, failed, listedAt: Date.now() })
     return { candidates: offered.sessions, failed, available: true }
   } catch {
     // A failed read is not an answer. Hide the last snapshot so a modal can never present a
@@ -143,7 +139,6 @@ export async function continueNativeChatRestartOffer(
   sessionIds: readonly string[] | undefined,
   reported: readonly string[] = sessionIds ?? []
 ): Promise<void> {
-  const shown = [...offer.candidates, ...offer.failed]
   try {
     const result = await callStructuredAgentSession<
       HostOfferPayload & {
@@ -154,16 +149,7 @@ export async function continueNativeChatRestartOffer(
     >(LOCAL, 'agentSession.restartContinue', sessionIds ? { sessionIds } : {})
     announceRestartResults(reported, result.continued, failureToastActions)
     if (Array.isArray(result.sessions)) {
-      const notContinued = new Set(restartChatsNotContinued(reported, result.continued))
-      publish({
-        candidates: result.sessions,
-        failed: failedFrom(result),
-        settled: shown.filter(
-          (candidate) =>
-            reported.includes(candidate.sessionId) && !notContinued.has(candidate.sessionId)
-        ),
-        listedAt: Date.now()
-      })
+      publish({ candidates: result.sessions, failed: failedFrom(result), listedAt: Date.now() })
     } else {
       await refreshNativeChatRestartOffer()
     }
@@ -189,12 +175,7 @@ export async function dismissNativeChatRestartOffer(sessionIds?: readonly string
       sessionIds ? { sessionIds: [...sessionIds] } : {}
     )
     if (Array.isArray(result.sessions)) {
-      publish({
-        candidates: result.sessions,
-        failed: failedFrom(result),
-        settled: offer.settled,
-        listedAt: Date.now()
-      })
+      publish({ candidates: result.sessions, failed: failedFrom(result), listedAt: Date.now() })
     } else {
       await refreshNativeChatRestartOffer()
     }
