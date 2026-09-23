@@ -603,16 +603,17 @@ async function deployAndLaunchRelayAttempt(
   }
   console.log('[ssh-relay] Relay started successfully')
 
-  // Why first: bounded Quick Open search needs rg, so the upload must not queue behind sweep and GC;
-  // the relay re-checks --ripgrep-path per spawn, so it never delays connect either.
-  void ensureRemoteBundledRipgrep(conn, hostPlatform, remoteHome)
-    .then(() =>
-      execHostCommand(
-        conn,
-        hostPlatform,
-        recoverOneStaleRelayUploadStageCommand(hostPlatform, uploadStagePoolDir)
-      )
-    )
+  // Why its own statement rather than the head of the chain below: bounded Quick Open search needs
+  // rg, but on a cold host this is a multi-MB upload, and chaining the sweep behind it would leave
+  // stale stages and superseded version dirs on the remote for its whole duration. The two touch
+  // different trees (`ripgrep/` is owned by no version GC), and neither delays connect.
+  void ensureRemoteBundledRipgrep(conn, hostPlatform, remoteHome).catch(() => {})
+
+  void execHostCommand(
+    conn,
+    hostPlatform,
+    recoverOneStaleRelayUploadStageCommand(hostPlatform, uploadStagePoolDir)
+  )
     .catch(() => {})
     // Why before GC: a superseded relay pins its version dir via the live-socket probe, so the
     // sweep has to settle first or GC keeps every orphan's tree forever.
