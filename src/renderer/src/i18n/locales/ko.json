@@ -6076,8 +6076,7 @@
           "5cb5475664": "고정된 탭을 닫기 전에 확인",
           "36b2a5dc6d": "고정된 탭을 닫기 전에 확인 대화상자를 표시합니다.",
           "projectRuntime": "프로젝트 런타임",
-          "projectRuntimeDescription": "별도로 재정의하지 않은 로컬 Windows 프로젝트의 기본 런타임입니다.",
-          "thisComputer": "이 컴퓨터"
+          "projectRuntimeDescription": "별도로 재정의하지 않은 로컬 Windows 프로젝트의 기본 런타임입니다."
         },
         "GeneralSupportSection": {
           "af7d9f4396": "지원해 주셔서 감사합니다!",

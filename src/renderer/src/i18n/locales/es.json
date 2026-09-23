@@ -6086,8 +6086,7 @@
           "5cb5475664": "Confirmar antes de cerrar pestañas fijadas",
           "36b2a5dc6d": "Muestra un diálogo de confirmación antes de cerrar una pestaña fijada.",
           "projectRuntime": "Runtime del proyecto",
-          "projectRuntimeDescription": "Runtime predeterminado para proyectos locales de Windows que no lo sobrescriben.",
-          "thisComputer": "Este equipo"
+          "projectRuntimeDescription": "Runtime predeterminado para proyectos locales de Windows que no lo sobrescriben."
         },
         "GeneralSupportSection": {
           "af7d9f4396": "¡Gracias por el apoyo!",

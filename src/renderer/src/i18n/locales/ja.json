@@ -6071,8 +6071,7 @@
           "5cb5475664": "ピン留めしたタブを閉じる前に確認",
           "36b2a5dc6d": "ピン留めしたタブを閉じる前に確認ダイアログを表示します。",
           "projectRuntime": "プロジェクトのランタイム",
-          "projectRuntimeDescription": "個別に指定していないローカル Windows プロジェクトの既定のランタイム。",
-          "thisComputer": "このコンピューター"
+          "projectRuntimeDescription": "個別に指定していないローカル Windows プロジェクトの既定のランタイム。"
         },
         "GeneralSupportSection": {
           "af7d9f4396": "サポートありがとうございます!",

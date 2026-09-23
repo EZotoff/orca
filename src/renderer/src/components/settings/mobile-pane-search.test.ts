@@ -17,7 +17,7 @@ describe('getMobilePaneSearchEntries', () => {
   })
 
   it('keeps the shared machine-name entry searchable from the Mobile pane', () => {
-    // Why: the entry is shared with General; the Mobile pane only adds its own keyword.
+    // Why: the entry is shared with Remote Servers; the Mobile pane only adds its own keyword.
     const entries = getMobilePaneSearchEntries()
 
     expect(matchesSettingsSearch('machine name', entries)).toBe(true)

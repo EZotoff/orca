@@ -5,7 +5,6 @@ import { searchKeywords, translateSearchKeyword } from './settings-search-keywor
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { getGeneralProjectRuntimeSearchEntries } from './general-project-runtime-search'
 import { getGeneralSupportSearchEntries } from './general-support-search'
-import { getMachineNameSearchEntries } from './machine-name-search'
 
 export { getGeneralEditorSearchEntries } from './general-editor-search'
 export { getGeneralSupportSearchEntries } from './general-support-search'
@@ -237,15 +236,12 @@ export const getGeneralUpdateSearchEntries = createLocalizedCatalog(() => [
 
 type GeneralPaneSearchOptions = {
   includeProjectRuntime?: boolean
-  /** False for the web client, which has no machine of its own to name. */
-  includeMachineName?: boolean
 }
 
 export function getGeneralPaneSearchEntries(
   options: GeneralPaneSearchOptions = {}
 ): SettingsSearchEntry[] {
   return [
-    ...(options.includeMachineName === false ? [] : getMachineNameSearchEntries()),
     ...getGeneralWorkspaceSearchEntries(),
     ...getGeneralNavigationSearchEntries(),
     ...(options.includeProjectRuntime === false ? [] : getGeneralProjectRuntimeSearchEntries()),

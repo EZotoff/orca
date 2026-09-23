@@ -71,7 +71,6 @@ export function renderGeneralSettingsSection(context: SettingsRenderContext): Re
           wslAvailable={terminal.localWindowsRuntimeCapabilities.wslAvailable}
           wslDistros={terminal.localWindowsRuntimeCapabilities.wslDistros}
           wslCapabilitiesLoading={terminal.localWindowsRuntimeCapabilities.isLoading}
-          showDesktopOnlySettings={model.showDesktopOnlySettings}
         />
       ) : null}
     </SettingsSection>

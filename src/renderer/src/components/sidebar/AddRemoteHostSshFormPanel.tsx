@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -13,8 +12,7 @@ export function AddRemoteHostSshFormPanel({
   onFormChange,
   onSubmit,
   onCancel,
-  onFillFromConfig,
-  children
+  onFillFromConfig
 }: {
   form: EditingTarget
   disabled: boolean
@@ -24,8 +22,6 @@ export function AddRemoteHostSshFormPanel({
   onSubmit: () => void
   onCancel: () => void
   onFillFromConfig: () => void
-  /** Rendered between the header and the host fields. */
-  children?: ReactNode
 }): React.JSX.Element {
   return (
     <>
@@ -40,8 +36,6 @@ export function AddRemoteHostSshFormPanel({
           )}
         </DialogDescription>
       </DialogHeader>
-
-      {children}
 
       <SshHostFields
         form={form}

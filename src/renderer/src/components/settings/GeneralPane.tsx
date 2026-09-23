@@ -17,8 +17,6 @@ import {
   getGeneralWorkspaceSearchEntries
 } from './general-search'
 import { getGeneralProjectRuntimeSearchEntries } from './general-project-runtime-search'
-import { getMachineNameSearchEntries } from './machine-name-search'
-import { MachineNameField } from './MachineNameField'
 import { RecentTabOrderControl } from './RecentTabOrderControl'
 import { matchesSettingsSearch, type SettingsSearchEntry } from './settings-search'
 import { SearchableSetting } from './SearchableSetting'
@@ -89,8 +87,6 @@ type GeneralPaneProps = {
   wslAvailable?: boolean
   wslDistros?: string[]
   wslCapabilitiesLoading?: boolean
-  /** False for the web client, which has no machine of its own to name. */
-  showDesktopOnlySettings?: boolean
 }
 
 export function GeneralPane({
@@ -102,8 +98,7 @@ export function GeneralPane({
   wslSupportedPlatform,
   wslAvailable,
   wslDistros = EMPTY_WSL_DISTROS,
-  wslCapabilitiesLoading,
-  showDesktopOnlySettings = true
+  wslCapabilitiesLoading
 }: GeneralPaneProps): React.JSX.Element {
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
   const sourceDefaultsSupportedRuntimeEnvironmentId = useAppStore(
@@ -127,14 +122,6 @@ export function GeneralPane({
     : []
 
   const visibleSections = [
-    showDesktopOnlySettings && matchesSettingsSearch(searchQuery, getMachineNameSearchEntries()) ? (
-      <section key="this-computer" className="space-y-4">
-        <SettingsSubsectionHeader
-          title={translate('auto.components.settings.GeneralPane.thisComputer', 'This computer')}
-        />
-        <MachineNameField />
-      </section>
-    ) : null,
     matchesSettingsSearch(searchQuery, generalNavigationSearchEntries) ? (
       <section key="navigation" className="space-y-4">
         <SettingsSubsectionHeader

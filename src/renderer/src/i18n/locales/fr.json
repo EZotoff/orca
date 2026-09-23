@@ -6836,8 +6836,7 @@
           "5cb5475664": "Confirmer avant de fermer les onglets épinglés",
           "36b2a5dc6d": "Afficher une boîte de dialogue de confirmation avant de fermer un onglet épinglé.",
           "projectRuntime": "Runtime des projets",
-          "projectRuntimeDescription": "Runtime par défaut pour les projets Windows locaux qui ne le remplacent pas.",
-          "thisComputer": "Cet ordinateur"
+          "projectRuntimeDescription": "Runtime par défaut pour les projets Windows locaux qui ne le remplacent pas."
         },
         "GeneralSupportSection": {
           "af7d9f4396": "Merci pour votre soutien !",

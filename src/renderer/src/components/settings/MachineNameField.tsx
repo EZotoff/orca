@@ -15,7 +15,7 @@ type MachineNameFieldProps = {
 
 /**
  * The name other devices and hosts list this computer under, with the detected name as the blank
- * default. One machine-wide setting, so every pairing or connect surface mounts this same field.
+ * default. One machine-wide setting, mounted only where other devices join this computer.
  */
 export function MachineNameField({
   id = 'machine-name',

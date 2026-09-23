@@ -6137,8 +6137,7 @@
           "5cb5475664": "关闭固定标签页前确认",
           "36b2a5dc6d": "关闭固定标签页前显示确认对话框。",
           "projectRuntime": "项目运行时",
-          "projectRuntimeDescription": "不覆盖此项的本地 Windows 项目的默认运行时。",
-          "thisComputer": "这台电脑"
+          "projectRuntimeDescription": "不覆盖此项的本地 Windows 项目的默认运行时。"
         },
         "GeneralSupportSection": {
           "af7d9f4396": "感谢您的支持！",
