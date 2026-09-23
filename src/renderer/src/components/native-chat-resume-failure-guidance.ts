@@ -29,8 +29,24 @@ const NOT_RESUMABLE = new Set([
 ])
 
 export function resumeFailureGuidance(
-  failure: Pick<ResumeFailure, 'outcome' | 'reason'>
+  failure: Pick<ResumeFailure, 'outcome' | 'reason' | 'retryable'>
 ): ResumeFailureGuidance {
+  const guidance = reasonGuidance(failure)
+  // The host already knows a retry would not run, whatever the reason suggests.
+  return failure.retryable === false &&
+    (guidance.primary === 'retry' || guidance.secondary === 'retry')
+    ? { text: manualContinuationText(), primary: 'open', secondary: 'dismiss' }
+    : guidance
+}
+
+function manualContinuationText(): string {
+  return translate(
+    'auto.components.NativeChatResumeFailureGuidance.fallback',
+    'Orca couldn’t resume this chat. Open it to continue manually.'
+  )
+}
+
+function reasonGuidance(failure: Pick<ResumeFailure, 'outcome' | 'reason'>): ResumeFailureGuidance {
   if (failure.outcome === 'unconfirmed') {
     return {
       text: translate(
@@ -112,12 +128,5 @@ export function resumeFailureGuidance(
       secondary: 'dismiss'
     }
   }
-  return {
-    text: translate(
-      'auto.components.NativeChatResumeFailureGuidance.fallback',
-      'Orca couldn’t resume this chat. Open it to continue manually.'
-    ),
-    primary: 'open',
-    secondary: 'retry'
-  }
+  return { text: manualContinuationText(), primary: 'open', secondary: 'retry' }
 }

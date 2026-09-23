@@ -22,6 +22,20 @@ describe('resumeFailureGuidance', () => {
     expect(guidance.text.length).toBeGreaterThan(0)
   })
 
+  // The provider's own refusal text lands on the fallback, and the chat then already holds the
+  // refused continuation, so the host reports a retry would not run.
+  it.each(['codex said no', 'agent_session_conflict'])(
+    'offers no retry for %s once the host says a retry would not run',
+    (reason) => {
+      expect(resumeFailureGuidance({ outcome: 'refused', reason, retryable: false })).toMatchObject(
+        { primary: 'open', secondary: 'dismiss' }
+      )
+      expect(resumeFailureGuidance({ outcome: 'refused', reason, retryable: true })).toMatchObject(
+        resumeFailureGuidance({ outcome: 'refused', reason })
+      )
+    }
+  )
+
   it('never offers a retry for a delivery nobody could confirm', () => {
     expect(
       resumeFailureGuidance({ outcome: 'unconfirmed', reason: 'agent_session_conflict' })

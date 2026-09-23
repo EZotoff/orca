@@ -98,6 +98,8 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
   reveal: (sessionId: string) => Promise<void>
   getRecord: (sessionId: string) => AgentSessionRecord | null
   adapter: StructuredAgentSessionAdapter
+  /** The predicate a retry applies to the failure's marker. */
+  retryable: (marker: AgentSessionResumeMarker) => boolean
   now: () => number
   /** The capsule's single mutation lane, shared with the offer's own operations. */
   enqueue: <T>(operation: () => Promise<T>) => Promise<T>
@@ -134,7 +136,8 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
         ...(model === undefined ? {} : { model }),
         failedAt: failure.failedAt,
         outcome: failure.outcome,
-        reason: failure.reason
+        reason: failure.reason,
+        retryable: deps.retryable(failure.marker)
       }
     ]
   }

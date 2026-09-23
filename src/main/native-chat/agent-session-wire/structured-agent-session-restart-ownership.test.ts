@@ -731,7 +731,8 @@ it('keeps a refused continuation as a durable failure that names the chat and th
     outcome: 'refused',
     reason: 'agent_session_restart_work_superseded',
     latestPrompt: expect.any(String),
-    agent: 'codex'
+    agent: 'codex',
+    retryable: false
   }
   expect(result).toMatchObject({ sessions: [], failed: [failure] })
   // The chat itself says what happened and what to do.
@@ -809,7 +810,7 @@ it('removes a failure when a named retry succeeds', async () => {
     ],
     NOW
   )
-  expect(await host.restartResume.listFailures()).toMatchObject([{ sessionId: SESSION }])
+  expect(await host.restartResume.listFailures()).toMatchObject([{ retryable: true }])
   // An unselective action leaves it alone; naming it retries it.
   expect((await host.restartResume.continueAfterRestart(undefined, 'all')).resumed).toEqual([])
   const retried = await host.restartResume.continueAfterRestart([SESSION], 'retry')

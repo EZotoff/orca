@@ -32,6 +32,8 @@ export type ResumeFailure = ResumeCandidate & {
   outcome: 'refused' | 'unconfirmed'
   /** The host's or provider's refusal code, verbatim. */
   reason: string
+  /** Whether a retry would run at all; an older host omits it and the reason decides alone. */
+  retryable?: boolean
 }
 
 export type ResumeWorkspaceGroup = {
