@@ -13,8 +13,9 @@ afterEach(() => {
 describe('notebook code cell line derivation', () => {
   it('derives preview lines including CRLF content', () => {
     expect(getIpynbCodeCellPreviewLines('')).toEqual([''])
-    expect(getIpynbCodeCellPreviewLines('one\ntwo\n')).toEqual(['one', 'two'])
-    expect(getIpynbCodeCellPreviewLines('one\r\ntwo\r\n')).toEqual(['one', 'two'])
+    expect(getIpynbCodeCellPreviewLines('one\ntwo')).toEqual(['one', 'two'])
+    expect(getIpynbCodeCellPreviewLines('one\ntwo\n')).toEqual(['one', 'two', ''])
+    expect(getIpynbCodeCellPreviewLines('one\r\ntwo\r\n')).toEqual(['one', 'two', ''])
   })
 
   it('caps newline-heavy cells without splitting or walking the full payload', () => {

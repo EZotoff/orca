@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { Components } from 'react-markdown'
 import { monaco } from '@/lib/monaco-setup'
-import { computeEditorFontSize, resolveEditorFontFamily } from '@/lib/editor-font-zoom'
+import { computeEditorFontSize, resolveEditorFontStack } from '@/lib/editor-font-zoom'
 import { useAppStore } from '@/store'
 import { installEditorSaveShortcut, installMonacoEditorFindShortcut } from './editor-shortcuts'
 import {
@@ -11,13 +11,10 @@ import {
 } from './ipynb-code-cell-lines'
 import type { IpynbCell } from './ipynb-parse'
 import { MarkdownPreviewBody } from './MarkdownPreviewBody'
-import MonacoCodeExcerpt from './MonacoCodeExcerpt'
+import MonacoCodeExcerpt, { CODE_EXCERPT_LAYOUT } from './MonacoCodeExcerpt'
 import { useDocumentDarkTheme } from './use-document-dark-theme'
 
 const NO_MARKDOWN_COMPONENTS: Components = {}
-// Matches MonacoCodeExcerpt's `leading-5 py-1`, so activating a cell does not shift the layout.
-const SOURCE_LINE_HEIGHT_PX = 20
-const SOURCE_VERTICAL_PADDING_PX = 4
 
 export function IpynbMarkdownCell({ source }: { source: string }): React.JSX.Element {
   const isDark = useDocumentDarkTheme()
@@ -88,6 +85,7 @@ export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element 
             highlightedStartLine={-1}
             highlightedEndLine={-1}
             language={cell.language}
+            showLineNumbers={false}
           />
         </div>
       )}
@@ -112,11 +110,11 @@ function IpynbSourceEditor({
     onSaveRequestRef.current = onSaveRequest
   }, [onDeactivate, onSaveRequest])
   const fontSize = computeEditorFontSize(settings?.terminalFontSize ?? 13, editorFontZoomLevel)
-  const lineHeight = Math.max(SOURCE_LINE_HEIGHT_PX, Math.ceil(fontSize * 1.5))
+  const { lineHeight, paddingX, paddingY } = CODE_EXCERPT_LAYOUT
   const maxHeight = IPYNB_CODE_CELL_PREVIEW_MAX_LINES * lineHeight
   // Seeds the first frame only; Monaco reports the real content height after mount.
   const [contentHeight, setContentHeight] = useState(
-    () => getIpynbCodeCellPreviewLines(source).length * lineHeight + 2 * SOURCE_VERTICAL_PADDING_PX
+    () => getIpynbCodeCellPreviewLines(source).length * lineHeight + 2 * paddingY
   )
   const handleMount: OnMount = useCallback((editorInstance, monacoInstance) => {
     editorInstance.focus()
@@ -159,12 +157,15 @@ function IpynbSourceEditor({
       onChange={(value) => onChange(value ?? '')}
       options={{
         automaticLayout: true,
-        fontFamily: resolveEditorFontFamily(settings),
+        fontFamily: resolveEditorFontStack(settings),
         fontSize,
+        // Why: same box as the excerpt it replaces. No gutter, so the decorations lane is the inset.
         lineHeight,
-        padding: { top: SOURCE_VERTICAL_PADDING_PX, bottom: SOURCE_VERTICAL_PADDING_PX },
+        padding: { top: paddingY, bottom: paddingY },
+        lineNumbers: 'off',
         glyphMargin: false,
-        lineNumbersMinChars: 3,
+        folding: false,
+        lineDecorationsWidth: paddingX,
         minimap: { enabled: false },
         overviewRulerLanes: 0,
         renderLineHighlight: 'none',

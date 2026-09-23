@@ -1,3 +1,5 @@
+import { buildFontFamily } from '@/components/terminal-pane/layout-serialization'
+
 const EDITOR_FONT_ZOOM_MIN = -6
 const EDITOR_FONT_ZOOM_MAX = 18
 const EDITOR_FONT_ZOOM_STEP = 1
@@ -42,4 +44,12 @@ export type EditorFontFamilySettings = {
  */
 export function resolveEditorFontFamily(settings?: EditorFontFamilySettings | null): string {
   return settings?.editorFontFamily?.trim() || settings?.terminalFontFamily || 'monospace'
+}
+
+/**
+ * Fallback-backed stack for code painted outside Monaco. Monaco appends its own fallbacks to a
+ * bare name; a plain element does not, so an unresolvable name like "SF Mono" drops to serif.
+ */
+export function resolveEditorFontStack(settings?: EditorFontFamilySettings | null): string {
+  return buildFontFamily(settings?.editorFontFamily?.trim() || settings?.terminalFontFamily || '')
 }

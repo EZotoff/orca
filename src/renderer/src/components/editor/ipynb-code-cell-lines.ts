@@ -25,11 +25,9 @@ export function getIpynbCodeCellPreviewLines(source: string): string[] {
     lineStart = index + 1
   }
 
-  if (lineStart < scanLength) {
-    lines.push(sliceIpynbCodeCellPreviewLine(source, lineStart, scanLength))
-  }
-
-  return lines.length > 0 ? lines : ['']
+  // A trailing newline still opens an empty last line, as it does in the Monaco model.
+  lines.push(sliceIpynbCodeCellPreviewLine(source, lineStart, scanLength))
+  return lines
 }
 
 function sliceIpynbCodeCellPreviewLine(source: string, lineStart: number, lineEnd: number): string {

@@ -24,6 +24,7 @@ import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ShortcutKeyComboDetails } from '@/hooks/useShortcutLabel'
 import { translate } from '@/i18n/i18n'
+import { cn } from '@/lib/utils'
 import type { IpynbCellKind } from './ipynb-parse'
 
 const CELL_KINDS: readonly IpynbCellKind[] = ['code', 'markdown', 'raw']
@@ -77,7 +78,7 @@ export function IpynbToolbarButton({
   )
 }
 
-/** Jupyter-style `[n]` prompt that turns into a run button on hover or focus. */
+/** Jupyter-style `[n]` prompt that turns into the run button on hover or focus. */
 export function IpynbRunPrompt({
   executionCount,
   running,
@@ -87,19 +88,29 @@ export function IpynbRunPrompt({
   running: boolean
   onRun: () => void
 }): React.JSX.Element {
-  if (running) {
-    return <Loader2 className="m-1.5 size-3 animate-spin text-muted-foreground" />
-  }
   return (
     <IpynbToolbarButton
       label={translate('auto.components.editor.IpynbViewer.859bf9fc21', 'Run cell')}
       size="xs"
+      disabled={running}
       onClick={onRun}
     >
-      <span className="font-mono text-[11px] text-muted-foreground group-focus-within:hidden group-hover:hidden">
-        [{executionCount ?? ' '}]
+      {/* Both states share one grid cell, so the slot keeps the label's width and centre. */}
+      <span className="grid place-items-center *:[grid-area:1/1]">
+        <span
+          className={cn(
+            'font-mono text-[11px] text-muted-foreground',
+            running ? 'invisible' : 'group-focus-within:invisible group-hover:invisible'
+          )}
+        >
+          [{executionCount ?? ' '}]
+        </span>
+        {running ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <Play className="invisible group-focus-within:visible group-hover:visible" />
+        )}
       </span>
-      <Play className="hidden group-focus-within:block group-hover:block" />
     </IpynbToolbarButton>
   )
 }
