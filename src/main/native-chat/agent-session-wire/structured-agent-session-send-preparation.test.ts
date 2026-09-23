@@ -434,6 +434,41 @@ describe('a send with no live owner', () => {
     expect(store.getRecord(SESSION)?.lease.claimStatus).toBe('live')
   })
 
+  it('adjudicates a lease this host has not reconciled before a hold resumes it', async () => {
+    await loseOwner()
+    await store.transitionHandoff(SESSION, (current) => ({
+      ...current,
+      lease: { ...current.lease, unreconciled: true }
+    }))
+    host.deps.probeOwner = async () => ({ outcome: 'pid-absent' })
+
+    await host.hold(SESSION, 'desktop-chat:1')
+
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(store.getRecord(SESSION)?.lease).toMatchObject({
+      unreconciled: false,
+      claimStatus: 'live'
+    })
+  })
+
+  it('exits the recovery stage a failed attempt latched before a hold resumes', async () => {
+    await loseOwner()
+    // What an acquisition whose exit could not be proven leaves behind: nobody's, but latched.
+    await store.transitionHandoff(SESSION, (current) => ({
+      ...current,
+      lease: { ...current.lease, handoffStage: 'manual-recovery' }
+    }))
+    host.deps.probeOwner = async () => ({ outcome: 'pid-absent' })
+
+    await host.hold(SESSION, 'desktop-chat:1')
+
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(store.getRecord(SESSION)?.lease).toMatchObject({
+      handoffStage: null,
+      claimStatus: 'live'
+    })
+  })
+
   it('leaves a lease it cannot adjudicate alone', async () => {
     await loseOwner()
     await store.transitionHandoff(SESSION, (current) => ({
