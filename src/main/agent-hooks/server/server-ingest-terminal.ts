@@ -4,7 +4,7 @@ import { parseLegacyNumericPaneKey, parsePaneKey } from '../../../shared/stable-
 import { terminalStatusPayloadMatchesHook } from '../../../shared/agent-terminal-status-equivalence'
 import type { ParsedAgentStatusPayload } from '../../../shared/agent-status-types'
 import type { EnrichedAgentHookEventPayload } from './server-types'
-import { isClaudeMainAgentBoundaryHeldByChildrenOnly } from './server-claude-status-rules'
+import { isAgentStatusHeldOpenByChildWork } from '../../../shared/agent-lead-status-fold'
 import { AgentHookServerIngestNormalization } from './server-ingest-normalization'
 
 export abstract class AgentHookServerIngestTerminal extends AgentHookServerIngestNormalization {
@@ -83,11 +83,13 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
       | EnrichedAgentHookEventPayload
       | undefined
     if (
-      previous &&
-      isClaudeMainAgentBoundaryHeldByChildrenOnly(previous) &&
-      event.payload.agentType === 'claude'
+      previous?.payload.agentType === 'claude' &&
+      event.payload.agentType === 'claude' &&
+      isAgentStatusHeldOpenByChildWork(previous.payload) &&
+      previous.payload.subagents?.some((subagent) => subagent.state === 'working') === true
     ) {
-      // Why: OSC has no child identity or main agent boundary, so it cannot replace a child-only proof before the lifecycle hook arrives.
+      // Why: OSC carries no child identity, so it cannot settle or repaint a row child agents hold open
+      // (working, or waiting on a child's prompt); their lifecycle hooks will.
       if (mutationBefore !== undefined) {
         this.commitStatusRowMutation(mutationBefore, previous)
         this.emitEnrichedStatus(previous)
@@ -148,6 +150,10 @@ export abstract class AgentHookServerIngestTerminal extends AgentHookServerInges
         connectionId,
         ...(preservedProviderSession ? { providerSession: preservedProviderSession } : {}),
         ...(terminalHandle ? { terminalHandle } : {}),
+        // Why: restart seeds a settled main agent unless a shell held the row; keep that fact beside it.
+        ...(preservedMainAgent && previous?.claudeRunningNonAgentTask !== undefined
+          ? { claudeRunningNonAgentTask: previous.claudeRunningNonAgentTask }
+          : {}),
         payload: preservedMainAgent
           ? { ...event.payload, mainAgent: preservedMainAgent }
           : event.payload

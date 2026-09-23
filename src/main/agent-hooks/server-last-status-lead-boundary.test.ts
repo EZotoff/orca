@@ -3,12 +3,10 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AgentHookServer, _internals } from './server'
-import { isClaudeMainAgentBoundaryHeldByChildrenOnly } from './server/server-claude-status-rules'
 import { buildBody, postHookEvent, PANE, RUNNING_SHELL } from './server.test-fixtures'
 
-function heldByChildrenOnly(server: AgentHookServer): boolean | undefined {
-  const row = server._getStateForTests().lastStatusByPaneKey.get(PANE)
-  return row ? isClaudeMainAgentBoundaryHeldByChildrenOnly(row) : undefined
+function mainAgentState(server: AgentHookServer): string | undefined {
+  return server.getStatusSnapshot()[0]?.mainAgent?.state
 }
 
 const { getCohortAtEmitMock, trackMock } = vi.hoisted(() => ({
@@ -192,12 +190,14 @@ describe('Persisted Claude lead boundaries', () => {
       buildBody({ hook_event_name: 'SubagentStart', agent_id: 'achildb' })
     )
     await postHookEvent(firstServer, buildBody({ hook_event_name: 'Stop' }))
-    expect(heldByChildrenOnly(firstServer)).toBe(true)
+    expect(firstServer.getStatusSnapshot()[0]?.state).toBe('working')
+    expect(mainAgentState(firstServer)).toBe('done')
     await postHookEvent(
       firstServer,
       buildBody({ hook_event_name: 'SubagentStop', agent_id: 'achilda' })
     )
-    expect(heldByChildrenOnly(firstServer)).toBe(true)
+    expect(firstServer.getStatusSnapshot()[0]?.state).toBe('working')
+    expect(mainAgentState(firstServer)).toBe('done')
     firstServer.flushStatusPersistSync()
     firstServer.stop()
 
@@ -247,7 +247,7 @@ describe('Persisted Claude lead boundaries', () => {
       buildBody({ hook_event_name: 'PreToolUse', tool_name: 'Read' })
     )
     expect(firstServer.getStatusSnapshot()[0]).toMatchObject({ state: 'waiting', toolName: 'Bash' })
-    expect(heldByChildrenOnly(firstServer)).toBe(false)
+    expect(mainAgentState(firstServer)).toBe('working')
     await postHookEvent(
       firstServer,
       buildBody({ hook_event_name: 'SubagentStop', agent_id: 'achild-a' })
@@ -337,12 +337,12 @@ describe('Persisted Claude lead boundaries', () => {
       buildBody({ hook_event_name: 'PreToolUse', tool_name: 'Read' })
     )
     expect(firstServer.getStatusSnapshot()[0]).toMatchObject({ state: 'waiting', toolName: 'Bash' })
-    expect(heldByChildrenOnly(firstServer)).toBe(false)
+    expect(mainAgentState(firstServer)).toBe('working')
     await postHookEvent(
       firstServer,
       buildBody({ hook_event_name: 'SubagentStop', agent_id: 'achilda' })
     )
-    expect(heldByChildrenOnly(firstServer)).toBe(false)
+    expect(mainAgentState(firstServer)).toBe('working')
     firstServer.flushStatusPersistSync()
     firstServer.stop()
 

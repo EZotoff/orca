@@ -1,25 +1,25 @@
-import { isAgentStatusHeldOpenByChildWork } from '../../../shared/agent-lead-status-fold'
+import { mainAgentStatusEqual } from '../../../shared/main-agent-status'
 import { claudeTeammateIdMatchesName } from '../../../shared/claude-subagent-roster'
 import { isAskUserQuestionTool } from '../../../shared/agent-question-answered-intent'
 import type { AgentHookEventPayload } from '../../../shared/agent-hook-listener/listener-event'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 
-/** The Claude main agent has settled and child agents alone hold the row `working`. Derived from the
- *  row's `mainAgent` fact and its child evidence, never stored: the persisted flag this replaced was a
- *  second copy of `mainAgent.state === 'done'` that could disagree with it. A running shell beside the
- *  agents disqualifies the row; that fact rides `claudeRunningNonAgentTask` (persisted since the
- *  flag stopped being written), and a row old enough to lack it reads as shell-free — which is
- *  exactly what its legacy child-only flag asserted at write time. */
-export function isClaudeMainAgentBoundaryHeldByChildrenOnly(
-  row: Pick<AgentHookEventPayload, 'payload' | 'claudeRunningNonAgentTask'>
-): boolean {
-  return (
-    row.payload.agentType === 'claude' &&
-    isAgentStatusHeldOpenByChildWork(row.payload) &&
-    row.payload.state === 'working' &&
-    row.payload.subagents?.some((subagent) => subagent.state === 'working') === true &&
-    row.claudeRunningNonAgentTask !== true
-  )
+/** A child's permission prompt stays visible over the main agent's own progress, but the row must
+ *  still carry that progress: restart seeds the main agent from it, and a stale `done` would let the
+ *  children's drain settle a row whose main agent is working. Returns `previous` when nothing changed. */
+export function withHeldChildWaitMainAgent(
+  previous: EnrichedAgentHookEventPayload,
+  next: AgentHookEventPayload
+): EnrichedAgentHookEventPayload {
+  const mainAgent = next.payload.mainAgent
+  if (
+    !previous.toolAgentId ||
+    !mainAgent ||
+    mainAgentStatusEqual(previous.payload.mainAgent, mainAgent)
+  ) {
+    return previous
+  }
+  return { ...previous, payload: { ...previous.payload, mainAgent } }
 }
 
 export function shouldKeepClaudePermissionVisible(

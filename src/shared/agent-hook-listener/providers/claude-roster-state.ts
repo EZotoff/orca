@@ -221,19 +221,19 @@ export function seedClaudeSubagentRosterFromSnapshots(
   }
 }
 
+/** Restore a settled main agent so its children's drain can still complete the row after a restart.
+ *  A running shell's liveness is not restored, so a row it held stays unseeded and never falsely settles. */
 export function seedClaudeLeadTurnFromPersistedStatus(
   state: HookListenerState,
   paneKey: string,
-  status: Pick<AgentHookEventPayload, 'payload'>,
-  options: { childOnlyBoundary: boolean }
+  status: Pick<AgentHookEventPayload, 'payload' | 'claudeRunningNonAgentTask'>
 ): void {
   const mainAgent = status.payload.mainAgent
-  // Why: the persisted `mainAgent` is the fact; a row old enough to lack it was mapped from its
-  // legacy child-only flag at hydrate, so both shapes arrive here as `mainAgent.state === 'done'`.
+  // Why: a row old enough to lack `mainAgent` was mapped from its legacy child-only flag at hydrate.
   if (
-    options.childOnlyBoundary &&
     status.payload.agentType === 'claude' &&
-    mainAgent?.state === 'done'
+    mainAgent?.state === 'done' &&
+    status.claudeRunningNonAgentTask !== true
   ) {
     setClaudeMainAgentTurnState(state, paneKey, {
       state: 'done',

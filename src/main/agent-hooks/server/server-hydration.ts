@@ -10,7 +10,6 @@ import {
 } from '../../../shared/agent-hook-listener/providers/claude-roster-state'
 import { seedCodexStateFromSnapshot } from '../../../shared/agent-hook-listener/providers/codex-state'
 import { AGENT_STATUS_PERSISTED_HYDRATION_MODE } from '../../../shared/agent-status-legacy-adapter'
-import { isClaudeMainAgentBoundaryHeldByChildrenOnly } from './server-claude-status-rules'
 import { HYDRATE_MAX_AGE_MS, LAST_STATUS_FILE_VERSION } from './server-constants'
 import type { LastStatusFile } from './server-types'
 import {
@@ -124,9 +123,7 @@ export abstract class AgentHookServerHydration extends AgentHookServerReaping {
         if (entry.payload.agentType === 'codex') {
           seedCodexStateFromSnapshot(this.state, resolvedPaneKey, entry.payload)
         } else if (entry.payload.agentType === 'claude') {
-          seedClaudeLeadTurnFromPersistedStatus(this.state, resolvedPaneKey, entry, {
-            childOnlyBoundary: isClaudeMainAgentBoundaryHeldByChildrenOnly(entry)
-          })
+          seedClaudeLeadTurnFromPersistedStatus(this.state, resolvedPaneKey, entry)
           if (entry.payload.subagents) {
             seedClaudeSubagentRosterFromSnapshots(
               this.state,

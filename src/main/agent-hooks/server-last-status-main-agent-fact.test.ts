@@ -136,6 +136,54 @@ describe('The main agent fact across a restart', () => {
     }
   })
 
+  it.each([
+    ['a child permission wait', 'waiting', ['PreToolUse', 'SubagentStop']],
+    ['a drained row', 'done', ['SubagentStart', 'SubagentStop']]
+  ] as const)(
+    'settles a legacy flagged row holding %s once its child finishes',
+    async (_shape, state, childEvents) => {
+      const receivedAt = recentTs()
+      writeEntry({
+        receivedAt,
+        stateStartedAt: receivedAt - 5_000,
+        claudeLeadBoundaryChildOnly: true,
+        payload: {
+          state,
+          prompt: 'legacy row',
+          agentType: 'claude',
+          ...(state === 'waiting'
+            ? {
+                toolName: 'Bash',
+                subagents: [{ id: 'achild', state: 'working', startedAt: receivedAt - 4_000 }]
+              }
+            : {})
+        }
+      })
+      const server = new AgentHookServer()
+      await server.start({ env: 'production', userDataPath })
+      try {
+        for (const hookEventName of childEvents) {
+          await postHookEvent(
+            server,
+            buildBody({
+              hook_event_name: hookEventName,
+              agent_id: 'achild',
+              ...(hookEventName === 'PreToolUse'
+                ? { tool_name: 'Bash', tool_use_id: 'toolu-approved' }
+                : {})
+            })
+          )
+        }
+        expect(server.getStatusSnapshot()[0]).toMatchObject({
+          state: 'done',
+          mainAgent: { state: 'done' }
+        })
+      } finally {
+        server.stop()
+      }
+    }
+  )
+
   it('prefers a persisted main agent over the legacy flag when a row carries both', async () => {
     const receivedAt = recentTs()
     const mainAgent = { state: 'done', outcome: 'cancellation', stateStartedAt: receivedAt - 2_000 }
