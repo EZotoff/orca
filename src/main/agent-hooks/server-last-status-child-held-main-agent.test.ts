@@ -168,6 +168,28 @@ describe('Claude rows held open by child agents', () => {
     }
   })
 
+  it('pushes the held child permission row when the main agent behind it changes', async () => {
+    const server = await startServer()
+    try {
+      await settleMainAgentBeside(server, ['achild-a'])
+      await post(server, CHILD_PERMISSION)
+      const pushed: { state: string; mainAgent?: { state: string } }[] = []
+      server.subscribeEnrichedStatus((enriched) => pushed.push(enriched.payload))
+      await post(server, { hook_event_name: 'PreToolUse', tool_name: 'Read' })
+      expect(pushed).toEqual([
+        expect.objectContaining({
+          state: 'waiting',
+          mainAgent: expect.objectContaining({ state: 'working' })
+        })
+      ])
+      // The main agent keeps working: nothing it publishes changed, so nothing is pushed.
+      await post(server, { hook_event_name: 'PreToolUse', tool_name: 'Grep' })
+      expect(pushed).toHaveLength(1)
+    } finally {
+      server.stop()
+    }
+  })
+
   it('does not settle a restored row whose main agent resumed behind a child permission', async () => {
     let server = await startServer()
     await settleMainAgentBeside(server, ['achild-a', 'achild-b'])

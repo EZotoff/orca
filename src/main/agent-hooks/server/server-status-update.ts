@@ -161,6 +161,10 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
         this.scheduleStatusPersist()
       }
       this.commitStatusRowMutation(rowBefore, held)
+      // Why: pushed readers must see the new `mainAgent` a snapshot reader already does.
+      if (held !== previous) {
+        this.emitEnrichedStatus(held)
+      }
       return held
     }
     // Why: some TUIs emit a delayed tool/working hook after Ctrl+C stopped the turn; don't let it resurrect the row.
