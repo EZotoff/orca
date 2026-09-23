@@ -60,7 +60,7 @@ export function subscribeSoftKeyboard(
   if (viewport === undefined) {
     return () => {}
   }
-  let open = false
+  let open = occlusion(viewport) > 0
   const read = (): void => {
     const height = occlusion(viewport)
     if (height > 0) {

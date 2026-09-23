@@ -219,6 +219,24 @@ describe('the keyboard as events, for a sheet', () => {
     expect(viewport?.counts).toEqual({ resize: 0, scroll: 0 })
   })
 
+  it('hides a keyboard that was already up when it subscribed', async () => {
+    viewport?.resizeTo(464)
+    const calls: string[] = []
+    const unsubscribe = subscribeSoftKeyboard(
+      (height) => calls.push(`show ${height}`),
+      (duration) => calls.push(`hide ${duration}`)
+    )
+    viewport?.resizeTo(LAYOUT_HEIGHT)
+    expect(calls).toEqual(['hide 0'])
+    unsubscribe()
+    // The hook seeds from the same strip, so it must come back down too.
+    viewport?.resizeTo(464)
+    await mount()
+    expect(lift).toBe(336)
+    await act(async () => viewport?.resizeTo(LAYOUT_HEIGHT))
+    expect(lift).toBe(0)
+  })
+
   it('stays silent when nothing is covered, which is the shell shortening the WebView', () => {
     const calls: string[] = []
     const unsubscribe = subscribeSoftKeyboard(
