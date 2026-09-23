@@ -5,6 +5,9 @@
 // landed, flips the session to `ready`, and persists what the child now reports as fact through
 // the same record write a user's option change takes. Bookkeeping never gates the user: a failed
 // write is reported and the session stays usable.
+//
+// This runs on the chain every session's exit recovery shares, and under the session's own
+// serialized step, so it asks the provider nothing: the event carries what the child proved.
 
 import { agentSessionLeaseAdmitsWriter } from '../../../shared/agent-session-lease-adjudication'
 import type { StructuredAgentSessionStartedEvent } from './structured-agent-session-adapter'
@@ -12,7 +15,7 @@ import type {
   StructuredAgentSessionHostDeps,
   StructuredAgentSessionHostSession
 } from './structured-agent-session-host-types'
-import { readNativeSessionOptions } from './structured-agent-session-option-restoration'
+import { nativeSessionOptionsFromReport } from './structured-agent-session-option-restoration'
 
 export type StructuredAgentSessionProviderStartedContext = {
   deps: StructuredAgentSessionHostDeps
@@ -52,7 +55,7 @@ async function persistStartedOptions(
   context: StructuredAgentSessionProviderStartedContext,
   event: StructuredAgentSessionStartedEvent
 ): Promise<void> {
-  const { store, adapter } = context.deps
+  const { store } = context.deps
   const record = store.getRecord(event.sessionId)
   if (
     !record ||
@@ -61,18 +64,14 @@ async function persistStartedOptions(
   ) {
     return
   }
-  const options = await readNativeSessionOptions({
-    adapter,
+  await store.replaceSessionOptions({
     sessionId: event.sessionId,
     fence: event.fence,
-    ...(record.options ? { priorOptions: record.options } : {})
+    options: nativeSessionOptionsFromReport({
+      reported: event.reportedOptions,
+      restoreSkipped: event.restoreSkippedOptions,
+      ...(record.options ? { priorOptions: record.options } : {})
+    }),
+    now: context.now()
   })
-  if (options) {
-    await store.replaceSessionOptions({
-      sessionId: event.sessionId,
-      fence: event.fence,
-      options,
-      now: context.now()
-    })
-  }
 }

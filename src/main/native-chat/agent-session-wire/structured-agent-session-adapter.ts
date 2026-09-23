@@ -148,6 +148,11 @@ export type StructuredAgentSessionStartedEvent = {
   sessionId: string
   fence: number
   acquisitionGeneration: string
+  /** What the child proved, snapshotted by the adapter from what startup already read. The host
+   *  handles this on the chain every session's exit recovery shares, so it must not ask the CLI. */
+  reportedOptions: AgentSessionOptionsResult['current']
+  /** Saved options the restore could not apply; the host drops them rather than persist them. */
+  restoreSkippedOptions: readonly string[]
 }
 
 export type StructuredAgentSessionLifecycleEvent =

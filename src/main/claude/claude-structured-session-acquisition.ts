@@ -254,12 +254,13 @@ export async function acquireClaudeSession({
       isCurrent: () => sessions.get(sessionId) === session,
       requestTimeoutMs: deps.requestTimeoutMs,
       fault: (error) => callbacks.handleExit(sessionId, attempt, error),
-      onStarted: () =>
+      onStarted: (options) =>
         emit({
           type: 'started',
           sessionId,
           fence: input.fence,
-          acquisitionGeneration: session.acquisitionGeneration
+          acquisitionGeneration: session.acquisitionGeneration,
+          ...options
         })
     })
     // A child whose exit already reached `handleExit` is not handed over as live: the create
