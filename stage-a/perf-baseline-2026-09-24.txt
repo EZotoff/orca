@@ -1,0 +1,79 @@
+# Perf baseline raw output — 2026-09-24T00:13+02:00
+
+## date -Is
+2026-09-24T00:17:03+02:00
+
+## uptime
+ 00:17:03 up 3 days,  1:20,  2 users,  load average: 22,89, 20,50, 18,94
+
+## free -h
+               total        used        free      shared  buff/cache   available
+Mem:            31Gi        25Gi       712Mi       660Mi       4,8Gi       4,4Gi
+Swap:           74Gi        42Gi        32Gi
+
+## nproc
+32
+
+## /proc/loadavg
+22.89 20.50 18.94 5/8892 1545465
+
+## ps -eo rss,pcpu,comm --sort=-rss | head -30
+  RSS %CPU COMMAND
+3548008 105 node
+3531580 56.6 opencode
+3323048 88.4 node
+1514928 39.0 opencode
+1090636 18.6 bun
+860352 25.7 opencode
+802004 18.4 opencode
+547124 12.8 opencode
+517332 61.0 python3
+506596 14.6 opencode
+459612 13.1 opencode
+431384 3.5 bun
+400980 10.6 opencode
+397728 10.3 opencode
+376604 7.5 opencode
+353048 91.3 llama-server
+357368 7.3 opencode
+312440 7.2 opencode
+300692 0.9 chrome
+219520 18.4 opencode
+161272 0.9 chrome
+161672 7.8 opencode
+157676 9.2 opencode
+159500 6.7 opencode
+125156 2.3 opencode
+124816 9.0 chrome
+97148  2.4 Discord
+89336  3.9 opencode
+91796  0.4 yandex_browser
+
+## systemd-cgtop -b -n 1 | head -20
+/                                                                                             8899      -    26.7G        -        -
+dev-hugepages.mount                                                                              -      -     4.0K        -        -
+dev-mqueue.mount                                                                                 -      -     8.0K        -        -
+init.scope                                                                                       1      -     3.8M        -        -
+proc-sys-fs-binfmt_misc.mount                                                                    -      -     8.0K        -        -
+sys-fs-fuse-connections.mount                                                                    -      -     4.0K        -        -
+sys-kernel-config.mount                                                                          -      -     4.0K        -        -
+sys-kernel-debug.mount                                                                           -      -     4.0K        -        -
+sys-kernel-tracing.mount                                                                         -      -     4.0K        -        -
+system.slice                                                                                  1803      -   938.0M        -        -
+system.slice/AmneziaVPN.service                                                                  3      -   624.0K        -        -
+system.slice/ModemManager.service                                                                3      -   652.0K        -        -
+system.slice/NetworkManager.service                                                              3      -     2.8M        -        -
+system.slice/accounts-daemon.service                                                             3      -   800.0K        -        -
+system.slice/acpid.service                                                                       1      -   296.0K        -        -
+system.slice/anydesk.service                                                                     7      -     2.1M        -        -
+system.slice/avahi-daemon.service                                                                2      -     1.4M        -        -
+system.slice/bluetooth.service                                                                   1      -   320.0K        -        -
+system.slice/bolt.service                                                                        3      -   700.0K        -        -
+system.slice/boot-efi.mount                                                                      -      -     4.0K        -        -
+
+## vmstat 1 3
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 3 22 44779268 590092 1701336 3387204  170  238  1265   480    1    3  9  2 87  2  0
+14 14 44702212 345804 1820440 3451752 71792    0 232169 22164 81347 166107 17  5 45 34  0
+ 4 18 44758456 343344 1902632 3358244 46204 113000 142353 121948 77181 135377 16  4 41 39  0
