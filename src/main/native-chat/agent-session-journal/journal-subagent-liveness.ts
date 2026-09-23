@@ -42,6 +42,9 @@ import {
 export type JournalSubagentLivenessRevision = {
   identity: AgentJournalItemIdentity
   body: AgentJournalItemBody
+  /** The row's own time. The verdict restates it as the host that is gone left it, so
+   *  the revision must not date the session to the reopen. */
+  observedAt: number
 }
 
 /** The revisions a reopened journal owes: one per row still claiming a live
@@ -61,7 +64,11 @@ export function staleSubagentRosterRevisions(
     if (!identity || agentJournalItemKey(identity) !== item.itemId) {
       continue
     }
-    revisions.push({ identity, body: { ...body, blocks: settleBlocks(body.blocks) } })
+    revisions.push({
+      identity,
+      body: { ...body, blocks: settleBlocks(body.blocks) },
+      observedAt: item.observedAt
+    })
   }
   return revisions
 }

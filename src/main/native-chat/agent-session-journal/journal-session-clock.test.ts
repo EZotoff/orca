@@ -9,6 +9,10 @@ import type {
 import { agentJournalItemKey } from '../../../shared/agent-session-journal-item-key'
 import type { NativeChatSubagentEntry } from '../../../shared/native-chat-types'
 import {
+  claudeBackgroundTaskBody,
+  claudeBackgroundTaskIdentity
+} from '../../claude/claude-background-task-row-journal'
+import {
   codexSubagentGroupBody,
   codexSubagentGroupIdentity
 } from '../../codex/codex-subagent-roster'
@@ -156,6 +160,33 @@ describe('reopening a journal whose roster was left running', () => {
   afterEach(async () => {
     await journals.closeAll()
     await rm(root, { recursive: true, force: true })
+  })
+
+  it('settles a live background task without dating the session to the restart', async () => {
+    const live = await open()
+    await live.appendItem(
+      { provider: 'orca', clientMessageId: 'prompt-1' },
+      { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'watch the build' }] },
+      { fence: 0 }
+    )
+    await live.appendItem(
+      claudeBackgroundTaskIdentity('task-1'),
+      claudeBackgroundTaskBody({
+        type: 'background-task',
+        taskId: 'task-1',
+        kind: 'command',
+        label: 'npm test --watch',
+        state: 'working'
+      }),
+      { fence: 0 }
+    )
+    const ownClock = live.lastActivityAt()
+    await live.close()
+
+    const reopened = await open()
+    // A control: the reopen DID write the task's settling revision.
+    expect(reopened.snapshot().items.at(-1)?.revision).toBe(2)
+    expect(reopened.lastActivityAt()).toBe(ownClock)
   })
 
   it('settles the roster without dating the session to the restart', async () => {

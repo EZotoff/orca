@@ -44,7 +44,8 @@ export async function openJournalStoreState(input: {
   appendItem: (
     identity: AgentJournalItemIdentity,
     body: AgentJournalItemBody,
-    fence: number
+    fence: number,
+    observedAt?: number
   ) => Promise<unknown>
   agent: AgentType
   highestFence: () => number
@@ -129,7 +130,8 @@ async function settleStaleSubagentRosters(
     appendItem: (
       identity: AgentJournalItemIdentity,
       body: AgentJournalItemBody,
-      fence: number
+      fence: number,
+      observedAt: number
     ) => Promise<unknown>
     highestFence: () => number
     readOnly: () => boolean
@@ -140,6 +142,11 @@ async function settleStaleSubagentRosters(
     return
   }
   for (const revision of staleSubagentRosterRevisions(loaded.state.items.values())) {
-    await input.appendItem(revision.identity, revision.body, input.highestFence())
+    await input.appendItem(
+      revision.identity,
+      revision.body,
+      input.highestFence(),
+      revision.observedAt
+    )
   }
 }
