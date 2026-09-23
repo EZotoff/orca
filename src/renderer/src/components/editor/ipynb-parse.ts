@@ -29,6 +29,9 @@ export type ParsedIpynb = {
 const DISPLAY_MIME_ORDER = [
   'text/html',
   'image/png',
+  'image/gif',
+  'image/webp',
+  'image/bmp',
   'image/jpeg',
   'image/jpg',
   'image/svg+xml',

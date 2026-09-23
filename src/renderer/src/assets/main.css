@@ -2217,6 +2217,13 @@ html.native-shell .app-layout {
   height: 100% !important;
 }
 
+/* Why: notebook cells paint their own code surface; Monaco's theme background would cover it. */
+.ipynb-code-surface .monaco-editor,
+.ipynb-code-surface .monaco-editor-background,
+.ipynb-code-surface .monaco-editor .margin {
+  background-color: transparent;
+}
+
 .monaco-editor .monaco-search-result-highlight {
   background: color-mix(in srgb, var(--warning, #f59e0b) 34%, transparent);
   border-radius: 3px;

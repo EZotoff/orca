@@ -43,10 +43,3 @@ export type EditorFontFamilySettings = {
 export function resolveEditorFontFamily(settings?: EditorFontFamilySettings | null): string {
   return settings?.editorFontFamily?.trim() || settings?.terminalFontFamily || 'monospace'
 }
-
-/** Same resolution, but keeps the notebook shell's "no font set → inherit UI font" fallback. */
-export function resolveEditorFontFamilyOrInherit(
-  settings?: EditorFontFamilySettings | null
-): string | undefined {
-  return settings?.editorFontFamily?.trim() || settings?.terminalFontFamily || undefined
-}

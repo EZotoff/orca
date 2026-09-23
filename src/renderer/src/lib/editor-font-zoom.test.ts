@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   computeDiffEditorFontSize,
   computeEditorFontSize,
-  resolveEditorFontFamily,
-  resolveEditorFontFamilyOrInherit
+  resolveEditorFontFamily
 } from './editor-font-zoom'
 
 describe('editor font zoom', () => {
@@ -44,25 +43,5 @@ describe('resolveEditorFontFamily', () => {
   it('falls back to monospace when neither font is set', () => {
     expect(resolveEditorFontFamily(undefined)).toBe('monospace')
     expect(resolveEditorFontFamily({})).toBe('monospace')
-  })
-})
-
-describe('resolveEditorFontFamilyOrInherit', () => {
-  it('returns undefined (inherit UI font) when neither font is set', () => {
-    expect(resolveEditorFontFamilyOrInherit({})).toBeUndefined()
-    expect(resolveEditorFontFamilyOrInherit(undefined)).toBeUndefined()
-  })
-
-  it('follows the terminal font when no editor override is set', () => {
-    expect(resolveEditorFontFamilyOrInherit({ terminalFontFamily: 'Menlo' })).toBe('Menlo')
-  })
-
-  it('uses the editor font override when set', () => {
-    expect(
-      resolveEditorFontFamilyOrInherit({
-        editorFontFamily: 'Fira Code',
-        terminalFontFamily: 'Menlo'
-      })
-    ).toBe('Fira Code')
   })
 })

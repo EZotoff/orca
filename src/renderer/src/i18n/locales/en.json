@@ -14970,7 +14970,9 @@
           "1833dbbc43": "Markdown",
           "7005960d73": "Code",
           "59b6cd874b": "code",
-          "ba149053d5": "markdown"
+          "ba149053d5": "markdown",
+          "8dbe39a152": "More cell actions",
+          "fa8fd99cf1": "Cell type"
         },
         "MarkdownPreview": {
           "e4683f70c4": "Cancel",
