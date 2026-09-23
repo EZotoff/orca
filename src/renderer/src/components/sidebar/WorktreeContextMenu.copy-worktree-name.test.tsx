@@ -5,6 +5,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Worktree } from '../../../../shared/worktree/types'
+import { folderWorkspaceToWorktree } from '../../../../shared/folder-workspace-worktree'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import WorktreeContextMenu from './WorktreeContextMenu'
 
@@ -134,5 +135,32 @@ describe('WorktreeContextMenu Copy Worktree Name', () => {
     clickMenuItem('Copy Worktree Name')
 
     expect(writeClipboardText).toHaveBeenCalledExactlyOnceWith('feature/auth-race')
+  })
+
+  it.each([
+    ['its name', 'Refund fix', 'Refund fix'],
+    ['the folder name when its name is blank', '', 'platform']
+  ])('copies a non-git folder workspace by %s', (_case, name, expected) => {
+    openMenu(
+      folderWorkspaceToWorktree({
+        id: 'folder-1',
+        projectGroupId: 'group-1',
+        name,
+        folderPath: '/workspace/platform',
+        linkedTask: null,
+        comment: '',
+        isArchived: false,
+        isUnread: false,
+        isPinned: false,
+        sortOrder: 0,
+        lastActivityAt: 0,
+        createdAt: 0,
+        updatedAt: 0
+      })
+    )
+
+    clickMenuItem('Copy Worktree Name')
+
+    expect(writeClipboardText).toHaveBeenCalledExactlyOnceWith(expected)
   })
 })
