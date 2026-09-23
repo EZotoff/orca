@@ -22,11 +22,11 @@ import { resolvePrompt, resolveToolState } from '../prompt-fields'
 import { extractToolFields, isNewTurnEvent } from '../provider-event-routing'
 import { readString } from '../tool-input-preview'
 import {
-  codexLeadStatusForPayload,
+  codexMainAgentStatusForPayload,
   getOrCreateCodexSubagentRoster,
   getOrCreateCodexSubagentTranscriptState,
   hasCodexTranscriptSubagents,
-  setCodexLeadTurnState
+  setCodexMainAgentTurnState
 } from './codex-state'
 
 export function buildCodexStatusPayload(
@@ -57,7 +57,7 @@ export function buildCodexStatusPayload(
     lastAssistantMessage: snapshot.lastAssistantMessage,
     lastAssistantMessageIsToolOutput: snapshot.lastAssistantMessageIsToolOutput,
     subagents: codexRosterToSnapshots(state.codexSubagentRosterByPaneKey.get(paneKey)),
-    lead: codexLeadStatusForPayload(lead)
+    mainAgent: codexMainAgentStatusForPayload(lead)
   })
 }
 
@@ -227,7 +227,7 @@ export function normalizeCodexEvent(
     stateName
   )
   const previousLead = state.codexLeadStateByPaneKey.get(paneKey)
-  setCodexLeadTurnState(state, paneKey, {
+  setCodexMainAgentTurnState(state, paneKey, {
     state: ownedState,
     model:
       normalizeOptionalField(hookPayload['model'], AGENT_MODEL_MAX_LENGTH) ??

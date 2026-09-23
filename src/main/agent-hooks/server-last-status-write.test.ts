@@ -87,10 +87,10 @@ describe('Last-status persistence', () => {
       expect(file.entries[PANE].launchTokenHash).toBe(
         createHash('sha256').update('launch-bearer-must-not-persist').digest('hex')
       )
-      // The shell fact is persisted: hydration reads it to decide whether a settled lead held
-      // open by children may be seeded, which `lead` alone cannot say (see server-types.ts).
+      // The shell fact is persisted: hydration reads it to decide whether a settled main agent held
+      // open by children may be seeded, which `mainAgent` alone cannot say (see server-types.ts).
       expect(file.entries[PANE].claudeRunningNonAgentTask).toBe(true)
-      expect(file.entries[PANE].payload.lead).toEqual({
+      expect(file.entries[PANE].payload.mainAgent).toEqual({
         state: 'done',
         stateStartedAt: expect.any(Number)
       })

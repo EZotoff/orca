@@ -3,7 +3,7 @@
 // a narrow interrupt fallback synthesizes a final `done` when an agent misses its cancellation hook.
 
 import type { AgentProviderSessionMetadata } from './agent-session-resume'
-import type { AgentLeadStatus } from './agent-lead-status'
+import type { AgentMainAgentStatus } from './main-agent-status'
 import { isAgentJournalTurnOutcome } from './agent-turn-outcome'
 import type { OrchestrationFleetAttention } from './orchestration-fleet-attention'
 import type { AgentStatusRowFacets } from './agent-status-observation'
@@ -24,7 +24,7 @@ export type {
   AgentStatusIpcPayload,
   MigrationUnsupportedPtyEntry
 } from './agent-status-ipc-payload'
-export { agentLeadStatusEqual, type AgentLeadStatus } from './agent-lead-status'
+export { mainAgentStatusEqual, type AgentMainAgentStatus } from './main-agent-status'
 
 export const AGENT_STATUS_STATES = ['working', 'blocked', 'waiting', 'done'] as const
 export type AgentStatusState = (typeof AGENT_STATUS_STATES)[number]
@@ -153,9 +153,9 @@ export type AgentStatusEntry = {
   /** Live in-process subagents/teammates of this pane's session. Absent when
    *  none are tracked; the sidebar derives indented child rows from it. */
   subagents?: AgentSubagentSnapshot[]
-  /** The lead's own state; absent from old hosts and from writers that carry no lead fact
+  /** The main agent's own state; absent from old hosts and from writers that carry no main agent fact
    *  (OSC, launch seeds), where readers fall back to `state`. */
-  lead?: AgentLeadStatus
+  mainAgent?: AgentMainAgentStatus
   /** Provider-owned conversation/session id captured from hook payloads.
    *  Used only for exact CLI resume; Orca terminal ids are not agent-session ids. */
   providerSession?: AgentProviderSessionMetadata
@@ -200,9 +200,9 @@ export type AgentStatusPayload = {
   turnCompletedAt?: number
   /** Live in-process children of the reporting session. See AgentStatusEntry. */
   subagents?: AgentSubagentSnapshot[]
-  /** The lead's own state and last-turn verdict. See AgentLeadStatus. Producers publish it
+  /** The main agent's own state and last-turn verdict. See AgentMainAgentStatus. Producers publish it
    *  beside the combined `state`; a reader that predates it keeps reading `state`. */
-  lead?: AgentLeadStatus
+  mainAgent?: AgentMainAgentStatus
 }
 
 /**
@@ -241,7 +241,7 @@ export function pickParsedAgentStatusPayload(
     ...(row.sessionBoundary !== undefined ? { sessionBoundary: row.sessionBoundary } : {}),
     ...(row.turnCompletedAt !== undefined ? { turnCompletedAt: row.turnCompletedAt } : {}),
     ...(row.subagents !== undefined ? { subagents: row.subagents } : {}),
-    ...(row.lead !== undefined ? { lead: row.lead } : {})
+    ...(row.mainAgent !== undefined ? { mainAgent: row.mainAgent } : {})
   }
 }
 
@@ -336,9 +336,9 @@ function normalizeSubagentsField(value: unknown): AgentSubagentSnapshot[] | unde
   return normalized.length > 0 ? normalized : undefined
 }
 
-/** A malformed `lead` drops the FIELD, never the row: the combined `state` is still valid
+/** A malformed `mainAgent` drops the FIELD, never the row: the combined `state` is still valid
  *  evidence, and readers fall back to it exactly as they do for a host that predates the field. */
-function normalizeLeadStatusField(value: unknown): AgentLeadStatus | undefined {
+function normalizeMainAgentStatusField(value: unknown): AgentMainAgentStatus | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined
   }
@@ -435,7 +435,7 @@ function normalizeAgentStatusObject(parsed: unknown): ParsedAgentStatusPayload |
     sessionBoundary: obj.sessionBoundary === true && state === 'done' ? true : undefined,
     turnCompletedAt: normalizeTurnCompletedAtField(obj.turnCompletedAt, state),
     subagents: normalizeSubagentsField(obj.subagents),
-    lead: normalizeLeadStatusField(obj.lead)
+    mainAgent: normalizeMainAgentStatusField(obj.mainAgent)
   }
 }
 

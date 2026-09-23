@@ -28,8 +28,8 @@ export type EnrichedAgentHookEventPayload = AgentHookEventPayload & {
 }
 
 // `claudeRunningNonAgentTask` is persisted on purpose: it is the one child-work fact the row's
-// `lead` cannot express (a shell beside the agents), and hydration reads it to decide whether a
-// settled lead may be seeded. It replaced the derived `claudeLeadBoundaryChildOnly` flag.
+// `mainAgent` cannot express (a shell beside the agents), and hydration reads it to decide whether a
+// settled main agent may be seeded. It replaced the derived `claudeLeadBoundaryChildOnly` flag.
 export type PersistedAgentHookEventPayload = Omit<
   EnrichedAgentHookEventPayload,
   | 'authorityRestartId'

@@ -101,7 +101,7 @@ ingests the summary into the hook server as a status row:
 | `worktreeId`                                        | `summary.workspaceId` (a folder workspace id is a valid value)                                                                                  |
 | `state`                                             | `structuredAgentSessionAgentStatus(summary).state`: the lead's own status folded with its live `backgroundTasks`, so a settled lead whose subagent still runs reads `working`  |
 | `workingMode`                                       | `'monitoring'` from the same fold when watch loops are the only live child work; omitted otherwise, which clears it on the row                  |
-| `lead`                                              | the lead's own state before the fold, its last-turn verdict (`summary.turnOutcome`, present only while idle) and its own clock; see "The lead fact" below |
+| `mainAgent`                                              | the main agent's own state before the fold, its last-turn verdict (`summary.turnOutcome`, present only while idle) and its own clock; see "The main agent fact" below |
 | `structuredHost`                                    | `'owned'` while `summary.hostExecutionOwned` is set, otherwise `'held'`; `worktree ps` derives its row's `structuredHostOwned` from it          |
 | prompt, tool, last message, model, provider session | the summary's fields                                                                                                                            |
 
@@ -188,22 +188,22 @@ over `agentStatus:set` or `agentStatus:getSnapshot`. The renderer's feed
 bridge still writes those rows itself, and forwarding them too would give one
 pane key two writers. Removing that filter is the first step of PR 2.
 
-### The lead fact
+### The main agent fact
 
-Every producer publishes the row's combined `state` and, beside it, the lead
-agent's own state as `payload.lead`:
+Every producer publishes the row's combined `state` and, beside it, the main
+agent's own state as `payload.mainAgent`:
 
 ```ts
-lead?: { state: AgentStatusState; outcome?: AgentJournalTurnOutcome; stateStartedAt: number }
+mainAgent?: { state: AgentStatusState; outcome?: AgentJournalTurnOutcome; stateStartedAt: number }
 ```
 
 `state` still answers "what should the user see" and folds live child work in,
-so a settled lead whose subagent still runs reads `working`. `lead` answers
-"what is the lead itself doing", which the fold used to destroy at publish
+so a settled main agent whose subagent still runs reads `working`. `mainAgent` answers
+"what is the main agent itself doing", which the fold used to destroy at publish
 time; every guard that reconstructed a fragment of it (`fromChildWork`, the
-persisted `claudeLeadBoundaryChildOnly` flag) is now derived from `lead` plus
+persisted `claudeLeadBoundaryChildOnly` flag) is now derived from `mainAgent` plus
 the row's child evidence instead of stored. `outcome` is the provider's verdict
-on the lead's most recent finished turn, present only while `lead.state` is
+on the main agent's most recent finished turn, present only while `mainAgent.state` is
 `done`; a plain end of turn carries none, because absent means unknown and a
 provider that omits its interrupt flag must not turn a cancel into a success.
 In the Claude hook lane the cancellation comes primarily from Orca's own
@@ -213,13 +213,13 @@ turn boundary remains a secondary source for builds that send it, and
 `StopFailure` maps to `failure`.
 
 Admission is one function, `normalizeAgentStatusPayload`, on the relay wire,
-IPC and disk. A malformed `lead` drops the field and keeps the row. Old hosts
+IPC and disk. A malformed `mainAgent` drops the field and keeps the row. Old hosts
 send none and readers fall back to `state`. Hook rows persist it inside the
 payload; hydration maps an older row's `claudeLeadBoundaryChildOnly: true`
-onto `lead: { state: 'done' }` when the row has no `lead`, and never writes the
+onto `mainAgent: { state: 'done' }` when the row has no `mainAgent`, and never writes the
 flag again. `claudeRunningNonAgentTask` is persisted alongside because it is
-the one child-work fact `lead` cannot express: whether a shell was running
-beside the child agents, which decides whether a settled lead may be seeded
+the one child-work fact `mainAgent` cannot express: whether a shell was running
+beside the child agents, which decides whether a settled main agent may be seeded
 at hydrate.
 
 Two combining rules remain outside the shared fold and are named so a reader
@@ -227,11 +227,11 @@ does not mistake them for drift:
 
 - Codex keeps `codexRosterEffectiveState` for its combined `state` (a waiting
   child wins, a settled root with any live child reads `working`, never
-  monitoring) and publishes `lead` from its root record; moving that combine
+  monitoring) and publishes `mainAgent` from its root record; moving that combine
   onto the fold needs a waiting-child input the fold does not have yet.
 - A cancelled turn with a still-running shell reads `done` in the hook lane
   and `monitoring` in the structured lane. The parity table in
-  `src/shared/agent-lead-status-parity.test.ts` pins this as a known
+  `src/shared/main-agent-status-parity.test.ts` pins this as a known
   divergence; the cancel policy that removes it flips that row.
 
 ## PR 1b: the runtime's retained row store is deleted

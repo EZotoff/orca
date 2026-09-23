@@ -16,12 +16,12 @@ describe('the Codex root record seeded from a durable row', () => {
     state = createHookListenerState()
   })
 
-  it("takes the row's own lead fact over the inferred aggregate", () => {
+  it("takes the row's own mainAgent fact over the inferred aggregate", () => {
     seedCodexStateFromSnapshot(state, PANE_KEY, {
       state: 'waiting',
       model: 'gpt-5.4',
       subagents: [{ id: 'child', state: 'working', startedAt: 1 }],
-      lead: { state: 'done', outcome: 'cancellation', stateStartedAt: 42 }
+      mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: 42 }
     })
     expect(state.codexLeadStateByPaneKey.get(PANE_KEY)).toEqual({
       state: 'done',
@@ -31,7 +31,7 @@ describe('the Codex root record seeded from a durable row', () => {
     })
   })
 
-  it('still infers the root state from an older row that carries no lead', () => {
+  it('still infers the root state from an older row that carries no main agent', () => {
     seedCodexStateFromSnapshot(state, PANE_KEY, {
       state: 'waiting',
       subagents: [{ id: 'child', state: 'waiting', startedAt: 1 }]
@@ -39,7 +39,7 @@ describe('the Codex root record seeded from a durable row', () => {
     expect(state.codexLeadStateByPaneKey.get(PANE_KEY)).toMatchObject({ state: 'working' })
   })
 
-  it("republishes a relayed row with the lead fact main holds, not the relay's", () => {
+  it("republishes a relayed row with the mainAgent fact main holds, not the relay's", () => {
     const reconciled = reconcileRemoteCodexState(
       state,
       PANE_KEY,
@@ -48,6 +48,6 @@ describe('the Codex root record seeded from a durable row', () => {
       { state: 'done', prompt: 'ship', agentType: 'codex' },
       undefined
     )
-    expect(reconciled.lead).toEqual({ state: 'done', stateStartedAt: expect.any(Number) })
+    expect(reconciled.mainAgent).toEqual({ state: 'done', stateStartedAt: expect.any(Number) })
   })
 })

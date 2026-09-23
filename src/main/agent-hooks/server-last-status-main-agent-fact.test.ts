@@ -24,13 +24,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-// The lead fact rides inside the persisted payload. Without these pins the field would look
+// The main agent fact rides inside the persisted payload. Without these pins the field would look
 // shipped while dying at every restart: hydration rebuilds only the fields it is taught.
-describe('The lead fact across a restart', () => {
+describe('The main agent fact across a restart', () => {
   let userDataPath: string
 
   beforeEach(() => {
-    userDataPath = mkdtempSync(join(tmpdir(), 'orca-lead-fact-'))
+    userDataPath = mkdtempSync(join(tmpdir(), 'orca-main-agent-fact-'))
   })
 
   afterEach(() => {
@@ -52,7 +52,7 @@ describe('The lead fact across a restart', () => {
     )
   }
 
-  it('round-trips a settled lead held open by a child through disk and back', async () => {
+  it('round-trips a settled main agent held open by a child through disk and back', async () => {
     const firstServer = new AgentHookServer()
     await firstServer.start({ env: 'production', userDataPath })
     await postHookEvent(
@@ -67,12 +67,12 @@ describe('The lead fact across a restart', () => {
     const live = firstServer.getStatusSnapshot()[0]
     expect(live).toMatchObject({
       state: 'working',
-      lead: { state: 'done', outcome: 'cancellation', stateStartedAt: expect.any(Number) }
+      mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: expect.any(Number) }
     })
     firstServer.flushStatusPersistSync()
     firstServer.stop()
     const file = JSON.parse(readFileSync(lastStatusPath(), 'utf8'))
-    expect(file.entries[PANE].payload.lead).toEqual(live?.lead)
+    expect(file.entries[PANE].payload.mainAgent).toEqual(live?.mainAgent)
     expect(file.entries[PANE]).not.toHaveProperty('claudeLeadBoundaryChildOnly')
 
     const server = new AgentHookServer()
@@ -81,9 +81,9 @@ describe('The lead fact across a restart', () => {
       expect(server.getStatusSnapshot()[0]).toMatchObject({
         state: 'working',
         restoredUnconfirmed: true,
-        lead: live?.lead
+        mainAgent: live?.mainAgent
       })
-      // The seeded lead record is what lets the child's drain settle the pane, verdict intact.
+      // The seeded main agent record is what lets the child's drain settle the pane, verdict intact.
       await postHookEvent(
         server,
         buildBody({ hook_event_name: 'SubagentStop', agent_id: 'arestored-child' })
@@ -91,14 +91,18 @@ describe('The lead fact across a restart', () => {
       expect(server.getStatusSnapshot()[0]).toMatchObject({
         state: 'done',
         interrupted: true,
-        lead: { state: 'done', outcome: 'cancellation', stateStartedAt: live?.lead?.stateStartedAt }
+        mainAgent: {
+          state: 'done',
+          outcome: 'cancellation',
+          stateStartedAt: live?.mainAgent?.stateStartedAt
+        }
       })
     } finally {
       server.stop()
     }
   })
 
-  it('maps the legacy child-only flag onto an absent lead, dated by the turn end', async () => {
+  it('maps the legacy child-only flag onto an absent main agent, dated by the turn end', async () => {
     const receivedAt = recentTs()
     writeEntry({
       receivedAt,
@@ -117,7 +121,7 @@ describe('The lead fact across a restart', () => {
     try {
       expect(server.getStatusSnapshot()[0]).toMatchObject({
         state: 'working',
-        lead: { state: 'done', stateStartedAt: receivedAt - 1_000 }
+        mainAgent: { state: 'done', stateStartedAt: receivedAt - 1_000 }
       })
       await postHookEvent(
         server,
@@ -125,16 +129,16 @@ describe('The lead fact across a restart', () => {
       )
       expect(server.getStatusSnapshot()[0]).toMatchObject({
         state: 'done',
-        lead: { state: 'done' }
+        mainAgent: { state: 'done' }
       })
     } finally {
       server.stop()
     }
   })
 
-  it('prefers a persisted lead over the legacy flag when a row carries both', async () => {
+  it('prefers a persisted main agent over the legacy flag when a row carries both', async () => {
     const receivedAt = recentTs()
-    const lead = { state: 'done', outcome: 'cancellation', stateStartedAt: receivedAt - 2_000 }
+    const mainAgent = { state: 'done', outcome: 'cancellation', stateStartedAt: receivedAt - 2_000 }
     writeEntry({
       receivedAt,
       stateStartedAt: receivedAt - 5_000,
@@ -144,38 +148,38 @@ describe('The lead fact across a restart', () => {
         prompt: 'both',
         agentType: 'claude',
         turnCompletedAt: receivedAt - 1_000,
-        lead,
+        mainAgent,
         subagents: [{ id: 'arestored-child', state: 'working', startedAt: receivedAt - 4_000 }]
       }
     })
     const server = new AgentHookServer()
     await server.start({ env: 'production', userDataPath })
     try {
-      expect(server.getStatusSnapshot()[0]?.lead).toEqual(lead)
+      expect(server.getStatusSnapshot()[0]?.mainAgent).toEqual(mainAgent)
     } finally {
       server.stop()
     }
   })
 
-  it('drops a malformed persisted lead and keeps the row', async () => {
+  it('drops a malformed persisted main agent and keeps the row', async () => {
     const receivedAt = recentTs()
     writeEntry({
       receivedAt,
       stateStartedAt: receivedAt - 5_000,
-      payload: { state: 'done', prompt: 'survived', agentType: 'claude', lead: 'done' }
+      payload: { state: 'done', prompt: 'survived', agentType: 'claude', mainAgent: 'done' }
     })
     const server = new AgentHookServer()
     await server.start({ env: 'production', userDataPath })
     try {
       const row = server.getStatusSnapshot()[0]
       expect(row).toMatchObject({ state: 'done', prompt: 'survived' })
-      expect(row?.lead).toBeUndefined()
+      expect(row?.mainAgent).toBeUndefined()
     } finally {
       server.stop()
     }
   })
 
-  it('never invents a lead for a non-Claude row from the legacy flag', async () => {
+  it('never invents a main agent for a non-Claude row from the legacy flag', async () => {
     const receivedAt = recentTs()
     writeEntry({
       receivedAt,
@@ -186,7 +190,7 @@ describe('The lead fact across a restart', () => {
     const server = new AgentHookServer()
     await server.start({ env: 'production', userDataPath })
     try {
-      expect(server.getStatusSnapshot()[0]?.lead).toBeUndefined()
+      expect(server.getStatusSnapshot()[0]?.mainAgent).toBeUndefined()
     } finally {
       server.stop()
     }

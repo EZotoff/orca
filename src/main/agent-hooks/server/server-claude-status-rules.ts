@@ -4,13 +4,13 @@ import { isAskUserQuestionTool } from '../../../shared/agent-question-answered-i
 import type { AgentHookEventPayload } from '../../../shared/agent-hook-listener/listener-event'
 import type { EnrichedAgentHookEventPayload } from './server-types'
 
-/** The Claude lead has settled and child agents alone hold the row `working`. Derived from the
- *  row's `lead` fact and its child evidence, never stored: the persisted flag this replaced was a
- *  second copy of `lead.state === 'done'` that could disagree with it. A running shell beside the
+/** The Claude main agent has settled and child agents alone hold the row `working`. Derived from the
+ *  row's `mainAgent` fact and its child evidence, never stored: the persisted flag this replaced was a
+ *  second copy of `mainAgent.state === 'done'` that could disagree with it. A running shell beside the
  *  agents disqualifies the row; that fact rides `claudeRunningNonAgentTask` (persisted since the
  *  flag stopped being written), and a row old enough to lack it reads as shell-free — which is
  *  exactly what its legacy child-only flag asserted at write time. */
-export function isClaudeLeadBoundaryHeldByChildrenOnly(
+export function isClaudeMainAgentBoundaryHeldByChildrenOnly(
   row: Pick<AgentHookEventPayload, 'payload' | 'claudeRunningNonAgentTask'>
 ): boolean {
   return (

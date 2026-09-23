@@ -363,8 +363,8 @@ describe('AgentHookServer listener replay', () => {
   })
 })
 
-describe('the lead fact on an inferred interrupt', () => {
-  it('publishes the synthesized done as a cancelled lead turn', () => {
+describe('the main agent fact on an inferred interrupt', () => {
+  it('publishes the synthesized done as a cancelled main agent turn', () => {
     vi.useFakeTimers()
     vi.setSystemTime(1_000)
     try {
@@ -393,7 +393,7 @@ describe('the lead fact on an inferred interrupt', () => {
       expect(server.getStatusSnapshot()[0]).toMatchObject({
         state: 'done',
         interrupted: true,
-        lead: { state: 'done', outcome: 'cancellation', stateStartedAt: 1_500 }
+        mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: 1_500 }
       })
     } finally {
       vi.useRealTimers()

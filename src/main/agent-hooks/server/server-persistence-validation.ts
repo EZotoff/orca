@@ -31,17 +31,17 @@ export function dropHydratedIdleClaudeSubagents(
   }
 }
 
-/** Rows written before `lead` existed persisted `claudeLeadBoundaryChildOnly: true` instead: the
- *  lead had settled and child agents alone held the row `working`. That is `lead.state === 'done'`
- *  stored as a boolean, so it only fills an absent `lead`; a row carrying both keeps `lead`. The
+/** Rows written before `mainAgent` existed persisted `claudeLeadBoundaryChildOnly: true` instead: the
+ *  main agent had settled and child agents alone held the row `working`. That is `mainAgent.state === 'done'`
+ *  stored as a boolean, so it only fills an absent `mainAgent`; a row carrying both keeps `mainAgent`. The
  *  flag stays readable until every user's file has been rewritten without it. */
-function fillLeadFromLegacyChildOnlyBoundary(
+function fillMainAgentFromLegacyChildOnlyBoundary(
   payload: ParsedAgentStatusPayload,
   record: Record<string, unknown>,
   stateStartedAt: number
 ): ParsedAgentStatusPayload {
   if (
-    payload.lead !== undefined ||
+    payload.mainAgent !== undefined ||
     record.claudeLeadBoundaryChildOnly !== true ||
     payload.agentType !== 'claude'
   ) {
@@ -49,9 +49,9 @@ function fillLeadFromLegacyChildOnlyBoundary(
   }
   return {
     ...payload,
-    // Why: the gated working row stamps the lead's end as `turnCompletedAt`; the row clock is the
+    // Why: the gated working row stamps the main agent's end as `turnCompletedAt`; the row clock is the
     // nearest fact an older row that lacks it can offer.
-    lead: { state: 'done', stateStartedAt: payload.turnCompletedAt ?? stateStartedAt }
+    mainAgent: { state: 'done', stateStartedAt: payload.turnCompletedAt ?? stateStartedAt }
   }
 }
 
@@ -112,7 +112,11 @@ export function sanitizeHydratedEntry(
   if (!normalizedPayload) {
     return null
   }
-  const payload = fillLeadFromLegacyChildOnlyBoundary(normalizedPayload, record, stateStartedAt)
+  const payload = fillMainAgentFromLegacyChildOnlyBoundary(
+    normalizedPayload,
+    record,
+    stateStartedAt
+  )
   const providerSession = normalizeAgentProviderSession(record.providerSession) ?? undefined
   const providerSessionOnly = record.providerSessionOnly === true
   const retainedForLiveness = record.retainedForLiveness === true

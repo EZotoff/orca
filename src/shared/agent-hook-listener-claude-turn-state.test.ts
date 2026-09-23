@@ -402,7 +402,7 @@ describe('shared agent-hook-listener', () => {
   })
 })
 
-describe('the lead verdict across a child-induced wait', () => {
+describe('the main agent verdict across a child-induced wait', () => {
   let state: HookListenerState
 
   beforeEach(() => {
@@ -418,12 +418,12 @@ describe('the lead verdict across a child-induced wait', () => {
     claude({ hook_event_name: 'UserPromptSubmit', prompt: 'go' })
     claude({ hook_event_name: 'SubagentStart', agent_id: 'a1' })
     const cancelled = claude({ hook_event_name: 'Stop', is_interrupt: true })
-    expect(cancelled?.lead).toEqual({
+    expect(cancelled?.mainAgent).toEqual({
       state: 'done',
       outcome: 'cancellation',
       stateStartedAt: expect.any(Number)
     })
-    const settledAt = cancelled?.lead?.stateStartedAt
+    const settledAt = cancelled?.mainAgent?.stateStartedAt
 
     const wait = claude({
       hook_event_name: 'PermissionRequest',
@@ -431,29 +431,29 @@ describe('the lead verdict across a child-induced wait', () => {
       tool_name: 'Bash',
       tool_input: { command: 'rm -rf build' }
     })
-    expect(wait).toMatchObject({ state: 'waiting', lead: { state: 'waiting' } })
-    expect(wait?.lead).not.toHaveProperty('outcome')
+    expect(wait).toMatchObject({ state: 'waiting', mainAgent: { state: 'waiting' } })
+    expect(wait?.mainAgent).not.toHaveProperty('outcome')
 
-    // The child's pause displaced the lead; clearing it must give the verdict and clock back.
+    // The child's pause displaced the main agent; clearing it must give the verdict and clock back.
     const drained = claude({ hook_event_name: 'SubagentStop', agent_id: 'a1' })
     expect(drained).toMatchObject({
       state: 'done',
       interrupted: true,
-      lead: { state: 'done', outcome: 'cancellation', stateStartedAt: settledAt }
+      mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: settledAt }
     })
   })
 
   it('clears the verdict when a new turn starts', () => {
     claude({ hook_event_name: 'UserPromptSubmit', prompt: 'go' })
     claude({ hook_event_name: 'StopFailure', error: 'invalid_request' })
-    expect(claude({ hook_event_name: 'UserPromptSubmit', prompt: 'again' })?.lead).toEqual({
+    expect(claude({ hook_event_name: 'UserPromptSubmit', prompt: 'again' })?.mainAgent).toEqual({
       state: 'working',
       stateStartedAt: expect.any(Number)
     })
   })
 })
 
-describe('the lead verdict from an inferred interrupt', () => {
+describe('the main agent verdict from an inferred interrupt', () => {
   let state: HookListenerState
 
   beforeEach(() => {
@@ -466,7 +466,7 @@ describe('the lead verdict from an inferred interrupt', () => {
   }
 
   // Current Claude sends no hook on a cancel and no `is_interrupt` on Stop, so the cancellation
-  // enters the lead record from Orca's inferred interrupt and rides into the next real Stop.
+  // enters the main agent record from Orca's inferred interrupt and rides into the next real Stop.
   it('carries the inferred cancellation into the next plain Stop', () => {
     claude({ hook_event_name: 'UserPromptSubmit', prompt: 'go' })
     markClaudeLeadTurnInterrupted(state, PANE_KEY)
@@ -480,7 +480,7 @@ describe('the lead verdict from an inferred interrupt', () => {
     expect(stop).toMatchObject({
       state: 'done',
       interrupted: true,
-      lead: { state: 'done', outcome: 'cancellation', stateStartedAt: settledAt }
+      mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: settledAt }
     })
   })
 })

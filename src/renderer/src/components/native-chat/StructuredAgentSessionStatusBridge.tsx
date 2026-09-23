@@ -7,10 +7,10 @@ import {
   projectAgentChildWorkLegacySubagents
 } from '../../../../shared/agent-status-child-work-projection'
 import {
-  continueAgentLeadStatus,
+  continueMainAgentStatus,
   isAgentStatusHeldOpenByChildWork
 } from '../../../../shared/agent-lead-status-fold'
-import { agentLeadStatusEqual, agentSubagentsEqual } from '../../../../shared/agent-status-types'
+import { mainAgentStatusEqual, agentSubagentsEqual } from '../../../../shared/agent-status-types'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import { structuredAgentSessionAgentStatus } from '../../../../shared/structured-agent-session-agent-status'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
@@ -70,12 +70,16 @@ function projectStatus(
     turnOutcome: summary.turnOutcome
   })
   const current = store.agentStatusByPaneKey?.[paneKey]
-  // Same continuity rule as the host ingest, on the lead's own clock.
-  const lead = continueAgentLeadStatus(current?.lead, agentStatus.lead, summary.updatedAt)
+  // Same continuity rule as the host ingest, on the main agent's own clock.
+  const mainAgent = continueMainAgentStatus(
+    current?.mainAgent,
+    agentStatus.mainAgent,
+    summary.updatedAt
+  )
   const desired = {
     state: agentStatus.state,
     ...(agentStatus.workingMode ? { workingMode: agentStatus.workingMode } : {}),
-    lead,
+    mainAgent,
     prompt: summary.latestPrompt,
     agentType: tab.agentSessionAgent,
     // The host projects these from the journal so the row reads like a hook-reported one:
@@ -90,7 +94,7 @@ function projectStatus(
   if (
     current?.state === desired.state &&
     current.workingMode === desired.workingMode &&
-    agentLeadStatusEqual(current.lead, desired.lead) &&
+    mainAgentStatusEqual(current.mainAgent, desired.mainAgent) &&
     current.prompt === desired.prompt &&
     current.agentType === desired.agentType &&
     // A row keeps the last model it was told about, so only a reported one can differ.

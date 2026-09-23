@@ -3,12 +3,12 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AgentHookServer, _internals } from './server'
-import { isClaudeLeadBoundaryHeldByChildrenOnly } from './server/server-claude-status-rules'
+import { isClaudeMainAgentBoundaryHeldByChildrenOnly } from './server/server-claude-status-rules'
 import { buildBody, postHookEvent, PANE, RUNNING_SHELL } from './server.test-fixtures'
 
 function heldByChildrenOnly(server: AgentHookServer): boolean | undefined {
   const row = server._getStateForTests().lastStatusByPaneKey.get(PANE)
-  return row ? isClaudeLeadBoundaryHeldByChildrenOnly(row) : undefined
+  return row ? isClaudeMainAgentBoundaryHeldByChildrenOnly(row) : undefined
 }
 
 const { getCohortAtEmitMock, trackMock } = vi.hoisted(() => ({

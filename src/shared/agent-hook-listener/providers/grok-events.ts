@@ -3,7 +3,7 @@ import {
   type ParsedAgentStatusPayload
 } from '../../agent-status-types'
 import { isAskUserQuestionTool } from '../../agent-question-answered-intent'
-import { continueAgentLeadStatus, foldAgentLeadStatus } from '../../agent-lead-status-fold'
+import { continueMainAgentStatus, foldAgentLeadStatus } from '../../agent-lead-status-fold'
 import type { AgentChildWorkLiveness } from '../../agent-status-child-work-liveness'
 import { clearPaneTurnCacheState, type HookListenerState } from '../listener-state'
 import { normalizeGrokPromptId } from '../listener-limits'
@@ -105,7 +105,7 @@ function grokHasRunningFiniteTask(hookPayload: Record<string, unknown>): boolean
   })
 }
 
-/** What a plain `stop` leaves running behind the lead. Grok reports its finite tasks without a
+/** What a plain `stop` leaves running behind the main agent. Grok reports its finite tasks without a
  *  kind the roster could classify as agent work, and a still-active stop hook holds the turn the
  *  same way, so both read as watch work: the pane stays `working` in monitoring mode. */
 function grokChildWorkLivenessAfterStop(
@@ -139,7 +139,7 @@ export function normalizeGrokEvent(
   }
   if (isGrokEvent(eventName, 'session_start')) {
     // Why: SessionStart resets stale per-turn state but must not create a working row before any prompt/tool event.
-    // The lead clock goes with it: a new process is a new lead.
+    // The main agent clock goes with it: a new process is a new main agent.
     clearPaneTurnCacheState(state, paneKey)
     return null
   }
@@ -217,12 +217,12 @@ export function normalizeGrokEvent(
         : null
   })
   const stateName = resolution.stateName
-  const lead = continueAgentLeadStatus(
-    state.grokLeadStatusByPaneKey.get(paneKey),
+  const mainAgent = continueMainAgentStatus(
+    state.grokMainAgentStatusByPaneKey.get(paneKey),
     { state: leadState, outcome },
     Date.now()
   )
-  state.grokLeadStatusByPaneKey.set(paneKey, lead)
+  state.grokMainAgentStatusByPaneKey.set(paneKey, mainAgent)
 
   const snapshot = resolveToolState(
     state,
@@ -250,6 +250,6 @@ export function normalizeGrokEvent(
     ...(resolution.workingMode ? { workingMode: resolution.workingMode } : {}),
     ...(outcome === 'cancellation' ? { interrupted: true } : {}),
     ...(sessionBoundary ? { sessionBoundary: true } : {}),
-    lead
+    mainAgent
   })
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  continueAgentLeadStatus,
+  continueMainAgentStatus,
   foldAgentLeadStatus,
   isAgentStatusHeldOpenByChildWork
 } from './agent-lead-status-fold'
@@ -49,28 +49,30 @@ describe('foldAgentLeadStatus', () => {
 })
 
 describe('isAgentStatusHeldOpenByChildWork', () => {
-  it('is true only when a settled lead sits under a row that is not settled', () => {
-    expect(isAgentStatusHeldOpenByChildWork({ state: 'working', lead: { state: 'done' } })).toBe(
-      true
-    )
-    expect(isAgentStatusHeldOpenByChildWork({ state: 'done', lead: { state: 'done' } })).toBe(false)
-    expect(isAgentStatusHeldOpenByChildWork({ state: 'working', lead: { state: 'working' } })).toBe(
+  it('is true only when a settled main agent sits under a row that is not settled', () => {
+    expect(
+      isAgentStatusHeldOpenByChildWork({ state: 'working', mainAgent: { state: 'done' } })
+    ).toBe(true)
+    expect(isAgentStatusHeldOpenByChildWork({ state: 'done', mainAgent: { state: 'done' } })).toBe(
       false
     )
-    // No lead fact means no claim: an old host's row is never read as child-held.
+    expect(
+      isAgentStatusHeldOpenByChildWork({ state: 'working', mainAgent: { state: 'working' } })
+    ).toBe(false)
+    // No main agent fact means no claim: an old host's row is never read as child-held.
     expect(isAgentStatusHeldOpenByChildWork({ state: 'working' })).toBe(false)
   })
 })
 
-describe('continueAgentLeadStatus', () => {
+describe('continueMainAgentStatus', () => {
   it('keeps the clock across an unchanged state and restarts it on a change', () => {
-    const first = continueAgentLeadStatus(undefined, { state: 'working' }, 10)
+    const first = continueMainAgentStatus(undefined, { state: 'working' }, 10)
     expect(first).toEqual({ state: 'working', stateStartedAt: 10 })
-    expect(continueAgentLeadStatus(first, { state: 'working' }, 20)).toEqual({
+    expect(continueMainAgentStatus(first, { state: 'working' }, 20)).toEqual({
       state: 'working',
       stateStartedAt: 10
     })
-    expect(continueAgentLeadStatus(first, { state: 'done', outcome: 'failure' }, 30)).toEqual({
+    expect(continueMainAgentStatus(first, { state: 'done', outcome: 'failure' }, 30)).toEqual({
       state: 'done',
       outcome: 'failure',
       stateStartedAt: 30
@@ -78,12 +80,12 @@ describe('continueAgentLeadStatus', () => {
   })
 
   it('lets a caller that knows the instant win, and never carries a verdict onto a live state', () => {
-    expect(continueAgentLeadStatus(undefined, { state: 'done', stateStartedAt: 4 }, 30)).toEqual({
+    expect(continueMainAgentStatus(undefined, { state: 'done', stateStartedAt: 4 }, 30)).toEqual({
       state: 'done',
       stateStartedAt: 4
     })
     expect(
-      continueAgentLeadStatus(undefined, { state: 'working', outcome: 'cancellation' }, 30)
+      continueMainAgentStatus(undefined, { state: 'working', outcome: 'cancellation' }, 30)
     ).toEqual({ state: 'working', stateStartedAt: 30 })
   })
 })

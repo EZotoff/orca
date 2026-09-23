@@ -698,7 +698,7 @@ describe('StructuredAgentSessionStatusBridge', () => {
   })
 })
 
-describe('the lead fact the bridge writes', () => {
+describe('the main agent fact the bridge writes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     resetStructuredAgentSessionStatusFeedsForTests()
@@ -716,7 +716,7 @@ describe('the lead fact the bridge writes', () => {
     resetStructuredAgentSessionStatusFeedsForTests()
   })
 
-  it('stamps the lead beside the folded state, with its verdict and its own clock', async () => {
+  it('stamps the main agent beside the folded state, with its verdict and its own clock', async () => {
     render(<StructuredAgentSessionStatusBridge />)
     await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
 
@@ -737,11 +737,11 @@ describe('the lead fact the bridge writes', () => {
       expect.objectContaining({
         state: 'working',
         workingMode: 'monitoring',
-        lead: { state: 'done', outcome: 'cancellation', stateStartedAt: 1 }
+        mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: 1 }
       })
     ])
 
-    // The shell drains: the row settles, the lead was done all along, so its clock holds.
+    // The shell drains: the row settles, the main agent was done all along, so its clock holds.
     act(() =>
       feed().emit({
         type: 'status',
@@ -752,7 +752,7 @@ describe('the lead fact the bridge writes', () => {
       expect.objectContaining({
         state: 'done',
         stateStartedAt: 2,
-        lead: { state: 'done', outcome: 'cancellation', stateStartedAt: 1 }
+        mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: 1 }
       })
     ])
   })

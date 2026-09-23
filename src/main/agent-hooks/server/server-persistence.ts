@@ -49,7 +49,7 @@ export abstract class AgentHookServerPersistence extends AgentHookServerHydratio
       const launchTokenHash = launchToken?.trim()
         ? createHash('sha256').update(launchToken.trim()).digest('hex')
         : this.hydratedLaunchTokenHashByPaneKey.get(paneKey)
-      // `payload.lead` rides inside the payload; the legacy `claudeLeadBoundaryChildOnly` flag it
+      // `payload.mainAgent` rides inside the payload; the legacy `claudeLeadBoundaryChildOnly` flag it
       // replaced is read at hydrate and never written again.
       entries[paneKey] = {
         ...persistedPayload,

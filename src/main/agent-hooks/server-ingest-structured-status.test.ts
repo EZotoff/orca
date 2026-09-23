@@ -379,8 +379,8 @@ describe('structured rows and last-status.json', () => {
   })
 })
 
-describe('the lead fact on a structured row', () => {
-  it('publishes the lead beside the folded state, on the journal clock with continuity', () => {
+describe('the main agent fact on a structured row', () => {
+  it('publishes the main agent beside the folded state, on the journal clock with continuity', () => {
     const server = new AgentHookServer()
     server.ingestStructuredStatus(
       summary({ status: 'idle', backgroundTasks: [{ id: 'c', kind: 'agent', state: 'working' }] }),
@@ -388,11 +388,11 @@ describe('the lead fact on a structured row', () => {
     )
     expect(server.getStatusSnapshot()[0]).toMatchObject({
       state: 'working',
-      lead: { state: 'done', stateStartedAt: OBSERVED_AT }
+      mainAgent: { state: 'done', stateStartedAt: OBSERVED_AT }
     })
-    expect(server.getStatusSnapshot()[0]?.lead).not.toHaveProperty('outcome')
+    expect(server.getStatusSnapshot()[0]?.mainAgent).not.toHaveProperty('outcome')
 
-    // The lead is still done while its child drains: the lead's clock does not move.
+    // The main agent is still done while its child drains: the main agent's clock does not move.
     server.ingestStructuredStatus(
       summary({ status: 'idle', updatedAt: OBSERVED_AT + 5, turnOutcome: 'failure' }),
       SUBJECT
@@ -400,14 +400,14 @@ describe('the lead fact on a structured row', () => {
     expect(server.getStatusSnapshot()[0]).toMatchObject({
       state: 'done',
       stateStartedAt: OBSERVED_AT + 5,
-      lead: { state: 'done', outcome: 'failure', stateStartedAt: OBSERVED_AT }
+      mainAgent: { state: 'done', outcome: 'failure', stateStartedAt: OBSERVED_AT }
     })
 
     server.ingestStructuredStatus(
       summary({ status: 'working', updatedAt: OBSERVED_AT + 9 }),
       SUBJECT
     )
-    expect(server.getStatusSnapshot()[0]?.lead).toEqual({
+    expect(server.getStatusSnapshot()[0]?.mainAgent).toEqual({
       state: 'working',
       stateStartedAt: OBSERVED_AT + 9
     })
@@ -423,7 +423,7 @@ describe('the lead fact on a structured row', () => {
         paneKey: STRUCTURED_PANE,
         payload: expect.objectContaining({
           state: 'done',
-          lead: { state: 'done', outcome: 'cancellation', stateStartedAt: OBSERVED_AT }
+          mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: OBSERVED_AT }
         })
       })
     )

@@ -1,10 +1,10 @@
 import type {
-  AgentLeadStatus,
+  AgentMainAgentStatus,
   AgentSubagentSnapshot,
   AgentWorkingMode
 } from '../../agent-status-types'
 import {
-  continueAgentLeadStatus,
+  continueMainAgentStatus,
   foldAgentLeadStatus,
   type AgentLeadStatusResolution
 } from '../../agent-lead-status-fold'
@@ -127,15 +127,15 @@ export function updateClaudeRunningNonAgentTask(
 export type ClaudePaneStatusResolution = AgentLeadStatusResolution
 
 /** A cancelled turn is the one verdict the display fold still reads. */
-export function claudeLeadTurnInterrupted(
-  lead: Pick<ClaudeLeadTurnState, 'outcome'> | undefined
+export function claudeMainAgentTurnInterrupted(
+  record: Pick<ClaudeLeadTurnState, 'outcome'> | undefined
 ): boolean {
-  return lead?.outcome === 'cancellation'
+  return record?.outcome === 'cancellation'
 }
 
-/** The only writer of the lead record. The lead's clock keeps continuity across same-state
- *  writes; a caller restoring a stash passes the stashed instant and wins. */
-export function setClaudeLeadTurnState(
+/** The only writer of the main agent record. The main agent's clock keeps continuity across
+ *  same-state writes; a caller restoring a stash passes the stashed instant and wins. */
+export function setClaudeMainAgentTurnState(
   state: HookListenerState,
   paneKey: string,
   next: Omit<ClaudeLeadTurnState, 'stateStartedAt'> & { stateStartedAt?: number },
@@ -143,21 +143,21 @@ export function setClaudeLeadTurnState(
 ): ClaudeLeadTurnState {
   const previous = state.claudeLeadStateByPaneKey.get(paneKey)
   const { state: nextState, outcome, stateStartedAt, ...rest } = next
-  const lead: ClaudeLeadTurnState = {
+  const record: ClaudeLeadTurnState = {
     ...rest,
-    ...continueAgentLeadStatus(previous, { state: nextState, outcome, stateStartedAt }, now)
+    ...continueMainAgentStatus(previous, { state: nextState, outcome, stateStartedAt }, now)
   }
-  state.claudeLeadStateByPaneKey.set(paneKey, lead)
-  return lead
+  state.claudeLeadStateByPaneKey.set(paneKey, record)
+  return record
 }
 
-/** The `lead` fact a row publishes from its record: nothing invented, so a pane whose lead was
- *  never observed publishes none and readers fall back to the combined `state`. */
-export function claudeLeadStatusForPayload(lead: ClaudeLeadTurnState): AgentLeadStatus {
+/** The `mainAgent` fact a row publishes from its record: nothing invented, so a pane whose main
+ *  agent was never observed publishes none and readers fall back to the combined `state`. */
+export function claudeMainAgentStatusForPayload(record: ClaudeLeadTurnState): AgentMainAgentStatus {
   return {
-    state: lead.state,
-    ...(lead.state === 'done' && lead.outcome ? { outcome: lead.outcome } : {}),
-    stateStartedAt: lead.stateStartedAt
+    state: record.state,
+    ...(record.state === 'done' && record.outcome ? { outcome: record.outcome } : {}),
+    stateStartedAt: record.stateStartedAt
   }
 }
 
@@ -168,7 +168,7 @@ export function resolveClaudePaneStatus(
 ): ClaudePaneStatusResolution {
   return foldAgentLeadStatus({
     leadState: lead.state,
-    interrupted: claudeLeadTurnInterrupted(lead),
+    interrupted: claudeMainAgentTurnInterrupted(lead),
     childWorkLiveness: agentChildWorkLivenessFromEvidence({
       hasLiveAgentWork: claudeRosterHasWorkingSubagent(
         state.claudeSubagentRosterByPaneKey.get(paneKey)
@@ -179,9 +179,9 @@ export function resolveClaudePaneStatus(
     })
   })
 }
-/** Sync the Claude lead-turn record when the SERVER infers an interrupt outside the hook stream (Ctrl+C or Esc with no Stop, which is what current Claude does on every cancel); else a later child lifecycle event resurrects the cancelled pane. This is the primary source of `lead.outcome: 'cancellation'` in the CLI lane. */
+/** Sync the Claude lead-turn record when the SERVER infers an interrupt outside the hook stream (Ctrl+C or Esc with no Stop, which is what current Claude does on every cancel); else a later child lifecycle event resurrects the cancelled pane. This is the primary source of `mainAgent.outcome: 'cancellation'` in the CLI lane. */
 export function markClaudeLeadTurnInterrupted(state: HookListenerState, paneKey: string): void {
-  setClaudeLeadTurnState(state, paneKey, { state: 'done', outcome: 'cancellation' })
+  setClaudeMainAgentTurnState(state, paneKey, { state: 'done', outcome: 'cancellation' })
   state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
   state.claudeActiveSessionCronPaneKeys.delete(paneKey)
 }
@@ -220,18 +220,18 @@ export function seedClaudeLeadTurnFromPersistedStatus(
   status: Pick<AgentHookEventPayload, 'payload'>,
   options: { childOnlyBoundary: boolean }
 ): void {
-  const lead = status.payload.lead
-  // Why: the persisted `lead` is the fact; a row old enough to lack it was mapped from its
-  // legacy child-only flag at hydrate, so both shapes arrive here as `lead.state === 'done'`.
+  const mainAgent = status.payload.mainAgent
+  // Why: the persisted `mainAgent` is the fact; a row old enough to lack it was mapped from its
+  // legacy child-only flag at hydrate, so both shapes arrive here as `mainAgent.state === 'done'`.
   if (
     options.childOnlyBoundary &&
     status.payload.agentType === 'claude' &&
-    lead?.state === 'done'
+    mainAgent?.state === 'done'
   ) {
-    setClaudeLeadTurnState(state, paneKey, {
+    setClaudeMainAgentTurnState(state, paneKey, {
       state: 'done',
-      ...(lead.outcome ? { outcome: lead.outcome } : {}),
-      stateStartedAt: lead.stateStartedAt,
+      ...(mainAgent.outcome ? { outcome: mainAgent.outcome } : {}),
+      stateStartedAt: mainAgent.stateStartedAt,
       ...(status.payload.turnCompletedAt !== undefined
         ? { turnCompletedAt: status.payload.turnCompletedAt }
         : {})
@@ -277,7 +277,7 @@ export function clearClaudePendingWaitForAgent(
   if (lead?.state !== 'waiting' || !lead.waitingAgentId || !ownsWait(lead.waitingAgentId)) {
     return
   }
-  setClaudeLeadTurnState(state, paneKey, lead.stateBeforeWait ?? { state: 'working' })
+  setClaudeMainAgentTurnState(state, paneKey, lead.stateBeforeWait ?? { state: 'working' })
   const previousTool = state.lastToolByPaneKey.get(paneKey)
   state.lastToolByPaneKey.set(
     paneKey,
@@ -297,15 +297,15 @@ export function clearClaudeAnsweredQuestionWait(
 ): Pick<ClaudeLeadTurnState, 'state' | 'turnCompletedAt'> & {
   interrupted?: true
   workingMode?: AgentWorkingMode
-  lead: AgentLeadStatus
+  mainAgent: AgentMainAgentStatus
 } {
   const lead = state.claudeLeadStateByPaneKey.get(paneKey)
   const stash =
     lead?.state === 'waiting'
       ? (lead.stateBeforeWait ?? { state: 'working' as const })
       : { state: 'working' as const }
-  const restored = setClaudeLeadTurnState(state, paneKey, { ...stash })
-  const publishedLead = claudeLeadStatusForPayload(restored)
+  const restored = setClaudeMainAgentTurnState(state, paneKey, { ...stash })
+  const publishedMainAgent = claudeMainAgentStatusForPayload(restored)
   const previousTool = state.lastToolByPaneKey.get(paneKey)
   state.lastToolByPaneKey.set(
     paneKey,
@@ -320,10 +320,10 @@ export function clearClaudeAnsweredQuestionWait(
   return {
     state: resolved.stateName,
     ...(resolved.workingMode ? { workingMode: resolved.workingMode } : {}),
-    ...(claudeLeadTurnInterrupted(restored) ? { interrupted: true as const } : {}),
+    ...(claudeMainAgentTurnInterrupted(restored) ? { interrupted: true as const } : {}),
     ...(restored.turnCompletedAt !== undefined
       ? { turnCompletedAt: restored.turnCompletedAt }
       : {}),
-    lead: publishedLead
+    mainAgent: publishedMainAgent
   }
 }

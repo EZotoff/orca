@@ -17,10 +17,10 @@ import {
   normalizeClaudeSubagentLifecycleEvent
 } from './claude-lifecycle-events'
 import {
-  claudeLeadTurnInterrupted,
+  claudeMainAgentTurnInterrupted,
   getOrCreateClaudeSubagentRoster,
   resolveClaudePaneStatus,
-  setClaudeLeadTurnState,
+  setClaudeMainAgentTurnState,
   updateClaudeRunningNonAgentTask,
   voidClaimsOfReplacedClaudeSession
 } from './claude-roster-state'
@@ -64,7 +64,7 @@ export function normalizeClaudeEvent(
     state.claudeSubagentRosterByPaneKey.delete(paneKey)
     state.claudeRunningNonAgentTaskPaneKeys.delete(paneKey)
     state.claudeActiveSessionCronPaneKeys.delete(paneKey)
-    setClaudeLeadTurnState(state, paneKey, { state: 'done' })
+    setClaudeMainAgentTurnState(state, paneKey, { state: 'done' })
     return buildClaudeStatusPayload(state, eventName, promptText, paneKey, hookPayload, {
       stateName: 'done',
       updateToolSnapshot: true,
@@ -77,7 +77,7 @@ export function normalizeClaudeEvent(
   const interrupted =
     isTurnBoundary &&
     ((eventAgentId === undefined && hookPayload['is_interrupt'] === true) ||
-      claudeLeadTurnInterrupted(previousLead))
+      claudeMainAgentTurnInterrupted(previousLead))
       ? true
       : undefined
   // Why: a verdict, never a guess — a plain Stop stays absent, so a cancel can never read as a
@@ -197,7 +197,7 @@ export function normalizeClaudeEvent(
     }
     // Why: approval granted — update the tool snapshot (drop the pending card) as the lead's own next tool event would.
     // Restore the stashed lead state, not this child's 'working': the lead may already be done, and the done-gate never upgrades working back to done once the roster drains.
-    const restored = setClaudeLeadTurnState(
+    const restored = setClaudeMainAgentTurnState(
       state,
       paneKey,
       lead.stateBeforeWait ?? { state: 'working' as const }
@@ -205,7 +205,7 @@ export function normalizeClaudeEvent(
     return buildClaudeStatusPayload(state, eventName, promptText, paneKey, hookPayload, {
       ...resolveClaudePaneStatus(state, paneKey, restored),
       updateToolSnapshot: true,
-      interrupted: claudeLeadTurnInterrupted(restored),
+      interrupted: claudeMainAgentTurnInterrupted(restored),
       turnCompletedAt: restored.turnCompletedAt
     })
   }
@@ -238,7 +238,7 @@ export function normalizeClaudeEvent(
         ? previousLead.stateBeforeWait
         : {
             state: previousLead.state,
-            // Why: the verdict and the lead's own clock are that turn's facts; a child's permission
+            // Why: the verdict and the main agent's own clock are that turn's facts; a child's permission
             // pause after a cancelled turn must not erase them when the wait clears.
             ...(previousLead.outcome ? { outcome: previousLead.outcome } : {}),
             stateStartedAt: previousLead.stateStartedAt,
@@ -288,7 +288,7 @@ export function normalizeClaudeEvent(
       ? Date.now()
       : undefined
 
-  setClaudeLeadTurnState(state, paneKey, {
+  setClaudeMainAgentTurnState(state, paneKey, {
     state: reportedStateName,
     ...(outcome ? { outcome } : {}),
     ...(isWaitingInducing && eventAgentId ? { waitingAgentId: eventAgentId } : {}),

@@ -1,15 +1,15 @@
 import type { AgentSessionStatusSummary } from './agent-session-wire'
 import { foldAgentLeadStatus } from './agent-lead-status-fold'
 import { agentChildWorkLiveness } from './agent-status-child-work-liveness'
-import type { AgentLeadStatus, AgentStatusState, AgentWorkingMode } from './agent-status-types'
+import type { AgentMainAgentStatus, AgentStatusState, AgentWorkingMode } from './agent-status-types'
 import type { StructuredAgentSessionProjectedStatus } from './structured-agent-session-projection'
 
 export type StructuredAgentSessionAgentStatus = {
   state: AgentStatusState
   workingMode?: AgentWorkingMode
-  /** The lead's own state and last-turn verdict, before child work is folded in. The caller
-   *  stamps the clock: this projection has no view of when the lead's state first appeared. */
-  lead: Omit<AgentLeadStatus, 'stateStartedAt'>
+  /** The main agent's own state and last-turn verdict, before child work is folded in. The caller
+   *  stamps the clock: this projection has no view of when the main agent's state first appeared. */
+  mainAgent: Omit<AgentMainAgentStatus, 'stateStartedAt'>
 }
 
 /** The lead state one projected session status stands for, before child work is folded in. */
@@ -33,14 +33,14 @@ export function structuredAgentSessionAgentStatus(
     // Known divergence from the hook lane, kept on purpose until the cancel policy lands: that
     // lane hides a still-running shell after an interrupted turn (`updateClaudeRunningNonAgentTask`
     // calls it a live-shell judgement), so a cancelled turn with a watch loop reads `done` there
-    // and `monitoring` here. This lane never feeds the verdict into the fold — see `lead.outcome`.
+    // and `monitoring` here. This lane never feeds the verdict into the fold — see `mainAgent.outcome`.
     interrupted: false,
     childWorkLiveness: agentChildWorkLiveness(summary.backgroundTasks)
   })
   return {
     state: resolution.stateName,
     ...(resolution.workingMode ? { workingMode: resolution.workingMode } : {}),
-    lead: {
+    mainAgent: {
       state: leadState,
       ...(leadState === 'done' && summary.turnOutcome ? { outcome: summary.turnOutcome } : {})
     }

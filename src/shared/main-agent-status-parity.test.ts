@@ -1,6 +1,6 @@
-// One story table driven through every lane that publishes a lead agent's status. Each lane
-// derives child liveness from its own evidence, but the published `{ state, workingMode, lead }`
-// must be what the shared fold says for that lead and that evidence — a producer that folds
+// One story table driven through every lane that publishes a main agent's status. Each lane
+// derives child liveness from its own evidence, but the published `{ state, workingMode, mainAgent }`
+// must be what the shared fold says for that main agent and that evidence — a producer that folds
 // differently is caught here structurally, not by review.
 import { beforeEach, describe, expect, it } from 'vitest'
 import { normalizeHookPayload } from './agent-hook-listener'
@@ -18,7 +18,7 @@ import {
   type AgentChildWorkLiveness
 } from './agent-status-child-work-liveness'
 import type {
-  AgentLeadStatus,
+  AgentMainAgentStatus,
   AgentStatusState,
   AgentWorkingMode,
   ParsedAgentStatusPayload
@@ -30,7 +30,7 @@ import type { AgentJournalTurnOutcome } from './agent-turn-outcome'
 type Published = {
   state: AgentStatusState
   workingMode?: AgentWorkingMode
-  lead: Omit<AgentLeadStatus, 'stateStartedAt'>
+  mainAgent: Omit<AgentMainAgentStatus, 'stateStartedAt'>
 }
 
 const RUNNING_SHELL = { id: 'shell-1', type: 'shell', status: 'running' }
@@ -41,28 +41,31 @@ const AGENT_TASK: AgentSessionBackgroundTask = { id: 'agent-1', kind: 'agent', s
 const SHELL_TASK: AgentSessionBackgroundTask = { id: 'shell-1', kind: 'command', state: 'working' }
 
 function published(payload: ParsedAgentStatusPayload | null | undefined): Published {
-  if (!payload?.lead) {
-    throw new Error('the lane published no lead fact')
+  if (!payload?.mainAgent) {
+    throw new Error('the lane published no main agent fact')
   }
-  const { stateStartedAt: _clock, ...lead } = payload.lead
+  const { stateStartedAt: _clock, ...mainAgent } = payload.mainAgent
   return {
     state: payload.state,
     ...(payload.workingMode ? { workingMode: payload.workingMode } : {}),
-    lead
+    mainAgent
   }
 }
 
-/** The lead's own state and verdict, restated as the fold's inputs. */
-function refold(lead: Published['lead'], childWorkLiveness: AgentChildWorkLiveness): Published {
+/** The main agent's own state and verdict, restated as the fold's inputs. */
+function refold(
+  mainAgent: Published['mainAgent'],
+  childWorkLiveness: AgentChildWorkLiveness
+): Published {
   const resolution = foldAgentLeadStatus({
-    leadState: lead.state,
-    interrupted: lead.outcome === 'cancellation',
+    leadState: mainAgent.state,
+    interrupted: mainAgent.outcome === 'cancellation',
     childWorkLiveness
   })
   return {
     state: resolution.stateName,
     ...(resolution.workingMode ? { workingMode: resolution.workingMode } : {}),
-    lead
+    mainAgent
   }
 }
 
@@ -84,16 +87,19 @@ const STORIES: Story[] = [
     name: 'main agent working',
     claude: {
       events: [{ hook_event_name: 'UserPromptSubmit', prompt: 'go' }],
-      expect: { state: 'working', lead: { state: 'working' } }
+      expect: { state: 'working', mainAgent: { state: 'working' } }
     },
-    structured: { status: 'working', expect: { state: 'working', lead: { state: 'working' } } },
+    structured: {
+      status: 'working',
+      expect: { state: 'working', mainAgent: { state: 'working' } }
+    },
     grok: {
       events: [{ hookEventName: 'user_prompt_submit', prompt: 'go' }],
-      expect: { state: 'working', lead: { state: 'working' } }
+      expect: { state: 'working', mainAgent: { state: 'working' } }
     },
     codex: {
       events: [{ hook_event_name: 'UserPromptSubmit', prompt: 'go' }],
-      expect: { state: 'working', lead: { state: 'working' } }
+      expect: { state: 'working', mainAgent: { state: 'working' } }
     }
   },
   {
@@ -104,12 +110,12 @@ const STORIES: Story[] = [
         { hook_event_name: 'SubagentStart', agent_id: 'agent-1' },
         { hook_event_name: 'Stop', background_tasks: [RUNNING_AGENT] }
       ],
-      expect: { state: 'working', lead: { state: 'done' } }
+      expect: { state: 'working', mainAgent: { state: 'done' } }
     },
     structured: {
       status: 'idle',
       backgroundTasks: [AGENT_TASK],
-      expect: { state: 'working', lead: { state: 'done' } }
+      expect: { state: 'working', mainAgent: { state: 'done' } }
     },
     grok: {
       events: [
@@ -118,7 +124,7 @@ const STORIES: Story[] = [
       ],
       // Grok reports no task kind the roster can classify as agent work, so its live subagent
       // reads as watch work. Today's label, kept on purpose; a Grok-specific follow-up.
-      expect: { state: 'working', workingMode: 'monitoring', lead: { state: 'done' } }
+      expect: { state: 'working', workingMode: 'monitoring', mainAgent: { state: 'done' } }
     },
     codex: {
       // A root Stop with no transcript-tracked children clears the roster (Codex 0.144 could omit
@@ -129,7 +135,7 @@ const STORIES: Story[] = [
         { hook_event_name: 'Stop' },
         { hook_event_name: 'PreToolUse', agent_id: 'agent-1', tool_name: 'shell' }
       ],
-      expect: { state: 'working', lead: { state: 'done' } }
+      expect: { state: 'working', mainAgent: { state: 'done' } }
     }
   },
   {
@@ -139,19 +145,19 @@ const STORIES: Story[] = [
         { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
         { hook_event_name: 'Stop', background_tasks: [RUNNING_SHELL] }
       ],
-      expect: { state: 'working', workingMode: 'monitoring', lead: { state: 'done' } }
+      expect: { state: 'working', workingMode: 'monitoring', mainAgent: { state: 'done' } }
     },
     structured: {
       status: 'idle',
       backgroundTasks: [SHELL_TASK],
-      expect: { state: 'working', workingMode: 'monitoring', lead: { state: 'done' } }
+      expect: { state: 'working', workingMode: 'monitoring', mainAgent: { state: 'done' } }
     },
     grok: {
       events: [
         { hookEventName: 'user_prompt_submit', prompt: 'go' },
         { hookEventName: 'stop', reason: 'end_turn', backgroundTasks: [RUNNING_SHELL] }
       ],
-      expect: { state: 'working', workingMode: 'monitoring', lead: { state: 'done' } }
+      expect: { state: 'working', workingMode: 'monitoring', mainAgent: { state: 'done' } }
     }
   },
   {
@@ -162,20 +168,20 @@ const STORIES: Story[] = [
         { hook_event_name: 'SubagentStart', agent_id: 'agent-1' },
         { hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command: 'rm' } }
       ],
-      // The hook lane's vocabulary for "the lead needs a human" is `waiting`.
-      expect: { state: 'waiting', lead: { state: 'waiting' } }
+      // The hook lane's vocabulary for "the main agent needs a human" is `waiting`.
+      expect: { state: 'waiting', mainAgent: { state: 'waiting' } }
     },
     structured: {
       status: 'attention',
       backgroundTasks: [AGENT_TASK],
-      expect: { state: 'blocked', lead: { state: 'blocked' } }
+      expect: { state: 'blocked', mainAgent: { state: 'blocked' } }
     },
     grok: {
       events: [
         { hookEventName: 'user_prompt_submit', prompt: 'go' },
         { hookEventName: 'pre_tool_use', toolName: 'ask_user_question' }
       ],
-      expect: { state: 'waiting', lead: { state: 'waiting' } }
+      expect: { state: 'waiting', mainAgent: { state: 'waiting' } }
     },
     codex: {
       events: [
@@ -183,7 +189,7 @@ const STORIES: Story[] = [
         { hook_event_name: 'SubagentStart', agent_id: 'agent-1' },
         { hook_event_name: 'PermissionRequest', tool_name: 'shell' }
       ],
-      expect: { state: 'waiting', lead: { state: 'waiting' } }
+      expect: { state: 'waiting', mainAgent: { state: 'waiting' } }
     }
   },
   {
@@ -193,19 +199,19 @@ const STORIES: Story[] = [
         { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
         { hook_event_name: 'StopFailure', error: 'invalid_request' }
       ],
-      expect: { state: 'done', lead: { state: 'done', outcome: 'failure' } }
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'failure' } }
     },
     structured: {
       status: 'idle',
       turnOutcome: 'failure',
-      expect: { state: 'done', lead: { state: 'done', outcome: 'failure' } }
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'failure' } }
     },
     grok: {
       events: [
         { hookEventName: 'user_prompt_submit', prompt: 'go' },
         { hookEventName: 'stop_failure' }
       ],
-      expect: { state: 'done', lead: { state: 'done', outcome: 'failure' } }
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'failure' } }
     }
   },
   {
@@ -213,7 +219,7 @@ const STORIES: Story[] = [
     // interrupted turn; the structured lane never feeds the verdict into the fold and keeps
     // showing the shell. The cancel policy (PR C) flips the hook-lane rows to monitoring and
     // must update this story, not delete it. The Claude row here is the primary path: Orca's
-    // inferred cancel, carried by the lead record into the next Stop, which lists the shell.
+    // inferred cancel, carried by the main agent record into the next Stop, which lists the shell.
     name: 'interrupted with a watch loop (known divergence: CLI done / structured monitoring)',
     claude: {
       events: [
@@ -221,7 +227,7 @@ const STORIES: Story[] = [
         ORCA_INFERRED_INTERRUPT,
         { hook_event_name: 'Stop', background_tasks: [RUNNING_SHELL] }
       ],
-      expect: { state: 'done', lead: { state: 'done', outcome: 'cancellation' } }
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'cancellation' } }
     },
     structured: {
       status: 'idle',
@@ -230,7 +236,7 @@ const STORIES: Story[] = [
       expect: {
         state: 'working',
         workingMode: 'monitoring',
-        lead: { state: 'done', outcome: 'cancellation' }
+        mainAgent: { state: 'done', outcome: 'cancellation' }
       }
     },
     grok: {
@@ -238,7 +244,7 @@ const STORIES: Story[] = [
         { hookEventName: 'user_prompt_submit', prompt: 'go' },
         { hookEventName: 'stop_cancelled', backgroundTasks: [RUNNING_SHELL] }
       ],
-      expect: { state: 'done', lead: { state: 'done', outcome: 'cancellation' } }
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'cancellation' } }
     }
   },
   {
@@ -249,15 +255,15 @@ const STORIES: Story[] = [
         { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
         { hook_event_name: 'Stop', is_interrupt: true, background_tasks: [RUNNING_SHELL] }
       ],
-      expect: { state: 'done', lead: { state: 'done', outcome: 'cancellation' } }
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'cancellation' } }
     }
   }
 ]
 
 /** Codex never reports a blocked root; the combine's input type says so. */
-function codexLeadState(state: AgentStatusState): 'working' | 'waiting' | 'done' {
+function codexMainAgentState(state: AgentStatusState): 'working' | 'waiting' | 'done' {
   if (state === 'blocked') {
-    throw new Error('Codex published a blocked lead')
+    throw new Error('Codex published a blocked main agent')
   }
   return state
 }
@@ -276,7 +282,7 @@ function storiesFor<K extends 'claude' | 'structured' | 'grok' | 'codex'>(
   return rows
 }
 
-describe('lead status parity across lanes', () => {
+describe('mainAgent status parity across lanes', () => {
   let state: HookListenerState
 
   beforeEach(() => {
@@ -322,7 +328,7 @@ describe('lead status parity across lanes', () => {
       const payload = drive('claude', lane.events)
       const row = published(payload)
       expect(row).toEqual(lane.expect)
-      expect(row).toEqual(refold(row.lead, claudeChildWorkLiveness(payload)))
+      expect(row).toEqual(refold(row.mainAgent, claudeChildWorkLiveness(payload)))
     })
   })
 
@@ -335,10 +341,10 @@ describe('lead status parity across lanes', () => {
       })
       expect(row).toEqual(lane.expect)
       // This lane never feeds the verdict into the fold: refold with the verdict masked.
-      const masked = { state: row.lead.state }
+      const masked = { state: row.mainAgent.state }
       expect(refold(masked, agentChildWorkLiveness(lane.backgroundTasks))).toEqual({
         ...row,
-        lead: masked
+        mainAgent: masked
       })
     })
   })
@@ -356,7 +362,7 @@ describe('lead status parity across lanes', () => {
         last.hookEventName === 'stop' && (tasks.length > 0 || last.stopHookActive === true)
           ? 'monitoring'
           : null
-      expect(row).toEqual(refold(row.lead, liveness))
+      expect(row).toEqual(refold(row.mainAgent, liveness))
     })
   })
 
@@ -369,7 +375,9 @@ describe('lead status parity across lanes', () => {
       // waiting child wins, a settled root with any live child reads working, no monitoring.
       const roster = new Map()
       seedCodexSubagentRoster(roster, payload.subagents ?? [])
-      expect(row.state).toBe(codexRosterEffectiveState(roster, codexLeadState(row.lead.state)))
+      expect(row.state).toBe(
+        codexRosterEffectiveState(roster, codexMainAgentState(row.mainAgent.state))
+      )
     })
   })
 })

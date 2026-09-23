@@ -1,5 +1,5 @@
 import type { AgentChildWorkLiveness } from './agent-status-child-work-liveness'
-import type { AgentLeadStatus, AgentStatusState, AgentWorkingMode } from './agent-status-types'
+import type { AgentMainAgentStatus, AgentStatusState, AgentWorkingMode } from './agent-status-types'
 
 export type AgentLeadStatusFoldInput = {
   /** The lead's own turn state. Anything but `done` wins outright. */
@@ -34,23 +34,27 @@ export function foldAgentLeadStatus(input: AgentLeadStatusFoldInput): AgentLeadS
   return { stateName: 'done' }
 }
 
-/** The lead settled and live child work is the only thing holding the row open. Derived,
+/** The main agent settled and live child work is the only thing holding the row open. Derived,
  *  never stored: a stored copy could disagree with the two facts it is made of. */
 export function isAgentStatusHeldOpenByChildWork(row: {
   state: AgentStatusState
-  lead?: Pick<AgentLeadStatus, 'state'>
+  mainAgent?: Pick<AgentMainAgentStatus, 'state'>
 }): boolean {
-  return row.lead?.state === 'done' && row.state !== 'done'
+  return row.mainAgent?.state === 'done' && row.state !== 'done'
 }
 
-/** The lead's clock follows the same continuity rule as the row's: an unchanged lead state
+/** The main agent's clock follows the same continuity rule as the row's: an unchanged main agent state
  *  keeps the instant it first appeared, a changed one starts at `now`. A caller that knows
  *  the real instant (a restored stash, a journal record) passes it and wins. */
-export function continueAgentLeadStatus(
-  previous: Pick<AgentLeadStatus, 'state' | 'stateStartedAt'> | undefined,
-  next: { state: AgentStatusState; outcome?: AgentLeadStatus['outcome']; stateStartedAt?: number },
+export function continueMainAgentStatus(
+  previous: Pick<AgentMainAgentStatus, 'state' | 'stateStartedAt'> | undefined,
+  next: {
+    state: AgentStatusState
+    outcome?: AgentMainAgentStatus['outcome']
+    stateStartedAt?: number
+  },
   now: number
-): AgentLeadStatus {
+): AgentMainAgentStatus {
   const stateStartedAt =
     next.stateStartedAt ??
     (previous && previous.state === next.state ? previous.stateStartedAt : now)

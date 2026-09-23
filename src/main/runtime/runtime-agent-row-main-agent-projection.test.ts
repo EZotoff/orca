@@ -16,17 +16,17 @@ function row(over: Partial<AgentStatusIpcPayload> = {}): AgentStatusIpcPayload {
     state: 'working',
     prompt: 'ship it',
     agentType: 'claude',
-    lead: { state: 'done', outcome: 'cancellation', stateStartedAt: now - 2_000 },
+    mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: now - 2_000 },
     ...over
   }
 }
 
 // The mobile projection narrows a row through `pickParsedAgentStatusPayload`; this pins that
-// the lead fact survives the narrowing. The `worktree ps` row keeps its own explicit shape.
-describe('the lead fact through the runtime projections', () => {
+// the main agent fact survives the narrowing. The `worktree ps` row keeps its own explicit shape.
+describe('the main agent fact through the runtime projections', () => {
   it('reaches the mobile live row', () => {
     const source = row()
     const selected = selectRuntimeHookAgentRowForPane([source])
-    expect(selected.live?.payload.lead).toEqual(source.lead)
+    expect(selected.live?.payload.mainAgent).toEqual(source.mainAgent)
   })
 })

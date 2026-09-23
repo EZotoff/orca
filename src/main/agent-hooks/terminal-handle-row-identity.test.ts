@@ -210,13 +210,13 @@ describe('the terminal handle a status row is stamped with', () => {
     if (!row) {
       throw new Error('expected seeded status row')
     }
-    // A settled lead whose only live work is a child agent: the boundary is derived from these facts.
+    // A settled main agent whose only live work is a child agent: the boundary is derived from these facts.
     const childOnlyRow = {
       ...row,
       claudeRunningNonAgentTask: false,
       payload: {
         ...row.payload,
-        lead: { state: 'done' as const, stateStartedAt: 1 },
+        mainAgent: { state: 'done' as const, stateStartedAt: 1 },
         subagents: [{ id: 'child-1', state: 'working' as const, startedAt: 1 }]
       }
     }
