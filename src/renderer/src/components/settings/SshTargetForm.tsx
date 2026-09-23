@@ -12,6 +12,7 @@ import {
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { SshHostAdvancedFields } from './SshHostAdvancedFields'
+import { MachineNameField } from './MachineNameField'
 import {
   applyParsedSshHostInput,
   hasAdvancedConnectionValues,
@@ -153,6 +154,13 @@ export function SshTargetForm({
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 scrollbar-sleek">
+            {isEditing ? null : (
+              // Why: a host meets this computer when it is first added; editing a saved host is
+              // not that moment.
+              <div className="mb-4">
+                <MachineNameField id="ssh-target-machine-name" />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="ssh-target-label">

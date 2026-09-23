@@ -3,6 +3,12 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+vi.mock('./MachineNameField', () => ({
+  MachineNameField: ({ id }: { id?: string }) => (
+    <div data-testid="machine-name-field" data-id={id} />
+  )
+}))
+
 import { EMPTY_FORM, SshTargetForm, type EditingTarget } from './SshTargetForm'
 
 afterEach(() => {
@@ -62,6 +68,29 @@ describe('SshTargetForm', () => {
     expect(document.querySelector('#ssh-target-label')).not.toBeNull()
     expect(document.body.textContent).toContain('Add Target')
     expect(document.body.textContent).not.toContain('Editing')
+    act(() => root.unmount())
+  })
+
+  it('names this computer at the top of the add form, above the host fields', async () => {
+    const root = await renderForm({})
+    const field = document.querySelector('[data-testid="machine-name-field"]')
+    const label = document.querySelector('#ssh-target-label')
+    if (!field || !label) {
+      throw new Error('missing machine name field or label input')
+    }
+    expect(field.getAttribute('data-id')).toBe('ssh-target-machine-name')
+    expect(document.querySelector('.overflow-y-auto')?.contains(field)).toBe(true)
+    expect(field.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    act(() => root.unmount())
+  })
+
+  it('leaves the machine name out of the edit form', async () => {
+    // Why: a saved host already met this computer; renaming it belongs to General.
+    const root = await renderForm({
+      editingId: 'target-1',
+      form: { ...EMPTY_FORM, label: 'Build box', host: 'build.internal' }
+    })
+    expect(document.querySelector('[data-testid="machine-name-field"]')).toBeNull()
     act(() => root.unmount())
   })
 
