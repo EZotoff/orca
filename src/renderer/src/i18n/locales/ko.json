@@ -8656,7 +8656,17 @@
               "4a0c826f3d": "코드",
               "3c1807a81a": "qr",
               "7fb728fb2b": "QR 코드를 스캔하여 모바일 장치를 페어링하세요.",
-              "d49925710a": "모바일 페어링"
+              "d49925710a": "모바일 페어링",
+              "machineName": {
+                "title": "머신 이름",
+                "description": "페어링된 장치에서 이 컴퓨터를 표시할 이름을 선택합니다.",
+                "keyword": {
+                  "machine": "머신",
+                  "hostname": "호스트 이름",
+                  "computer": "컴퓨터",
+                  "rename": "이름 변경"
+                }
+              }
             }
           },
           "settings": {
@@ -9891,6 +9901,12 @@
           "step2LocalDescription": "휴대폰이 Tailscale 또는 Wi‑Fi를 통해 이 주소에 접근할 수 있어야 합니다.",
           "step2RelayDescription": "선택 사항. 근처에 있을 때(같은 Wi‑Fi 또는 Tailscale) 휴대폰이 사용할 주소를 고르세요. 보통 Relay보다 빠릅니다. 외부에 있을 때는 여전히 Relay를 사용합니다.",
           "step2RelayDisclosure": "더 빠른 로컬 경로도 사용"
+        },
+        "MobileMachineNameField": {
+          "label": "머신 이름",
+          "description": "페어링된 장치에는 “{{name}}”(으)로 표시됩니다. 비워 두면 컴퓨터 자체의 이름을 사용합니다.",
+          "pending": "페어링된 장치에는 이 이름이 표시됩니다. 비워 두면 감지된 컴퓨터 이름을 사용합니다.",
+          "placeholder": "자동으로 감지됨"
         },
         "MobileRelayBetaAvailability": {
           "about": "Orca Relay 베타 정보",

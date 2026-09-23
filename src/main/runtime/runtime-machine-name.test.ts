@@ -4,7 +4,7 @@ import { normalizeMachineName } from '../../shared/machine-name'
 import { detectRuntimeMachineName, RuntimeMachineName } from './runtime-machine-name'
 
 // Why mocked: the shared lookup is the one path that spawns the real `scutil`; a live spawn on a
-// loaded macOS runner can hit the 1 s timeout and answer with the hostname while a second live
+// loaded macOS runner can hit the lookup timeout and answer with the hostname while a second live
 // spawn does not, which is a flake and not a verdict.
 const runProcessMock = vi.hoisted(() => vi.fn())
 vi.mock('../../shared/child-process/run-process', () => ({ runProcess: runProcessMock }))

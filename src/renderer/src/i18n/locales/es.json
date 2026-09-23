@@ -8666,7 +8666,17 @@
               "4a0c826f3d": "código",
               "3c1807a81a": "QR",
               "7fb728fb2b": "Empareje un dispositivo móvil escaneando un código QR.",
-              "d49925710a": "Emparejamiento móvil"
+              "d49925710a": "Emparejamiento móvil",
+              "machineName": {
+                "title": "Nombre del equipo",
+                "description": "Elige el nombre con el que los dispositivos emparejados muestran este equipo.",
+                "keyword": {
+                  "machine": "máquina",
+                  "hostname": "hostname",
+                  "computer": "equipo",
+                  "rename": "renombrar"
+                }
+              }
             }
           },
           "settings": {
@@ -9886,6 +9896,12 @@
           "step2LocalDescription": "El teléfono debe poder alcanzar esta dirección por Tailscale o Wi‑Fi.",
           "step2RelayDescription": "Opcional. Elige la dirección Wi‑Fi o Tailscale que el teléfono usará cuando esté cerca — suele ser más rápido que Relay. Relay sigue funcionando cuando estás fuera.",
           "step2RelayDisclosure": "También usar una ruta local más rápida"
+        },
+        "MobileMachineNameField": {
+          "label": "Nombre del equipo",
+          "description": "Los dispositivos emparejados ven “{{name}}”. Déjalo en blanco para usar el nombre propio del equipo.",
+          "pending": "Los dispositivos emparejados ven este nombre. Déjalo en blanco para usar el nombre detectado del equipo.",
+          "placeholder": "Detectado automáticamente"
         },
         "MobileRelayBetaAvailability": {
           "about": "Acerca de la beta de Orca Relay",

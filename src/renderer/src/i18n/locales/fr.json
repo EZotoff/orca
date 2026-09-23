@@ -9490,7 +9490,17 @@
               "4a0c826f3d": "code",
               "3c1807a81a": "QR",
               "7fb728fb2b": "Appairez un appareil mobile en scannant un code QR.",
-              "d49925710a": "Appairage mobile"
+              "d49925710a": "Appairage mobile",
+              "machineName": {
+                "title": "Nom de la machine",
+                "description": "Choisissez le nom sous lequel les appareils appairés affichent cet ordinateur.",
+                "keyword": {
+                  "machine": "machine",
+                  "hostname": "hostname",
+                  "computer": "ordinateur",
+                  "rename": "renommer"
+                }
+              }
             }
           },
           "settings": {
@@ -10669,6 +10679,12 @@
           "refresh": "Actualiser les interfaces réseau",
           "step2RelayDescription": "Facultatif. Choisissez l'adresse Wi‑Fi ou Tailscale que votre téléphone utilisera à proximité — généralement plus rapide que Relay. Relay reste fonctionnel quand vous êtes loin.",
           "step2RelayDisclosure": "Utiliser aussi un chemin local plus rapide"
+        },
+        "MobileMachineNameField": {
+          "label": "Nom de la machine",
+          "description": "Les appareils appairés voient « {{name}} ». Laissez vide pour utiliser le nom de l’ordinateur.",
+          "pending": "Les appareils appairés voient ce nom. Laissez vide pour utiliser le nom d’ordinateur détecté.",
+          "placeholder": "Détecté automatiquement"
         },
         "MobileRelayBetaAvailability": {
           "about": "À propos de la bêta d'Orca Relay",
