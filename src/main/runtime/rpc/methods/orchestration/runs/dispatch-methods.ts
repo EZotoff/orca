@@ -18,6 +18,7 @@ export const ORCHESTRATION_DISPATCH_METHODS = [
       params,
       {
         orchestrationCompatibilityEvidence,
+        orchestrationCaller,
         runtime,
         legacyCoordinatorRunId,
         revalidateLegacyCoordinator,
@@ -34,7 +35,8 @@ export const ORCHESTRATION_DISPATCH_METHODS = [
         callerTerminalHandle: params.from,
         requireCurrentConsumer: true,
         legacyCoordinatorRunId,
-        callerEvidence: orchestrationCompatibilityEvidence
+        callerEvidence: orchestrationCompatibilityEvidence,
+        callerSession: orchestrationCaller
       })
       if (task.run_id !== run.id) {
         throw taskNotFoundError(`Task ${task.id} was not found in Run ${run.id}.`, {
@@ -47,7 +49,7 @@ export const ORCHESTRATION_DISPATCH_METHODS = [
       if (params.dryRun) {
         const maxDepth = runtime.getNestedWorkerMaxDepth()
         const previewDepth = db.resolveChildDispatchDepth(
-          resolveDispatchCreator(runtime, params.from),
+          resolveDispatchCreator(runtime, params.from, orchestrationCaller),
           maxDepth
         )
         const preamble = buildDispatchPreamble({
@@ -128,7 +130,7 @@ export const ORCHESTRATION_DISPATCH_METHODS = [
         assigneePaneKey,
         launchTokenHash: dispatchAuthority?.launchTokenHash ?? undefined,
         processIncarnation,
-        creator: resolveDispatchCreator(runtime, params.from),
+        creator: resolveDispatchCreator(runtime, params.from, orchestrationCaller),
         maxDepth: runtime.getNestedWorkerMaxDepth()
       })
       const dispatchCapability = params.inject
