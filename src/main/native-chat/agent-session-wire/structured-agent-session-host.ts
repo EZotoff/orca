@@ -111,7 +111,7 @@ export class StructuredAgentSessionHost {
     this.handoffs = createStructuredAgentSessionHostHandoff(deps, {
       session: (sessionId) => this.requireSession(sessionId),
       findSession: (sessionId) => this.sessions.get(sessionId),
-      eventSink: (sessionId) => this.runtimeState.eventSinkFor(sessionId),
+      eventSinks: this.runtimeState,
       flush: (sessionId) => this.flushStreamedEvents(sessionId),
       serialize: (sessionId, task) => this.serialize(sessionId, task),
       subscribers: this.subscribers,

@@ -78,19 +78,14 @@ export function attachStructuredAgentSession(
           message: 'The provider-exit terminal journal settlement is still pending; retry attach.'
         })
       }
-      const eventSink = context.runtimeState.eventSinkFor(sessionId)
       const probe = await withAgentSessionCreatePhase('probe_owner', recordPhase, () =>
         context.runtimeState.probeOwner(sessionId)
       )
-      // Why: a failed attach that left no session behind must not strand a bound sink; the runtime
-      // caches one per session id and would hand this same closed instance to the next attempt.
-      const discardUnattachedSink = (): void => {
-        if (!context.sessions.has(sessionId)) {
-          eventSink.close()
-          context.runtimeState.discardEventSink(sessionId)
-        }
-      }
-      const attached = stampFailedCreateOwnerVerdict(
+      // A child this attach spawns writes through a sink this attempt owns. Only a successful
+      // attach makes it the session's; any other exit closes it with whatever the child queued.
+      const attemptSink = context.runtimeState.mintEventSink(sessionId)
+      let attemptSinkAdopted = false
+      return stampFailedCreateOwnerVerdict(
         context.deps.store,
         callerKey,
         params.envelope,
@@ -99,13 +94,13 @@ export function attachStructuredAgentSession(
           store: context.deps.store,
           adapter: context.deps.adapter,
           journalRoot: context.deps.journalRoot,
-          eventSink: eventSink.sink,
+          eventSink: attemptSink.sink,
+          // The superseded child's writes settle into its own journal before a new child starts.
           onAcquiring: async () => {
-            const barrier = await eventSink.drained()
-            if (!barrier.ok) {
+            const barrier = await context.runtimeState.currentEventSink(sessionId)?.drained()
+            if (barrier && !barrier.ok) {
               throw barrier.error
             }
-            eventSink.unbind()
           },
           authority: {
             spawnToken: () => context.deps.mintSpawnToken?.() ?? randomUUID(),
@@ -123,7 +118,7 @@ export function attachStructuredAgentSession(
           // journal — it has no reference to that one. `onAttached` owns that.
           onAttachFailed: async () => {
             await forgetStructuredAgentSession(context, sessionId)
-            eventSink.close()
+            context.runtimeState.currentEventSink(sessionId)?.close()
             context.runtimeState.discardEventSink(sessionId)
           },
           onAttached: async (
@@ -135,6 +130,10 @@ export function attachStructuredAgentSession(
             const fence = context.deps.store.getRecord(sessionId)?.lease.runtimeFence ?? 0
             const previous = context.sessions.get(sessionId)
             const previousFence = previous?.fence
+            // A re-attach to a live child keeps the sink that child already writes through.
+            const eventSink = acquiredOwner
+              ? attemptSink
+              : (context.runtimeState.currentEventSink(sessionId) ?? attemptSink)
             // Site 8: the provisional journal has no owner until the map takes it,
             // and the barrier below throws by design.
             try {
@@ -166,6 +165,8 @@ export function attachStructuredAgentSession(
                 throw error
               }
             }
+            context.runtimeState.adoptEventSink(sessionId, eventSink)
+            attemptSinkAdopted = eventSink === attemptSink
             context.sessions.set(sessionId, {
               journal: attached.journal,
               params,
@@ -202,17 +203,12 @@ export function attachStructuredAgentSession(
               context.subscribers.publish(sessionId, attached.journal)
             }
           }
-        }).catch((error: unknown) => {
-          // A throw is a failed attach too, and its dead child may already have queued into the
-          // unbound sink; left cached, that queue wedges the next attach's drain and shutdown.
-          discardUnattachedSink()
-          throw error
+        }).finally(() => {
+          if (!attemptSinkAdopted) {
+            attemptSink.close()
+          }
         })
       )
-      if (!attached.ok) {
-        discardUnattachedSink()
-      }
-      return attached
     })
   const attaching =
     params.envelope.expectedRuntimeFence === null
