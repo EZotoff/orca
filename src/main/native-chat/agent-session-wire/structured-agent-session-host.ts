@@ -119,11 +119,10 @@ export class StructuredAgentSessionHost {
       publishStatus: this.clientDelivery.publishStatus,
       now: this.now
     })
-    this.holds = createStructuredAgentSessionHolds(this.lifetimeContext(), {
-      reconcileLeases: this.reconcileLeases,
-      attach: (params) => this.attach({ callerKey: 'trusted-local:surface-hold' }, params),
-      close: (sessionId) => this.close(sessionId)
-    })
+    this.holds = createStructuredAgentSessionHolds(
+      () => this.attachContext(),
+      (sessionId) => this.close(sessionId)
+    )
     this.restore = createStructuredAgentSessionHostRestore(deps, this.sessions, () => this.now(), {
       reconcile: this.reconcileLeases,
       resolveRecovery: (sessionId) => this.runtimeState.resolveRecovery(sessionId),
@@ -278,7 +277,8 @@ export class StructuredAgentSessionHost {
         this.runtimeState.hasPendingStreamedEvents(sessionId),
       requireSession: (sessionId) => this.requireSession(sessionId),
       serialize: (sessionId, task) => this.serialize(sessionId, task),
-      resumes: this.holds,
+      holds: this.holds,
+      restoreReadable: (sessionId) => this.restore.restoreReadableUnderSerialize(sessionId),
       now: () => this.now()
     }
   }

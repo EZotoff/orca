@@ -12,10 +12,7 @@ import {
   type StructuredAgentSessionEvictionContext
 } from './structured-agent-session-eviction'
 import { withStructuredAgentSessionEvictionDeadline } from './structured-agent-session-eviction-deadline'
-import {
-  StructuredAgentSessionHolds,
-  type StructuredAgentSessionResumed
-} from './structured-agent-session-holds'
+import { StructuredAgentSessionHolds } from './structured-agent-session-holds'
 import type { StructuredAgentSessionHostRuntimeState } from './structured-agent-session-host-runtime-state'
 import type {
   StructuredAgentSessionHostDeps,
@@ -23,7 +20,8 @@ import type {
 } from './structured-agent-session-host-types'
 import { releaseStoredStructuredAgentSessionOwner } from './structured-agent-session-lease-release'
 import { resumeHeldStructuredAgentSession } from './structured-agent-session-hold-resume'
-import type { AgentSessionWireRefusal } from '../../../shared/agent-session-wire'
+import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
+import { attachStructuredAgentSessionUnderSerialize } from './structured-agent-session-attach-orchestration'
 import { settleStructuredAgentSessionDeadGeneration } from './structured-agent-session-dead-generation-settlement'
 
 export type StructuredAgentSessionLifetimeContext = {
@@ -168,43 +166,25 @@ export async function evictOwnedStructuredAgentSessions(
   }
 }
 
-/** The first hold on a childless session: reconcile the lease, settle recovery, then attach. */
-export async function resumeStructuredAgentSessionForHold(
-  context: StructuredAgentSessionLifetimeContext & {
-    reconcileLeases: (sessionId: string) => Promise<AgentSessionWireRefusal | null>
-  },
-  sessionId: string,
-  attach: Parameters<typeof resumeHeldStructuredAgentSession>[0]['attach']
-): Promise<StructuredAgentSessionResumed> {
-  const unreconciled = await context.reconcileLeases(sessionId)
-  if (unreconciled) {
-    throw new Error(unreconciled.code)
-  }
-  await context.runtimeState.resolveRecovery(sessionId)
-  return resumeHeldStructuredAgentSession({
-    sessionId,
-    deps: context.deps,
-    now: context.now,
-    attach
-  })
-}
-
+/** The holds resume through the host's own attach, inside the session's serialize: a hold's
+ *  resume and a send's ensure-owner step are the same serialized attach with a different asker. */
 export function createStructuredAgentSessionHolds(
-  context: StructuredAgentSessionLifetimeContext,
-  input: {
-    reconcileLeases: (sessionId: string) => Promise<AgentSessionWireRefusal | null>
-    attach: Parameters<typeof resumeHeldStructuredAgentSession>[0]['attach']
-    close: (sessionId: string) => Promise<void>
-  }
+  attachContext: () => StructuredAgentSessionAttachContext,
+  close: (sessionId: string) => Promise<void>
 ): StructuredAgentSessionHolds {
+  const context = attachContext()
   return new StructuredAgentSessionHolds({
-    resume: (sessionId) =>
-      resumeStructuredAgentSessionForHold(
-        { ...context, reconcileLeases: input.reconcileLeases },
+    resume: (sessionId) => {
+      const current = attachContext()
+      return resumeHeldStructuredAgentSession({
         sessionId,
-        input.attach
-      ),
-    evict: input.close,
+        context: current,
+        attach: (params) =>
+          attachStructuredAgentSessionUnderSerialize(current, 'trusted-local:surface-hold', params)
+      })
+    },
+    serialize: (sessionId, task) => attachContext().serialize(sessionId, task),
+    evict: close,
     hasProviderChild: (sessionId) => hasProviderChild(context, sessionId),
     isTurnActive: (sessionId) => {
       const session = context.sessions.get(sessionId)

@@ -10,10 +10,11 @@
 // not the mechanism: a client that vanishes mid-flight never sends its release, so the caller
 // registers one against the connection and the holder set absorbs the duplicate.
 //
-// A send to a childless session resumes it too, through the same single-flight: whoever asks first
-// starts the one resume, and everyone who asks while it runs shares its outcome. Two resumes for
-// one session would each attach against the same released fence, and the loser's stale fence
-// refuses it — a hold that lost dropped its holder, a send that lost was refused.
+// A send to a childless session resumes it too, and so does provider-exit recovery under an open
+// surface. All three go through `ensureProviderChild` inside the session's serialize, so they take
+// turns: the first to run attaches, and the next finds the child and attaches nothing. Two attaches
+// for one session would race against the same released fence, and the loser's stale fence refused
+// it — a hold that lost dropped its holder, a send that lost was refused.
 
 import {
   StructuredAgentSessionReleaseClock,
@@ -21,12 +22,11 @@ import {
 } from './structured-agent-session-release-clock'
 import { StructuredAgentSessionHolders } from './structured-agent-session-holders'
 
-/** A resume moves the fence; a writer that was current as of the lost owner rebases from here. */
-export type StructuredAgentSessionResumed = { fromFence: number }
-
 export type StructuredAgentSessionHoldsDeps = {
-  /** Acquires a provider child for a session that has none. Throws the refusal code when it cannot. */
-  resume: (sessionId: string) => Promise<StructuredAgentSessionResumed>
+  /** Attaches a provider child, for a caller already inside `serialize`. Throws the refusal code
+   *  when it cannot. */
+  resume: (sessionId: string) => Promise<void>
+  serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
   /** Whether evicting this session would actually free anything. */
   hasProviderChild: (sessionId: string) => boolean
   isTurnActive: (sessionId: string) => boolean
@@ -44,7 +44,6 @@ export type StructuredAgentSessionHoldOptions = {
 export class StructuredAgentSessionHolds {
   private readonly holders = new StructuredAgentSessionHolders()
   private readonly clock: StructuredAgentSessionReleaseClock
-  private readonly resumes = new Map<string, Promise<StructuredAgentSessionResumed>>()
   private disposed = false
 
   constructor(private readonly deps: StructuredAgentSessionHoldsDeps) {
@@ -72,36 +71,32 @@ export class StructuredAgentSessionHolds {
     if (options.resume === false) {
       return
     }
-    if (!this.deps.hasProviderChild(sessionId)) {
-      try {
-        await this.resumeUnheld(sessionId)
-      } catch (error) {
-        if (!alreadyHeld && incarnation !== undefined) {
-          this.release(sessionId, holderId, incarnation)
-        }
-        throw error
+    try {
+      await this.deps.serialize(sessionId, () => this.ensureProviderChild(sessionId))
+    } catch (error) {
+      // Only the holder this call added, at the incarnation it added: a same-ID hold that left
+      // and came back while this one waited owns the holder now, and its own attempt decides it.
+      if (!alreadyHeld && incarnation !== undefined) {
+        this.release(sessionId, holderId, incarnation)
       }
+      throw error
     }
   }
 
-  /** Resumes a childless session, or joins the resume already running for it. With no surface
-   *  holding it afterwards, the child is released on the same clock a departed surface would start. */
-  resumeUnheld(sessionId: string): Promise<StructuredAgentSessionResumed> {
-    const inFlight = this.resumes.get(sessionId)
-    if (inFlight) {
-      return inFlight
+  /**
+   * Gives the session a provider child if it has none.
+   *
+   * For a caller already inside the session's serialize, which is what makes "if it has none"
+   * exact: a hold and a send that both find the owner gone run this in turn, and the second sees
+   * the first one's child. Each caller makes at most one attach, and a failed one leaves the
+   * next caller to make its own. With no surface holding the session afterwards, the child goes
+   * on the same clock a departed surface would start.
+   */
+  async ensureProviderChild(sessionId: string): Promise<void> {
+    if (this.deps.hasProviderChild(sessionId)) {
+      return
     }
-    const resume = this.resumeOnce(sessionId).finally(() => this.resumes.delete(sessionId))
-    this.resumes.set(sessionId, resume)
-    return resume
-  }
-
-  isResuming(sessionId: string): boolean {
-    return this.resumes.has(sessionId)
-  }
-
-  private async resumeOnce(sessionId: string): Promise<StructuredAgentSessionResumed> {
-    const resumed = await this.deps.resume(sessionId)
+    await this.deps.resume(sessionId)
     if (!this.deps.hasProviderChild(sessionId)) {
       throw new Error('agent_session_ownership_unknown')
     }
@@ -109,7 +104,6 @@ export class StructuredAgentSessionHolds {
     if (!this.disposed && !this.holders.isHeld(sessionId)) {
       this.clock.arm(sessionId)
     }
-    return resumed
   }
 
   /** Journal activity; only an unheld session's pending release notices. */

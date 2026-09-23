@@ -5,7 +5,6 @@ import { setAgentSessionRecordConversationName } from './agent-session-record-co
 
 import {
   agentSessionOperationKey,
-  findAgentSessionGlobalOperationRow,
   type AgentSessionOperationClaim,
   type AgentSessionOperationDecision,
   type AgentSessionOperationOutcome,
@@ -14,6 +13,7 @@ import {
 import {
   admitAgentSessionGlobalOperationInto,
   admitAgentSessionMutationOperation,
+  evaluateAgentSessionMutationOperation,
   admitAgentSessionOperationInto,
   claimAgentSessionOperationInto,
   settleAgentSessionOperationInto,
@@ -165,13 +165,6 @@ export class AgentSessionRecordStore {
 
   listOperationRows = (): AgentSessionOperationRow[] => [...this.state.operations.values()]
 
-  /** The row a globally scoped id (a send) already holds, under whichever caller admitted it. */
-  findGlobalOperationRow = (
-    operationId: string,
-    now: number
-  ): AgentSessionOperationRow | undefined =>
-    findAgentSessionGlobalOperationRow(this.state.operations, operationId, now)
-
   getOperationRow = (callerKey: string, operationId: string): AgentSessionOperationRow | null =>
     this.state.operations.get(agentSessionOperationKey(callerKey, operationId)) ?? null
 
@@ -298,6 +291,10 @@ export class AgentSessionRecordStore {
 
   admitMutationOperation = (args: AgentSessionMutationOperationAdmission) =>
     this.transact(() => admitAgentSessionMutationOperation(this.state, args))
+
+  /** The ledger's answer alone, placing nothing; `admitMutationOperation` is the transaction. */
+  evaluateMutationOperation = (args: AgentSessionMutationOperationAdmission) =>
+    evaluateAgentSessionMutationOperation(this.state, args)
 
   /** Durable compare-and-swap for the right to run an admitted operation's effect: two replays both
    *  read `pending`, and only a conditional swap tells the one that may run from the one that must

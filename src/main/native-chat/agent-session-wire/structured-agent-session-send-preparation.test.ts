@@ -1,4 +1,4 @@
-// A send to a session whose provider child is gone, against the real host.
+// A send, or a hold, that finds the session's provider child gone, against the real host.
 
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -10,7 +10,6 @@ import type { AgentSessionMutationEnvelope } from '../../../shared/agent-session
 import { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
 import { StructuredAgentSessionHost } from './structured-agent-session-host'
-import { StructuredAgentSessionSendRecovery } from './structured-agent-session-send-recovery'
 import {
   HOST_TEST_NOW as NOW,
   HOST_TEST_SESSION as SESSION,
@@ -123,26 +122,26 @@ describe('a send with no live owner', () => {
     expect(store.getRecord(SESSION)?.lease.claimStatus).toBe('live')
   })
 
-  it('restarts the owner before the send is admitted, so the send runs once', async () => {
+  it('restarts the owner before the send is admitted, so the send is admitted once', async () => {
     await loseOwner()
     const order: string[] = []
-    const recovery = new StructuredAgentSessionSendRecovery({
-      getRecord: (sessionId) => store.getRecord(sessionId),
-      isAttached: () => true,
-      hasLedgerRow: () => false,
-      isResuming: () => false,
-      resume: async () => {
-        order.push('resume')
-        return { fromFence: 1 }
-      }
+    const spawnChild = acquire.getMockImplementation()!
+    acquire.mockImplementationOnce(async (input) => {
+      order.push('acquire')
+      return spawnChild(input)
+    })
+    const admit = store.admitMutationOperation
+    vi.spyOn(store, 'admitMutationOperation').mockImplementation((args) => {
+      order.push('admit')
+      return admit(args)
     })
 
-    await recovery.send(sendParams('ensure first'), async () => {
-      order.push('run')
-      return { ok: false, refusal: { code: 'agent_session_operation_invalid', message: 'stub' } }
+    await expect(host.send(CALLER, sendParams('ensure first'))).resolves.toMatchObject({
+      ok: true,
+      replayed: false
     })
 
-    expect(order).toEqual(['resume', 'run'])
+    expect(order).toEqual(['acquire', 'admit'])
   })
 
   it('leaves a live owner alone', async () => {
@@ -363,7 +362,7 @@ describe('a send with no live owner', () => {
     expect(host['holds'].isReleasePending(SESSION)).toBe(false)
   })
 
-  it('reopens a closed session once for a replay, and never runs the send again', async () => {
+  it('replays into a closed session without spawning anything', async () => {
     const params = sendParams('sent once')
     await expect(host.send(CALLER, params)).resolves.toMatchObject({ ok: true, replayed: false })
     await loseOwner()
@@ -371,10 +370,12 @@ describe('a send with no live owner', () => {
     await expect(host.send(CALLER, params)).resolves.toMatchObject({ ok: true, replayed: true })
     await expect(host.send(CALLER, params)).resolves.toMatchObject({ ok: true, replayed: true })
 
-    expect(acquire).toHaveBeenCalledOnce()
+    // The journal was made readable for the answer; the record's lease was left as it was.
+    expect(host.hasSession(SESSION)).toBe(true)
+    expect(acquire).not.toHaveBeenCalled()
     expect(dispatch).toHaveBeenCalledOnce()
-    // The reopened child is nobody's: it goes on the idle clock like any unheld restart.
-    expect(host['holds'].isReleasePending(SESSION)).toBe(true)
+    expect(store.getRecord(SESSION)?.lease.claimStatus).toBe('released')
+    expect(host['holds'].isReleasePending(SESSION)).toBe(false)
   })
 
   it('refuses for good when the owner cannot be restarted', async () => {
@@ -395,6 +396,42 @@ describe('a send with no live owner', () => {
     expect(
       agentSessionRefusalOperationState('agentSession.send', 'agent_session_owner_unrecoverable')
     ).toBe('settled-rejected')
+  })
+
+  it('keeps a second surface holder taken during an auto-restart, and starts nothing for it', async () => {
+    await host.hold(SESSION, 'desktop-chat:1')
+    const exitedFence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
+    acquire.mockClear()
+    const entered = Promise.withResolvers<void>()
+    const gate = Promise.withResolvers<void>()
+    const spawnChild = acquire.getMockImplementation()!
+    acquire.mockImplementationOnce(async (input) => {
+      entered.resolve()
+      await gate.promise
+      return spawnChild(input)
+    })
+
+    // The held child exits: the host restarts it on its own, under the surface that holds it.
+    const restarted = host.handleAdapterEvent({
+      type: 'ended',
+      sessionId: SESSION,
+      reason: 'provider exited',
+      cause: 'unexpected-exit',
+      fence: exitedFence,
+      acquisitionGeneration: 'generation-1'
+    })
+    await entered.promise
+    const second = host.hold(SESSION, 'paired-phone:1')
+    gate.resolve()
+    await Promise.all([restarted, second])
+
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(host['holds']['holders'].holderIds(SESSION)).toEqual([
+      'desktop-chat:1',
+      'paired-phone:1'
+    ])
+    expect(host['holds'].isReleasePending(SESSION)).toBe(false)
+    expect(store.getRecord(SESSION)?.lease.claimStatus).toBe('live')
   })
 
   it('leaves a lease it cannot adjudicate alone', async () => {

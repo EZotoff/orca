@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { runKeyedSerializedOperation } from '../../cli/keyed-promise-queue'
 import { StructuredAgentSessionHolds } from './structured-agent-session-holds'
 
 const GRACE_MS = 15_000
 const pendingHolds: StructuredAgentSessionHolds[] = []
+
+/** The host's per-session queue: a second hold waits for the attach the first one is running. */
+function keyedSerialize() {
+  const chains = new Map<string, Promise<void>>()
+  return <T>(sessionId: string, task: () => Promise<T>) =>
+    runKeyedSerializedOperation(chains, sessionId, task)
+}
 
 function resumeHarness() {
   const resumeGate = Promise.withResolvers<void>()
@@ -14,10 +22,10 @@ function resumeHarness() {
   const resume = vi.fn(async () => {
     await resumeGate.promise
     child = true
-    return { fromFence: 1 }
   })
   const holds = new StructuredAgentSessionHolds({
     resume,
+    serialize: keyedSerialize(),
     hasProviderChild: () => child,
     isTurnActive: () => turnActive,
     evict,
@@ -168,35 +176,38 @@ describe('a surface leaving while its structured session resumes', () => {
     expect(evict).toHaveBeenCalledExactlyOnceWith('session-1')
   })
 
-  it('joins a pending resume for a holder that left and came back, and a failure releases it', async () => {
+  it('lets a holder that left and came back make its own attempt behind a failing one, and its failure releases it', async () => {
     const { holds, resume, resumeGate, evict } = resumeHarness()
     const first = holds.hold('session-1', 'same-holder')
     const firstRejected = expect(first).rejects.toThrow('acquisition failed')
     holds.release('session-1', 'same-holder')
     const replacement = holds.hold('session-1', 'same-holder')
     const replacementRejected = expect(replacement).rejects.toThrow('acquisition failed')
+    await vi.advanceTimersByTimeAsync(0)
     expect(holds.isHeld('session-1')).toBe(true)
     expect(resume).toHaveBeenCalledOnce()
 
+    // The gate stays rejected, so the replacement's own attempt fails the same way.
     resumeGate.reject(new Error('acquisition failed'))
     await Promise.all([firstRejected, replacementRejected])
 
+    expect(resume).toHaveBeenCalledTimes(2)
     expect(holds.isHeld('session-1')).toBe(false)
     expect(holds.isReleasePending('session-1')).toBe(false)
     await vi.advanceTimersByTimeAsync(GRACE_MS * 2)
     expect(evict).not.toHaveBeenCalled()
   })
 
-  it('keeps a hold that found the child already there when the resume that made it still fails', async () => {
+  it('keeps a re-hold that finds the child the failing attempt ahead of it left behind', async () => {
     const gate = Promise.withResolvers<void>()
     let child = false
     const holds = new StructuredAgentSessionHolds({
-      // The child is up before the resume settles, and then the resume fails behind it.
+      // The child is up before the attempt settles, and then the attempt fails behind it.
       resume: async () => {
         child = true
         await gate.promise
-        return { fromFence: 1 }
       },
+      serialize: keyedSerialize(),
       hasProviderChild: () => child,
       isTurnActive: () => false,
       evict: async () => {},
@@ -206,10 +217,13 @@ describe('a surface leaving while its structured session resumes', () => {
     const first = holds.hold('session-1', 'same-holder')
     const rejected = expect(first).rejects.toThrow('acquisition failed')
     holds.release('session-1', 'same-holder')
-    await holds.hold('session-1', 'same-holder')
+    const replacement = holds.hold('session-1', 'same-holder')
 
     gate.reject(new Error('acquisition failed'))
     await rejected
+    // The first hold's failure released only the holder it added, at the incarnation it added;
+    // the replacement then ran, found the child, and kept the holder it re-took.
+    await replacement
 
     expect(holds.isHeld('session-1')).toBe(true)
     expect(holds.isReleasePending('session-1')).toBe(false)
@@ -218,14 +232,14 @@ describe('a surface leaving while its structured session resumes', () => {
   it('starts a fresh resume once the failed one has settled', async () => {
     let child = false
     const resume = vi
-      .fn<() => Promise<{ fromFence: number }>>()
+      .fn<() => Promise<void>>()
       .mockRejectedValueOnce(new Error('first acquisition failed'))
       .mockImplementationOnce(async () => {
         child = true
-        return { fromFence: 1 }
       })
     const holds = new StructuredAgentSessionHolds({
       resume,
+      serialize: keyedSerialize(),
       hasProviderChild: () => child,
       isTurnActive: () => false,
       evict: async () => {},
@@ -234,7 +248,6 @@ describe('a surface leaving while its structured session resumes', () => {
     pendingHolds.push(holds)
 
     await expect(holds.hold('session-1', 'chat-1')).rejects.toThrow('first acquisition failed')
-    expect(holds.isResuming('session-1')).toBe(false)
     await holds.hold('session-1', 'chat-1')
 
     expect(resume).toHaveBeenCalledTimes(2)

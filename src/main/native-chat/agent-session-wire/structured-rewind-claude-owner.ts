@@ -5,7 +5,7 @@ import type { AgentSessionRewindParams } from '../../../shared/agent-session-rew
 import type { StructuredAgentSessionAcquireInput } from './structured-agent-session-adapter'
 import { attachFingerprintFields } from './structured-agent-session-attach'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
-import { attachStructuredAgentSession } from './structured-agent-session-attach-orchestration'
+import { attachStructuredAgentSessionUnderSerialize } from './structured-agent-session-attach-orchestration'
 import { rewindRefusal } from './structured-rewind-refusal'
 
 /** Runs within the rewind's session queue; acquisition still uses the normal reservation CAS. */
@@ -49,16 +49,9 @@ export async function replaceClaudeRewindOwner(
       sessionId,
       fields: attachFingerprintFields(attachParams)
     })
-    return attachStructuredAgentSession(
-      {
-        ...context,
-        serialize: (_id, run) => run()
-      },
-      callerKey,
-      attachParams,
-      undefined,
-      intent
-    )
+    return attachStructuredAgentSessionUnderSerialize(context, callerKey, attachParams, {
+      rewind: intent
+    })
   }
   const result = await attach(rewind, 'rewind')
   if (result.ok) {

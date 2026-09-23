@@ -1,4 +1,4 @@
-import { attachStructuredAgentSession } from './structured-agent-session-attach-orchestration'
+import { attachStructuredAgentSessionUnderSerialize } from './structured-agent-session-attach-orchestration'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import type { StructuredAgentSessionLifecycleEvent } from './structured-agent-session-adapter'
 import type {
@@ -73,18 +73,26 @@ export class StructuredAgentSessionEventRecovery {
     if (!ticket) {
       return
     }
+    // One serialized step with the ticket check inside it: a hold or a send that got there first
+    // has already replaced the owner, and this attach then refuses on the stale ticket rather than
+    // spawning a second child against the fence it moved.
     try {
-      await resumeHeldStructuredAgentSession({
-        sessionId: ticket.sessionId,
-        deps: this.context.deps,
-        now: this.context.now,
-        attach: (params) =>
-          attachStructuredAgentSession(
-            this.context.attachContext(),
-            'trusted-local:provider-exit-recovery',
-            params,
-            () => isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)
-          )
+      await this.context.serialize(ticket.sessionId, () => {
+        const attachContext = this.context.attachContext()
+        return resumeHeldStructuredAgentSession({
+          sessionId: ticket.sessionId,
+          context: attachContext,
+          attach: (params) =>
+            attachStructuredAgentSessionUnderSerialize(
+              attachContext,
+              'trusted-local:provider-exit-recovery',
+              params,
+              {
+                admitRecoveryTicket: () =>
+                  isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)
+              }
+            )
+        })
       })
     } catch (error) {
       if (isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)) {

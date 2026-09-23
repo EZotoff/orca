@@ -52,7 +52,7 @@ export function runStructuredConversationCommand(
       adapter: context.deps.adapter,
       callerKey: caller.callerKey,
       envelope,
-      journal: context.sessions.get(sessionId)?.journal,
+      journal: () => context.sessions.get(sessionId)?.journal,
       publish: (journal) => context.publish(sessionId, journal),
       flushStreamedEvents: context.flushStreamedEvents,
       now: context.now,

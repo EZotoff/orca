@@ -1,5 +1,4 @@
 import { sendStructuredAgentSessionTurn } from './structured-agent-session-host-mutations'
-import { StructuredAgentSessionSendRecovery } from './structured-agent-session-send-recovery'
 import {
   runStructuredConversationCommand,
   type ConversationCommandParams
@@ -14,33 +13,19 @@ export class StructuredConversationCommandController {
     private readonly context: () => StructuredAgentSessionMutationContext,
     private readonly host: Pick<StructuredAgentSessionHost, 'attach' | 'flushStreamedEvents'>
   ) {}
-  private readonly recovery = new StructuredAgentSessionSendRecovery({
-    getRecord: (sessionId) => this.context().deps.store.getRecord(sessionId),
-    isAttached: (sessionId) => this.context().sessions.has(sessionId),
-    hasLedgerRow: (clientOperationId) => {
-      const { deps, now } = this.context()
-      return deps.store.findGlobalOperationRow(clientOperationId, now()) !== undefined
-    },
-    isResuming: (sessionId) => this.context().resumes.isResuming(sessionId),
-    resume: (sessionId) => this.context().resumes.resumeUnheld(sessionId),
-    onError: (input) => this.context().deps.onEventSinkError?.(input)
-  })
-
   send = (
     caller: StructuredAgentSessionCaller,
     params: Parameters<typeof sendStructuredAgentSessionTurn>[2]
   ): ReturnType<typeof sendStructuredAgentSessionTurn> =>
-    this.recovery.send(params, (next) =>
-      this.pending.has(next.envelope.sessionId)
-        ? Promise.resolve({
-            ok: false,
-            refusal: {
-              code: 'agent_session_operation_invalid',
-              message: 'Wait for the conversation operation to finish.'
-            }
-          })
-        : sendStructuredAgentSessionTurn(this.context(), caller, next)
-    )
+    this.pending.has(params.envelope.sessionId)
+      ? Promise.resolve({
+          ok: false,
+          refusal: {
+            code: 'agent_session_operation_invalid',
+            message: 'Wait for the conversation operation to finish.'
+          }
+        })
+      : sendStructuredAgentSessionTurn(this.context(), caller, params)
 
   run = (caller: StructuredAgentSessionCaller, params: ConversationCommandParams) => {
     const key = JSON.stringify([caller.callerKey, params.envelope.clientOperationId])
