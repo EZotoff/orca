@@ -109,15 +109,16 @@ export type JournalLifecycleMutationInput =
     }
   | { kind: 'tombstone'; identity: AgentJournalItemIdentity }
 
-/** A batch revision of a row someone else wrote. It restates that row's producer,
- *  because the reducer takes linkage from the newest revision: without it a
- *  settlement would hand a subagent's row to the session's own agent. */
-export function journalLifecycleRevisionOf(
-  row: AgentJournalProducerLinkage,
+/** An item mutation that names the producer of the row it writes. A revision
+ *  restates it, because the reducer takes linkage from the newest revision:
+ *  without it a settlement would hand a subagent's row to the session's own
+ *  agent. The session's own rows carry no key at all — absence is the claim. */
+export function journalLifecycleItemMutation(
+  producer: AgentJournalProducerLinkage,
   identity: AgentJournalItemIdentity,
   body: AgentJournalItemBody
 ): JournalLifecycleMutationInput {
-  const linkage = agentJournalLinkageFields(row)
+  const linkage = agentJournalLinkageFields(producer)
   return { kind: 'item', identity, body, ...(Object.keys(linkage).length > 0 ? { linkage } : {}) }
 }
 

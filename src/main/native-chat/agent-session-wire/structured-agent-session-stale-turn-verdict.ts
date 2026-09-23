@@ -16,7 +16,7 @@ import {
 import type { AgentSessionDeathEvidence } from '../../../shared/agent-session-record'
 import { partitionJournalLifecycleMutations } from '../agent-session-journal/journal-lifecycle-batch-partition'
 import {
-  journalLifecycleRevisionOf,
+  journalLifecycleItemMutation,
   type JournalLifecycleMutationInput
 } from '../agent-session-journal/journal-row-builders'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
@@ -79,7 +79,7 @@ function staleSessionLifecycleRevisions(
     if (cancelled) {
       // A subagent's prompt stays its own; turn revisions below carry nothing,
       // because a turn is the session's unit of work.
-      revisions.push(journalLifecycleRevisionOf(item, identity, cancelled))
+      revisions.push(journalLifecycleItemMutation(item, identity, cancelled))
     }
   }
   revisions.push(...runningTurnLifecycleRevisions(items, UNVERIFIABLE_TURN_VERDICT))

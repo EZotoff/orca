@@ -6,7 +6,7 @@ import type {
 import { readAgentJournalTurn } from '../../../shared/agent-session-turn-record'
 import { partitionJournalLifecycleMutations } from '../agent-session-journal/journal-lifecycle-batch-partition'
 import {
-  journalLifecycleRevisionOf,
+  journalLifecycleItemMutation,
   type JournalLifecycleMutationInput
 } from '../agent-session-journal/journal-row-builders'
 import {
@@ -135,7 +135,7 @@ export async function settleStructuredAgentSessionDeadGeneration(input: {
       const body = terminalDeadGenerationBody(item)
       if (identity && body) {
         // Settles rows any agent wrote, so each restates its own producer.
-        mutations.push(journalLifecycleRevisionOf(item, identity, body))
+        mutations.push(journalLifecycleItemMutation(item, identity, body))
       }
     }
     mutations.push(...runningTurnLifecycleRevisions(items, input.verdict))
