@@ -26,6 +26,10 @@ import {
   sweepRestoredSubagentsWithoutLiveAgent
 } from '../agent-hooks/restored-subagent-liveness-sweep'
 import { startFirstWindowStartupServices } from './first-window-startup-services'
+import {
+  isGlobalHookInstallEnabled,
+  maybeInstallGlobalOpenCodeHook
+} from '../opencode/global-hook-startup'
 import { logStartupMilestone } from './startup-diagnostics'
 import type { WindowsDesktopStartupServices } from './windows-desktop-shell-path-startup'
 import type { RuntimeWorktreeLifecycleEvent } from '../runtime/orca-runtime'
@@ -180,6 +184,13 @@ export function startTerminalRuntimeStartupServices(): WindowsDesktopStartupServ
         endpointNamespace: state.devAgentHookEndpointNamespace
       })
       logStartupMilestone('startup-service-done', { service: 'agent-hook-server' })
+      // Why (Task 16): guarded global OpenCode plugin install — lazy (first window ready, never
+      // module init), OFF by default; ORCA_ENABLE_GLOBAL_HOOK_INSTALL=1 opts in (Task 17/18 gate).
+      await maybeInstallGlobalOpenCodeHook({
+        homeDir: app.getPath('home'),
+        userDataDir: app.getPath('userData'),
+        enabled: isGlobalHookInstallEnabled()
+      })
     },
     onDaemonError: (error) => {
       // Why: daemon failure silently falls back to non-persistent local PTYs; log + telemetry so a fleet-wide outage is observable (was invisible in v1.4.129-rc.1).

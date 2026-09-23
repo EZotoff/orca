@@ -5,6 +5,9 @@ export const AGENT_HOOK_RUNTIME_ENV_KEYS = [
   'ORCA_AGENT_HOOK_VERSION',
   'ORCA_AGENT_HOOK_TRANSPORT',
   'ORCA_AGENT_HOOK_ENDPOINT',
+  // Why (Task 16): state dir provisioning the global OpenCode plugin's file drops;
+  // strip from nested shells so non-Orca children stay inert (design §6).
+  'ORCA_HOOK_STATE_DIR',
   // Why: PR 2778 briefly exported this path; keep deleting stale inherited values so older PTYs can't leak the reverted path.
   'ORCA_CLAUDE_AGENT_STATUS_SETTINGS'
 ] as const
