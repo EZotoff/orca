@@ -328,6 +328,12 @@ export function NativeChatMessageList({
             // window by exactly `fontScale`. (Chromium/Electron only.)
             style={{ zoom: fontScale }}
           >
+            {hasMore ? (
+              <NativeChatOlderHistoryRow
+                olderHistory={olderHistory}
+                loadingEarlier={loadingEarlier}
+              />
+            ) : null}
             <div className="px-3 pt-10 pb-4 sm:px-4">
               <div
                 ref={contentRef}
@@ -335,12 +341,6 @@ export function NativeChatMessageList({
                 // on each side so content is slightly narrower than the input box.
                 className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-[5px]"
               >
-                {hasMore ? (
-                  <NativeChatOlderHistoryRow
-                    olderHistory={olderHistory}
-                    loadingEarlier={loadingEarlier}
-                  />
-                ) : null}
                 <NativeChatTranscriptItems
                   slots={slots}
                   context={rowContext}

@@ -102,6 +102,21 @@ function noise(index: number): NativeChatMessage {
 const markers = (from: number, to: number): NativeChatMessage[] =>
   Array.from({ length: to - from }, (_, offset) => marker(from + offset))
 
+/** The scroll root's `pt-10`, and the transcript column's `gap-5`. */
+const TOP_GUTTER_PX = 40
+const COLUMN_GAP_PX = 20
+/** Any chrome mounted in the column before the window is in flow and pushes the
+ *  window down by its height and one gap, the way a flex column lays it out. */
+const IN_FLOW_CHROME_PX = 32
+
+function flowAboveSpacer(spacer: HTMLElement): number {
+  let above = TOP_GUTTER_PX
+  for (let node = spacer.previousElementSibling; node; node = node.previousElementSibling) {
+    above += IN_FLOW_CHROME_PX + COLUMN_GAP_PX
+  }
+  return above
+}
+
 function paging({
   messages,
   loadEarlier,
@@ -164,6 +179,7 @@ describe('older history auto-load', () => {
     createdObservers.length = 0
     sentinelInRange = false
     layout.aboveTranscriptPx = 0
+    layout.aboveSpacerPx = flowAboveSpacer
   })
   afterEach(() => {
     vi.useRealTimers()
@@ -171,6 +187,7 @@ describe('older history auto-load', () => {
     restoreResizeObserver()
     restoreLayout()
     layout.aboveTranscriptPx = 0
+    layout.aboveSpacerPx = null
   })
 
   it('asks for a page once the top sentinel is within prefetch range of the scroller', () => {
@@ -337,37 +354,56 @@ describe('older history auto-load', () => {
     expect(loadEarlier).toHaveBeenCalledTimes(3)
   })
 
-  it('keeps the row the reader is looking at in place across an auto-loaded prepend', async () => {
-    // Top gutter plus the older-history row and its gap.
-    layout.aboveTranscriptPx = 92
-    const loadEarlier = vi.fn(async () => {})
-    const base = markers(100, 200)
-    const { container, rerender } = render(paging({ messages: base, loadEarlier }))
-    paint(container)
-    const scroller = scrollRoot(container)
-    scrollTranscript(container, layout.aboveTranscriptPx + 40 * ROW_PITCH_PX + 17)
-    paint(container)
-
-    const rowTop = (text: string): number => {
-      const row = screen.getByText(text).closest<HTMLElement>('[data-index]')
-      if (!row) {
-        throw new Error(`${text} is not a windowed row`)
-      }
-      return layout.aboveTranscriptPx + Number.parseFloat(row.style.top)
+  /** Where a row's top sits in the scroll document. */
+  function rowTop(container: HTMLElement, text: string): number {
+    const row = screen.getByText(text).closest<HTMLElement>('[data-index]')
+    const spacer = container.querySelector<HTMLElement>('[data-native-chat-window]')
+    if (!row || !spacer) {
+      throw new Error(`${text} is not a windowed row`)
     }
-    const readerOffset = rowTop('marker-140') - scroller.scrollTop
-    expect(readerOffset).toBe(-17)
+    return spacer.offsetTop + Number.parseFloat(row.style.top)
+  }
+
+  async function readerAtMarker140(loadEarlier: () => Promise<void>) {
+    const base = markers(100, 200)
+    const view = render(paging({ messages: base, loadEarlier }))
+    paint(view.container)
+    const scroller = scrollRoot(view.container)
+    const spacer = view.container.querySelector<HTMLElement>('[data-native-chat-window]')
+    scrollTranscript(view.container, (spacer?.offsetTop ?? 0) + 40 * ROW_PITCH_PX + 17)
+    paint(view.container)
+    expect(rowTop(view.container, 'marker-140') - scroller.scrollTop).toBe(-17)
 
     sentinelInRange = true
     deliverIntersections()
     expect(loadEarlier).toHaveBeenCalledTimes(1)
     sentinelInRange = false
-    rerender(paging({ messages: base, loadEarlier, loadingEarlier: true }))
+    view.rerender(paging({ messages: base, loadEarlier, loadingEarlier: true }))
     await settle()
+    return { ...view, base, scroller }
+  }
+
+  it('keeps the row the reader is looking at in place across an auto-loaded prepend', async () => {
+    const loadEarlier = vi.fn(async () => {})
+    const { container, rerender, base, scroller } = await readerAtMarker140(loadEarlier)
+
     rerender(paging({ messages: [...markers(50, 100), ...base], loadEarlier }))
     paint(container)
 
-    expect(rowTop('marker-140') - scroller.scrollTop).toBe(readerOffset)
-    expect(scroller.scrollTop).toBe(layout.aboveTranscriptPx + 90 * ROW_PITCH_PX + 17)
+    expect(rowTop(container, 'marker-140') - scroller.scrollTop).toBe(-17)
+    expect(scroller.scrollTop).toBe(TOP_GUTTER_PX + 90 * ROW_PITCH_PX + 17)
+  })
+
+  // The last page takes the older-history row away with it. Anything that row
+  // held in flow above the window would leave with it, and move every row.
+  it('keeps the reader in place when the last page lands and the older-history row leaves', async () => {
+    const loadEarlier = vi.fn(async () => {})
+    const { container, rerender, base, scroller } = await readerAtMarker140(loadEarlier)
+
+    rerender(paging({ messages: [...markers(50, 100), ...base], loadEarlier, hasMore: false }))
+    paint(container)
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(rowTop(container, 'marker-140') - scroller.scrollTop).toBe(-17)
   })
 })
