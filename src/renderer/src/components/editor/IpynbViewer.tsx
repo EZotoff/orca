@@ -166,7 +166,7 @@ export default function IpynbViewer({
               : cell.source
             return (
               <section key={cellKey} className="group relative flex gap-2 py-1.5">
-                <div className="flex w-12 shrink-0 justify-end pt-1">
+                <div className="flex w-12 shrink-0 justify-center pt-1">
                   {cell.kind === 'code' ? (
                     <IpynbRunPrompt
                       executionCount={cell.executionCount}

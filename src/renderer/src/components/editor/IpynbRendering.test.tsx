@@ -3,6 +3,8 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IpynbCellOutputs } from './IpynbCellOutputs'
 import { IpynbCellSource, IpynbMarkdownCell } from './IpynbCellEditor'
+import { IpynbRunPrompt } from './IpynbCellToolbar'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import type { IpynbCell, IpynbOutput } from './ipynb-parse'
 
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
@@ -60,6 +62,21 @@ describe('notebook cell source', () => {
     expect(onActivate).not.toHaveBeenCalled()
     fireEvent.mouseDown(preview, { button: 0 })
     expect(onActivate).toHaveBeenCalledOnce()
+  })
+})
+
+describe('notebook run prompt', () => {
+  it('keeps the count in place and shows [*] with a disabled run button while running', () => {
+    const { rerender } = render(
+      <IpynbRunPrompt executionCount={3} running={false} onRun={vi.fn()} />,
+      { wrapper: TooltipProvider }
+    )
+    expect(screen.getByText('[3]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Run cell' }).hasAttribute('disabled')).toBe(false)
+
+    rerender(<IpynbRunPrompt executionCount={3} running onRun={vi.fn()} />)
+    expect(screen.getByText('[*]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Run cell' }).hasAttribute('disabled')).toBe(true)
   })
 })
 

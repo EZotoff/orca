@@ -39,14 +39,12 @@ function cellKindLabel(kind: IpynbCellKind): string {
 
 export function IpynbToolbarButton({
   label,
-  size = 'icon-xs',
   disabled = false,
   shortcut,
   onClick,
   children
 }: {
   label: string
-  size?: 'icon-xs' | 'xs'
   disabled?: boolean
   shortcut?: ShortcutKeyComboDetails
   onClick: () => void
@@ -58,7 +56,7 @@ export function IpynbToolbarButton({
         <Button
           type="button"
           variant="ghost"
-          size={size}
+          size="icon-xs"
           aria-label={label}
           disabled={disabled}
           onClick={onClick}
@@ -78,7 +76,7 @@ export function IpynbToolbarButton({
   )
 }
 
-/** Jupyter-style `[n]` prompt that turns into the run button on hover or focus. */
+/** VS Code-style gutter: a run button slot that appears on hover or focus above a fixed `[n]` count. */
 export function IpynbRunPrompt({
   executionCount,
   running,
@@ -89,29 +87,21 @@ export function IpynbRunPrompt({
   onRun: () => void
 }): React.JSX.Element {
   return (
-    <IpynbToolbarButton
-      label={translate('auto.components.editor.IpynbViewer.859bf9fc21', 'Run cell')}
-      size="xs"
-      disabled={running}
-      onClick={onRun}
-    >
-      {/* Both states share one grid cell, so the slot keeps the label's width and centre. */}
-      <span className="grid place-items-center *:[grid-area:1/1]">
-        <span
-          className={cn(
-            'font-mono text-[11px] text-muted-foreground',
-            running ? 'invisible' : 'group-focus-within:invisible group-hover:invisible'
-          )}
+    <div className="flex flex-col items-center gap-0.5">
+      {/* Why: `invisible` keeps the slot's box, so revealing the button never moves the count. */}
+      <div className={cn(!running && 'invisible group-focus-within:visible group-hover:visible')}>
+        <IpynbToolbarButton
+          label={translate('auto.components.editor.IpynbViewer.859bf9fc21', 'Run cell')}
+          disabled={running}
+          onClick={onRun}
         >
-          [{executionCount ?? ' '}]
-        </span>
-        {running ? (
-          <Loader2 className="animate-spin" />
-        ) : (
-          <Play className="invisible group-focus-within:visible group-hover:visible" />
-        )}
+          {running ? <Loader2 className="animate-spin" /> : <Play />}
+        </IpynbToolbarButton>
+      </div>
+      <span className="font-mono text-[11px] text-muted-foreground">
+        [{running ? '*' : (executionCount ?? ' ')}]
       </span>
-    </IpynbToolbarButton>
+    </div>
   )
 }
 
