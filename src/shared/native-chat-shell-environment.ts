@@ -8,6 +8,11 @@ export type NativeChatShellEnvironmentPolicy = {
 
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
+/** One whole variable name, as a shell would accept it; the only rule the list control and the normalizer share. */
+export function isNativeChatShellEnvironmentName(value: string): boolean {
+  return ENV_NAME.test(value)
+}
+
 /** The persisted list as a valid, deduplicated name list; anything malformed (hand-edited file) is empty. */
 export function normalizeNativeChatShellEnvironmentVariables(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -16,7 +21,11 @@ export function normalizeNativeChatShellEnvironmentVariables(value: unknown): st
   const names: string[] = []
   for (const entry of value) {
     // Validate each saved entry whole; re-splitting would turn "not valid" into two names.
-    if (typeof entry === 'string' && ENV_NAME.test(entry) && !names.includes(entry)) {
+    if (
+      typeof entry === 'string' &&
+      isNativeChatShellEnvironmentName(entry) &&
+      !names.includes(entry)
+    ) {
       names.push(entry)
     }
   }
@@ -35,15 +44,4 @@ export function nativeChatShellEnvironmentPolicy(
       settings?.nativeChatShellEnvironmentVariables
     )
   }
-}
-
-/** Splits on commas, semicolons, and whitespace; drops invalid names and repeats. */
-export function parseNativeChatShellEnvironmentNames(draft: string): string[] {
-  const names: string[] = []
-  for (const token of draft.split(/[\s,;]+/)) {
-    if (ENV_NAME.test(token) && !names.includes(token)) {
-      names.push(token)
-    }
-  }
-  return names
 }

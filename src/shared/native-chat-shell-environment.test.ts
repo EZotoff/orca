@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isNativeChatShellEnvironmentName,
   nativeChatShellEnvironmentPolicy,
-  normalizeNativeChatShellEnvironmentVariables,
-  parseNativeChatShellEnvironmentNames
+  normalizeNativeChatShellEnvironmentVariables
 } from './native-chat-shell-environment'
 
-describe('parseNativeChatShellEnvironmentNames', () => {
-  it('splits on commas, semicolons, and whitespace, dropping invalid names and repeats', () => {
-    expect(
-      parseNativeChatShellEnvironmentNames('CODEX_LB_API_KEY, https_proxy;\nFOO-BAR  1BAD _OK FOO')
-    ).toEqual(['CODEX_LB_API_KEY', 'https_proxy', '_OK', 'FOO'])
-  })
-
-  it('returns nothing for an empty draft', () => {
-    expect(parseNativeChatShellEnvironmentNames('  \n ,; ')).toEqual([])
+describe('isNativeChatShellEnvironmentName', () => {
+  it('accepts a whole shell variable name and nothing else', () => {
+    for (const name of ['CODEX_LB_API_KEY', 'https_proxy', '_OK', 'A1']) {
+      expect(isNativeChatShellEnvironmentName(name), name).toBe(true)
+    }
+    for (const name of ['', ' ', 'FOO-BAR', '1BAD', 'FOO BAR', 'FOO,BAR', 'HTTPS_PROXY ']) {
+      expect(isNativeChatShellEnvironmentName(name), JSON.stringify(name)).toBe(false)
+    }
   })
 })
 

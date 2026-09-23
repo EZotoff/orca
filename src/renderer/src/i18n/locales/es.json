@@ -5999,8 +5999,11 @@
             "defaultViewTerminal": "Chat en terminal",
             "defaultViewNative": "Chat UI",
             "shellEnvNamesLabel": "Variables que se pasan desde tu shell",
-            "shellEnvNamesPlaceholder": "HTTPS_PROXY, OPENAI_BASE_URL",
-            "shellEnvNamesHelp": "Separa los nombres con comas, espacios o saltos de línea. PATH, la configuración regional y SSH_AUTH_SOCK se pasan siempre. Se aplica la próxima vez que un chat se inicie o se reanude.",
+            "shellEnvNamePlaceholder": "HTTPS_PROXY",
+            "shellEnvNameAdd": "Agregar",
+            "shellEnvNameRemove": "Quitar {{value0}}",
+            "shellEnvNamesEmpty": "Aún no se han agregado variables.",
+            "shellEnvNamesAlwaysPassed": "PATH, la configuración regional y SSH_AUTH_SOCK se pasan siempre. Se aplica la próxima vez que un chat se inicie o se reanude.",
             "shellEnvTitle": "Usar el entorno de tu shell",
             "shellEnvCopy": "Los chats de Codex y Claude empiezan con todas las variables que exporta tu shell de inicio de sesión, igual que un terminal. Desactívalo para elegir cuáles reciben.",
             "shellEnvToggleLabel": "Alternar el uso del entorno de tu shell"

@@ -6749,8 +6749,11 @@
             "defaultViewTerminal": "Chat dans le terminal",
             "defaultViewNative": "Chat UI",
             "shellEnvNamesLabel": "Variables à transmettre depuis votre shell",
-            "shellEnvNamesPlaceholder": "HTTPS_PROXY, OPENAI_BASE_URL",
-            "shellEnvNamesHelp": "Séparez les noms par des virgules, des espaces ou des retours à la ligne. PATH, les paramètres régionaux et SSH_AUTH_SOCK sont toujours transmis. S'applique au prochain démarrage ou à la prochaine reprise d'un chat.",
+            "shellEnvNamePlaceholder": "HTTPS_PROXY",
+            "shellEnvNameAdd": "Ajouter",
+            "shellEnvNameRemove": "Supprimer {{value0}}",
+            "shellEnvNamesEmpty": "Aucune variable ajoutée pour le moment.",
+            "shellEnvNamesAlwaysPassed": "PATH, les paramètres régionaux et SSH_AUTH_SOCK sont toujours transmis. S'applique au prochain démarrage ou à la prochaine reprise d'un chat.",
             "shellEnvTitle": "Utiliser l'environnement de votre shell",
             "shellEnvCopy": "Les chats Codex et Claude démarrent avec toutes les variables exportées par votre shell de connexion, comme un terminal. Désactivez pour choisir celles qu'ils reçoivent.",
             "shellEnvToggleLabel": "Activer l'utilisation de l'environnement de votre shell"

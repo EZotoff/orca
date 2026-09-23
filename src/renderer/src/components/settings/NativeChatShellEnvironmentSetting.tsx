@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { Plus, X } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
-import { parseNativeChatShellEnvironmentNames } from '../../../../shared/native-chat-shell-environment'
+import { isNativeChatShellEnvironmentName } from '../../../../shared/native-chat-shell-environment'
 import { translate } from '@/i18n/i18n'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Textarea } from '../ui/textarea'
 import { SettingsSwitch } from './SettingsFormControls'
 
 type NativeChatShellEnvironmentSettingProps = {
@@ -11,51 +13,104 @@ type NativeChatShellEnvironmentSettingProps = {
   updateSettings: (updates: Partial<GlobalSettings>) => void
 }
 
-const NAMES_INPUT_ID = 'settings-native-chat-shell-environment-names'
+const NAME_INPUT_ID = 'settings-native-chat-shell-environment-name'
 
 function ShellEnvironmentNamesField({
   savedNames,
-  onCommit
+  onChange
 }: {
   savedNames: readonly string[]
-  onCommit: (names: string[]) => void
+  onChange: (names: string[]) => void
 }): React.JSX.Element {
-  const [draft, setDraft] = useState(savedNames.join(', '))
-  const commit = (): void => {
-    const names = parseNativeChatShellEnvironmentNames(draft)
-    setDraft(names.join(', '))
-    if (names.join('\n') !== savedNames.join('\n')) {
-      onCommit(names)
+  const [draft, setDraft] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const name = draft.trim()
+  const canAdd = isNativeChatShellEnvironmentName(name)
+
+  const add = (): void => {
+    if (!canAdd) {
+      return
     }
+    if (!savedNames.includes(name)) {
+      onChange([...savedNames, name])
+    }
+    setDraft('')
+    inputRef.current?.focus()
   }
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={NAMES_INPUT_ID}>
+      <Label htmlFor={NAME_INPUT_ID}>
         {translate(
           'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNamesLabel',
           'Variables to pass from your shell'
         )}
       </Label>
-      <Textarea
-        id={NAMES_INPUT_ID}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        placeholder={translate(
-          'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNamesPlaceholder',
-          'HTTPS_PROXY, OPENAI_BASE_URL'
-        )}
-        autoCapitalize="none"
-        autoCorrect="off"
-        autoComplete="off"
-        spellCheck={false}
-        rows={3}
-      />
+      <div className="flex items-center gap-2">
+        <Input
+          ref={inputRef}
+          id={NAME_INPUT_ID}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing) {
+              return
+            }
+            event.preventDefault()
+            add()
+          }}
+          placeholder={translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNamePlaceholder',
+            'HTTPS_PROXY'
+          )}
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          className="h-8"
+        />
+        <Button type="button" variant="outline" size="sm" disabled={!canAdd} onClick={add}>
+          <Plus className="size-3.5" />
+          {translate('auto.components.settings.ExperimentalPane.nativeChat.shellEnvNameAdd', 'Add')}
+        </Button>
+      </div>
+      {savedNames.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {translate(
+            'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNamesEmpty',
+            'No variables added yet.'
+          )}
+        </p>
+      ) : (
+        <ul className="flex flex-wrap gap-1.5">
+          {savedNames.map((savedName) => (
+            <li
+              key={savedName}
+              title={savedName}
+              className="inline-flex min-w-0 max-w-full items-center gap-1 truncate rounded-md border border-border/50 bg-muted/35 py-1 pl-2 pr-1 font-mono text-[11px] text-foreground/80"
+            >
+              <span className="truncate">{savedName}</span>
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => onChange(savedNames.filter((entry) => entry !== savedName))}
+                aria-label={translate(
+                  'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNameRemove',
+                  'Remove {{value0}}',
+                  { value0: savedName }
+                )}
+                className="size-4 shrink-0"
+              >
+                <X className="size-3" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
       <p className="text-xs text-muted-foreground">
         {translate(
-          'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNamesHelp',
-          'Separate names with commas, spaces, or new lines. PATH, locale, and SSH_AUTH_SOCK are always passed. Applies the next time a chat starts or resumes.'
+          'auto.components.settings.ExperimentalPane.nativeChat.shellEnvNamesAlwaysPassed',
+          'PATH, locale, and SSH_AUTH_SOCK are always passed. Applies the next time a chat starts or resumes.'
         )}
       </p>
     </div>
@@ -96,11 +151,9 @@ export function NativeChatShellEnvironmentSetting({
         />
       </div>
       {inheritAll ? null : (
-        // Keyed on the saved list so an outside change replaces a stale draft.
         <ShellEnvironmentNamesField
-          key={savedNames.join('\n')}
           savedNames={savedNames}
-          onCommit={(names) => updateSettings({ nativeChatShellEnvironmentVariables: names })}
+          onChange={(names) => updateSettings({ nativeChatShellEnvironmentVariables: names })}
         />
       )}
     </div>
