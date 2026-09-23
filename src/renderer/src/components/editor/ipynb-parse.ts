@@ -22,7 +22,6 @@ export type IpynbCell = {
 export type ParsedIpynb = {
   language: string
   kernelName: string | null
-  nbformat: string
   cells: IpynbCell[]
 }
 
@@ -190,10 +189,6 @@ export function parseIpynb(content: string): ParsedIpynb {
   return {
     language,
     kernelName: getKernelName(parsed),
-    nbformat:
-      typeof parsed.nbformat === 'number'
-        ? `${parsed.nbformat}.${typeof parsed.nbformat_minor === 'number' ? parsed.nbformat_minor : 0}`
-        : 'unknown',
     cells
   }
 }

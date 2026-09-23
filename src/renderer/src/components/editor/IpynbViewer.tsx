@@ -151,13 +151,6 @@ export default function IpynbViewer({
           >
             <Save className="size-3.5" />
           </IpynbToolbarButton>
-          <span className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
-            {translate('auto.components.editor.IpynbViewer.329764e9fc', 'BETA')}
-          </span>
-          <span className="font-mono">
-            {translate('auto.components.editor.IpynbViewer.8c3b21369a', 'nbformat')}{' '}
-            {notebook.nbformat}
-          </span>
         </div>
       </div>
       <div className="mx-auto flex max-w-[980px] flex-col gap-2 py-5 pr-5 pl-2">
