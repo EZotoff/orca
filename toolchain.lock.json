@@ -1,0 +1,29 @@
+{
+  "$schema": "orca-toolchain-lock/v1",
+  "generated": "2026-09-24T00:03:28+02:00",
+  "base_commit": "1b9d218df508e50b8ffac2a969edc7854c4907b8",
+  "build_head": "b5fda9b3bf281c944978263d4088e3a9f6490b90",
+  "toolchain_root": "/home/ezotoff/.local/share/orca-toolchain",
+  "path_prefix": "/home/ezotoff/.local/share/orca-toolchain/node-v24.9.0-linux-x64/bin:/home/ezotoff/.local/share/orca-toolchain/pnpm-12.0.0",
+  "node": {
+    "version": "v24.9.0",
+    "binary": "/home/ezotoff/.local/share/orca-toolchain/node-v24.9.0-linux-x64/bin/node",
+    "binary_sha256": "3dc61cdcc38781a678b31903d2f69ed16094206e2258df53a4eb2c0fe4f0a793",
+    "archive_url": "https://nodejs.org/dist/v24.9.0/node-v24.9.0-linux-x64.tar.xz",
+    "archive": "/home/ezotoff/.local/share/orca-toolchain/node-v24.9.0-linux-x64.tar.xz",
+    "archive_sha256": "f52ec50e959d72d5c680d9731420b2661cd2a8070e94c7369b6ddfcd8b7278be"
+  },
+  "pnpm": {
+    "version": "12.0.0",
+    "binary": "/home/ezotoff/.local/share/orca-toolchain/pnpm-12.0.0/pnpm",
+    "binary_sha256": "2012e6050d369c42e409a5584f4346f9cfb3e0b766a559e0f8c169d1ce93b31e",
+    "archive_url": "https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.0.0.tgz",
+    "archive": "/home/ezotoff/.local/share/orca-toolchain/pnpm-exe-linux-x64-12.0.0.tgz",
+    "archive_sha256": "d0c64efab39d560ef3ae4dc8be5dd08951e5409ed2d53cb6b8317b7713c26333",
+    "install": "standalone @pnpm/exe.linux-x64 SEA binary (self-contained; no corepack or ~/.cache dependency)"
+  },
+  "pnpm_lock": {
+    "path": "pnpm-lock.yaml",
+    "sha256": "dd08171e409aff27574f1c321e3fbdbc6b21bf1b67a2b4cb6e74cd746c8f8119"
+  }
+}
