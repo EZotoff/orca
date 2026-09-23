@@ -59,9 +59,9 @@ test('rapid filter changes converge on the latest query', async ({ orcaPage }) =
   const input = orcaPage.getByPlaceholder('Find files')
   await expect(input).toBeVisible({ timeout: 10_000 })
 
-  // Why: the stale-listing race leaked the previous query's rows between the
-  // render and the effect that starts the next request. Typing two queries
-  // back-to-back must settle on the latest one, never stuck on old rows.
+  // Why: this seeded worktree is local, so one listing serves every query and no
+  // per-query request exists to race; the remote race is pinned by the hook unit
+  // tests. This only proves back-to-back edits converge on the latest query.
   await input.fill('package.')
   await input.fill('README')
   await expect(rowByName(explorer, orcaPage, 'README.md').first()).toBeVisible({
@@ -72,6 +72,8 @@ test('rapid filter changes converge on the latest query', async ({ orcaPage }) =
 
   // Reverse direction: matching -> no-match -> matching must also converge.
   await input.fill('zz-no-such-file-12345')
+  await expect(explorer.getByText('No files match this filter')).toBeVisible({ timeout: 10_000 })
+  await expect(explorer.locator('[data-file-explorer-row]')).toHaveCount(0)
   await input.fill('package.')
   await expect(rowByName(explorer, orcaPage, 'package.json').first()).toBeVisible({
     timeout: 10_000

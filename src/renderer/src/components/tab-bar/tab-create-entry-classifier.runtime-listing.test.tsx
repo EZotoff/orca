@@ -80,8 +80,8 @@ function HookProbe({
   return null
 }
 
-/** Render the real list hook and return its settled state, the way TabBarCreateEntry consumes it. */
-async function settledFileList(): Promise<RuntimeFileListState> {
+/** Render the real list hook and return every state it rendered, in order. */
+async function renderFileList(): Promise<RuntimeFileListState[]> {
   const states: RuntimeFileListState[] = []
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -95,16 +95,30 @@ async function settledFileList(): Promise<RuntimeFileListState> {
       })
     )
   })
+  return states
+}
+
+async function drainMicrotasks(): Promise<void> {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     await act(async () => {
       await Promise.resolve()
     })
   }
-  const settled = states.at(-1)
-  if (!settled) {
+}
+
+function latestState(states: RuntimeFileListState[]): RuntimeFileListState {
+  const latest = states.at(-1)
+  if (!latest) {
     throw new Error('the file list hook never rendered')
   }
-  return settled
+  return latest
+}
+
+/** Render the real list hook and return its settled state, the way TabBarCreateEntry consumes it. */
+async function settledFileList(): Promise<RuntimeFileListState> {
+  const states = await renderFileList()
+  await drainMicrotasks()
+  return latestState(states)
 }
 
 beforeEach(() => {
@@ -143,13 +157,28 @@ describe('tab entry options over the real runtime listing', () => {
 
   // A listing the hook fetched but hid would leave the entry stuck on its loading placeholder.
   it('does not report the settled listing as still loading', async () => {
-    const fileList = await settledFileList()
-    const options = getTabEntryOptions('packages/app/package.json', fileList, 4)
-    const blockedIds = options
-      .filter((option) => option.classification.kind === 'blocked')
-      .map((option) => option.id)
+    let resolveListing: (files: string[]) => void = () => {}
+    listRuntimeFilesMock.mockImplementationOnce(
+      () =>
+        new Promise<string[]>((resolve) => {
+          resolveListing = resolve
+        })
+    )
+    const states = await renderFileList()
+    const blockedIds = (fileList: RuntimeFileListState): string[] =>
+      getTabEntryOptions('packages/app/package.json', fileList, 4)
+        .filter((option) => option.classification.kind === 'blocked')
+        .map((option) => option.id)
 
-    expect(blockedIds).not.toContain('loading')
+    // Pins that the settled assertion below is not vacuous: the pending listing does block.
+    expect(blockedIds(latestState(states))).toContain('loading')
+
+    await act(async () => {
+      resolveListing(['packages/app/package.json', 'src/main.ts'])
+    })
+    await drainMicrotasks()
+
+    expect(blockedIds(latestState(states))).not.toContain('loading')
   })
 
   it('treats a path absent from the real listing as a new file', async () => {

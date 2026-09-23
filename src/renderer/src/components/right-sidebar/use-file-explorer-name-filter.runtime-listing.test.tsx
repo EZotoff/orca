@@ -177,8 +177,16 @@ describe('useFileExplorerNameFilter over the real runtime listing', () => {
   it('never projects the previous query answer after a remote query edit', async () => {
     vi.useFakeTimers()
     searchRuntimeFilePathsMock.mockResolvedValue({ files: ['first/hit.ts'], truncated: false })
+    const projected: (readonly string[] | null | undefined)[] = []
     try {
-      const { result } = renderNameFilter(REMOTE_KEY)
+      const { result } = renderHook(() => {
+        const filter = useFileExplorerNameFilter({
+          isFilesViewActive: true,
+          activeWorktreeId: REMOTE_KEY
+        })
+        projected.push(filter.nameFilterSource?.relativePaths)
+        return filter
+      })
 
       await act(async () => {
         result.current.setNameFilterQuery('first')
@@ -190,15 +198,62 @@ describe('useFileExplorerNameFilter over the real runtime listing', () => {
       expect(result.current.nameFilterSource?.relativePaths).toEqual(['first/hit.ts'])
 
       searchRuntimeFilePathsMock.mockResolvedValue({ files: ['second/hit.ts'], truncated: false })
+      const rendersBeforeEdit = projected.length
       await act(async () => {
         result.current.setNameFilterQuery('second')
       })
 
-      // Before the new answer lands the filter must read as unsettled, never as the old answer.
-      expect(result.current.nameFilterSource?.relativePaths).not.toEqual(['first/hit.ts'])
+      // Why: the render before the effect restarts the request is the one that can leak.
+      expect(projected.length).toBeGreaterThan(rendersBeforeEdit)
+      for (const paths of projected.slice(rendersBeforeEdit)) {
+        expect(paths).toBeNull()
+      }
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(120)
+      })
+      await settle()
+      expect(result.current.nameFilterSource?.relativePaths).toEqual(['second/hit.ts'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('drops a remote answer that lands after the query moved on', async () => {
+    vi.useFakeTimers()
+    const pending = new Map<string, (files: string[]) => void>()
+    searchRuntimeFilePathsMock.mockImplementation(
+      (_context: unknown, { query }: { query: string }) =>
+        new Promise((resolve) => {
+          pending.set(query, (files) => resolve({ files, truncated: false }))
+        })
+    )
+    try {
+      const { result } = renderNameFilter(REMOTE_KEY)
+
+      await act(async () => {
+        result.current.setNameFilterQuery('first')
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(120)
+      })
+      expect(pending.has('first')).toBe(true)
+
+      await act(async () => {
+        result.current.setNameFilterQuery('second')
+      })
+      await act(async () => {
+        pending.get('first')?.(['first/hit.ts'])
+      })
+      await settle()
+      expect(result.current.nameFilterSource?.relativePaths).toBeNull()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(120)
+      })
+      expect(pending.has('second')).toBe(true)
+      await act(async () => {
+        pending.get('second')?.(['second/hit.ts'])
       })
       await settle()
       expect(result.current.nameFilterSource?.relativePaths).toEqual(['second/hit.ts'])
