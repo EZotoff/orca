@@ -125,7 +125,13 @@ describe('a create that fails after its child wrote through the unbound sink', (
     await expect(host.attach(CALLER, hostTestAttachParams(fence))).resolves.toMatchObject({
       ok: true
     })
-    await expect(host.flushAllStreamedEvents()).resolves.toBeUndefined()
     expect(acquire).toHaveBeenCalledTimes(3)
+    // Only the adopted child's sink still takes writes: the failed attempt's closed with it, and
+    // the exited generation's closed when the resume replaced it.
+    const [exited, failedAttempt, resumed] = acquire.mock.calls.map(([input]) => input.events)
+    expect(failedAttempt?.tryPublish?.()).toEqual({ accepted: false, reason: 'closed' })
+    expect(exited?.tryPublish?.()).toEqual({ accepted: false, reason: 'closed' })
+    expect(resumed?.tryPublish?.()).toEqual({ accepted: true })
+    await expect(host.flushAllStreamedEvents()).resolves.toBeUndefined()
   })
 })
