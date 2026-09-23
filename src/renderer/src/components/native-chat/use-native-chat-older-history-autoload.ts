@@ -61,6 +61,13 @@ export function useNativeChatOlderHistoryAutoload({
         inFlightRef.current = false
       })
   }
+  // The latch only bridges the gap until the lane reports loading; after that the
+  // lane owns the request, and one it abandons (reconnect, hide) must not block the next.
+  useEffect(() => {
+    if (loadingEarlier) {
+      inFlightRef.current = false
+    }
+  }, [loadingEarlier])
   // Lane callbacks change identity with their state; the observer must not.
   const loadPageFromObserver = useEffectEvent(loadPage)
 

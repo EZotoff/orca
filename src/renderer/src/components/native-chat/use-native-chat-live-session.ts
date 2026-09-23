@@ -298,6 +298,11 @@ export function useNativeChatLiveSession(
     const nextLimit = nextNativeChatLimit(limitRef.current)
     const requestEpoch = transcriptEpochRef.current
     const lifecycleRevision = transcriptLifecycleControl.revision()
+    const isStale = (): boolean =>
+      !latestEnabled.current ||
+      latestSessionId.current !== sessionId ||
+      latestTransport.current !== transport ||
+      transcriptEpochRef.current !== requestEpoch
     setLoadingEarlier(true)
     try {
       const result = await transport.readSession(
@@ -307,12 +312,7 @@ export function useNativeChatLiveSession(
         transcriptPath ?? undefined
       )
       // Ignore a stale resolve from a swapped session or flipped owner — either would paint the wrong host's history.
-      if (
-        !latestEnabled.current ||
-        latestSessionId.current !== sessionId ||
-        latestTransport.current !== transport ||
-        transcriptEpochRef.current !== requestEpoch
-      ) {
+      if (isStale()) {
         return
       }
       // A failed page leaves the loaded transcript intact; the caller decides whether to retry.
@@ -324,6 +324,11 @@ export function useNativeChatLiveSession(
       setRead({ phase: 'ready', messages: result.messages })
       transcriptLifecycleControl.replaceFromPagination(result.lifecycle, lifecycleRevision)
       setHasMore(hasMoreNativeChatHistory(result.messages.length, nextLimit))
+    } catch (error) {
+      // A superseded read failing (e.g. the connection a reconnect replaced) says nothing about the current one.
+      if (!isStale()) {
+        throw error
+      }
     } finally {
       // Clear the loading flag on the current epoch even when the result is discarded, so a stale resolve can't wedge it true.
       if (latestEnabled.current && transcriptEpochRef.current === requestEpoch) {

@@ -295,6 +295,24 @@ describe('older history auto-load', () => {
     expect(loadEarlier).toHaveBeenCalledTimes(1)
   })
 
+  // A reconnect snapshot or a hide ends the lane's loading while its read is still
+  // outstanding; the next page must not wait on a request the lane dropped.
+  it('keeps paging when the lane abandons a page that never settles', async () => {
+    const loadEarlier = vi.fn(() => new Promise<void>(() => {}))
+    const base = markers(100, 150)
+    const { rerender } = render(paging({ messages: base, loadEarlier }))
+    sentinelInRange = true
+    deliverIntersections()
+    expect(loadEarlier).toHaveBeenCalledTimes(1)
+
+    rerender(paging({ messages: base, loadEarlier, loadingEarlier: true }))
+    await settle()
+    rerender(paging({ messages: base, loadEarlier }))
+    deliverIntersections()
+
+    expect(loadEarlier).toHaveBeenCalledTimes(2)
+  })
+
   it('does not observe a hidden transcript', () => {
     const loadEarlier = vi.fn(async () => {})
     render(paging({ messages: markers(100, 150), loadEarlier, isVisible: false }))

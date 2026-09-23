@@ -384,6 +384,36 @@ describe('useNativeChatLiveSession — transport routing', () => {
     expect(latest?.messages).toHaveLength(NATIVE_CHAT_INITIAL_LIMIT)
   })
 
+  // The reconnect already replaced that read; failing it would stop the current
+  // transcript's auto-load for a connection that no longer exists.
+  it('resolves, not rejects, when a read from before a reconnect snapshot fails', async () => {
+    const transport = getMockTransport('env-1')
+    const many = Array.from({ length: NATIVE_CHAT_INITIAL_LIMIT }, (_unused, n) =>
+      assistant(`old-${n}`, 'old')
+    )
+    await render({ paneKey: PANE, agent: AGENT, sessionId: SESSION, runtimeEnvironmentId: 'env-1' })
+    await act(async () => transport.emit({ type: 'snapshot', messages: many, hasMore: true }))
+    let rejectEarlier: (error: Error) => void = () => {}
+    transport.readSession.mockImplementationOnce(
+      () => new Promise((_resolve, reject) => (rejectEarlier = reject))
+    )
+    let outcome: unknown = 'pending'
+    await act(async () => {
+      void latest?.loadEarlier().then(
+        () => (outcome = 'resolved'),
+        () => (outcome = 'rejected')
+      )
+    })
+
+    await act(async () => transport.emit({ type: 'snapshot', messages: many, hasMore: true }))
+    await act(async () => {
+      rejectEarlier(new Error('connection closed'))
+    })
+
+    expect(outcome).toBe('resolved')
+    expect(latest?.loadingEarlier).toBe(false)
+  })
+
   it('resolves load-earlier once the older page lands', async () => {
     const transport = getMockTransport('env-1')
     const many = Array.from({ length: NATIVE_CHAT_INITIAL_LIMIT }, (_unused, n) =>
