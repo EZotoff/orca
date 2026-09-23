@@ -152,12 +152,19 @@ export function setClaudeMainAgentTurnState(
 }
 
 /** The `mainAgent` fact a row publishes from its record: nothing invented, so a pane whose main
- *  agent was never observed publishes none and readers fall back to the combined `state`. */
-export function claudeMainAgentStatusForPayload(record: ClaudeLeadTurnState): AgentMainAgentStatus {
+ *  agent was never observed publishes none and readers fall back to the combined `state`.
+ *  A child-induced wait occupies the record but is child work, so the main agent is the state it displaced. */
+export function claudeMainAgentStatusForPayload(
+  record: ClaudeLeadTurnState
+): AgentMainAgentStatus | undefined {
+  const own = record.waitingAgentId !== undefined ? record.stateBeforeWait : record
+  if (!own) {
+    return undefined
+  }
   return {
-    state: record.state,
-    ...(record.state === 'done' && record.outcome ? { outcome: record.outcome } : {}),
-    stateStartedAt: record.stateStartedAt
+    state: own.state,
+    ...(own.state === 'done' && own.outcome ? { outcome: own.outcome } : {}),
+    stateStartedAt: own.stateStartedAt
   }
 }
 
@@ -297,7 +304,7 @@ export function clearClaudeAnsweredQuestionWait(
 ): Pick<ClaudeLeadTurnState, 'state' | 'turnCompletedAt'> & {
   interrupted?: true
   workingMode?: AgentWorkingMode
-  mainAgent: AgentMainAgentStatus
+  mainAgent?: AgentMainAgentStatus
 } {
   const lead = state.claudeLeadStateByPaneKey.get(paneKey)
   const stash =
@@ -324,6 +331,6 @@ export function clearClaudeAnsweredQuestionWait(
     ...(restored.turnCompletedAt !== undefined
       ? { turnCompletedAt: restored.turnCompletedAt }
       : {}),
-    mainAgent: publishedMainAgent
+    ...(publishedMainAgent ? { mainAgent: publishedMainAgent } : {})
   }
 }

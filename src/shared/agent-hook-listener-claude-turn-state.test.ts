@@ -431,8 +431,11 @@ describe('the main agent verdict across a child-induced wait', () => {
       tool_name: 'Bash',
       tool_input: { command: 'rm -rf build' }
     })
-    expect(wait).toMatchObject({ state: 'waiting', mainAgent: { state: 'waiting' } })
-    expect(wait?.mainAgent).not.toHaveProperty('outcome')
+    // The child's wait is child work: the main agent is still the cancelled turn, on its own clock.
+    expect(wait).toMatchObject({
+      state: 'waiting',
+      mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: settledAt }
+    })
 
     // The child's pause displaced the main agent; clearing it must give the verdict and clock back.
     const drained = claude({ hook_event_name: 'SubagentStop', agent_id: 'a1' })
@@ -441,6 +444,29 @@ describe('the main agent verdict across a child-induced wait', () => {
       interrupted: true,
       mainAgent: { state: 'done', outcome: 'cancellation', stateStartedAt: settledAt }
     })
+  })
+
+  it('publishes the displaced main agent, not the child, while a child owns the wait', () => {
+    claude({ hook_event_name: 'UserPromptSubmit', prompt: 'go' })
+    const running = claude({ hook_event_name: 'SubagentStart', agent_id: 'a1' })
+    const childWait = claude({
+      hook_event_name: 'PermissionRequest',
+      agent_id: 'a1',
+      tool_name: 'Bash',
+      tool_input: { command: 'rm -rf build' }
+    })
+    expect(childWait).toMatchObject({
+      state: 'waiting',
+      mainAgent: { state: 'working', stateStartedAt: running?.mainAgent?.stateStartedAt }
+    })
+
+    // A wait the main agent raised itself is its own state.
+    const ownWait = claude({
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'Bash',
+      tool_input: { command: 'rm -rf dist' }
+    })
+    expect(ownWait).toMatchObject({ state: 'waiting', mainAgent: { state: 'waiting' } })
   })
 
   it('clears the verdict when a new turn starts', () => {
