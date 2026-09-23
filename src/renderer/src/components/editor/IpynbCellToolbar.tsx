@@ -124,7 +124,7 @@ export function IpynbCellToolbar({
   onDelete: () => void
 }): React.JSX.Element {
   return (
-    <div className="flex items-center rounded-md border border-border bg-background opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100">
+    <div className="absolute -top-2 right-1 z-10 flex items-center rounded-md border border-border bg-background opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100">
       <IpynbToolbarButton
         label={translate('auto.components.editor.IpynbViewer.fd8ac707bc', 'Move cell up')}
         disabled={!canMoveUp}

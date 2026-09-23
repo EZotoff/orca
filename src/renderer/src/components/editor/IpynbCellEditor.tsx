@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import Editor, { type OnMount } from '@monaco-editor/react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Components } from 'react-markdown'
+import type { editor } from 'monaco-editor'
 import { monaco } from '@/lib/monaco-setup'
 import { computeEditorFontSize, resolveEditorFontStack } from '@/lib/editor-font-zoom'
 import { useAppStore } from '@/store'
-import { installEditorSaveShortcut, installMonacoEditorFindShortcut } from './editor-shortcuts'
+import { installMonacoEditorFindShortcut } from './editor-shortcuts'
 import {
   IPYNB_CODE_CELL_PREVIEW_MAX_LINES,
   getIpynbCodeCellPreviewLines
@@ -42,35 +42,17 @@ type IpynbCellSourceProps = {
   onActivate: () => void
   onDeactivate: () => void
   onChange: (source: string) => void
-  onSaveRequest: () => Promise<void>
 }
 
-type SourcePosition = { lineNumber: number; column: number }
-
-/** Model position under a press on the preview; its rows mirror the model's lines one-to-one. */
-export function previewPositionAtPoint(x: number, y: number): SourcePosition | null {
-  const caret = document.caretPositionFromPoint(x, y)
-  const node = caret?.offsetNode
-  const row = (node instanceof Element ? node : node?.parentElement)?.closest('code')
-  if (!caret || !node || !row?.parentElement) {
-    return null
-  }
-  const prefix = document.createRange()
-  prefix.setStart(row, 0)
-  prefix.setEnd(node, caret.offset)
-  return {
-    lineNumber: Array.from(row.parentElement.children).indexOf(row) + 1,
-    column: prefix.toString().length + 1
-  }
-}
+type ClientPoint = { x: number; y: number }
 
 /** Rendered cell source (markdown document or colorized code) that swaps to Monaco while active. */
 export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element {
   const { cell, source, active, onActivate } = props
-  // Where Monaco opens its caret; null opens at the end (keyboard or markdown activation).
-  const [openAt, setOpenAt] = useState<SourcePosition | null>(null)
-  const activate = (position: SourcePosition | null): void => {
-    setOpenAt(position)
+  // Where the activating press landed; Monaco opens its caret there, or at the start when null.
+  const [pressedAt, setPressedAt] = useState<ClientPoint | null>(null)
+  const activate = (point: ClientPoint | null): void => {
+    setPressedAt(point)
     onActivate()
   }
   const activateOnEnter = (event: React.KeyboardEvent): void => {
@@ -97,7 +79,7 @@ export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element 
   return (
     <div className="ipynb-code-surface overflow-hidden rounded-md border border-border bg-muted/60 focus-within:border-ring">
       {active ? (
-        <IpynbSourceEditor {...props} openAt={openAt} />
+        <IpynbSourceEditor {...props} pressedAt={pressedAt} />
       ) : (
         <div
           role="button"
@@ -107,7 +89,7 @@ export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element 
           onMouseDown={(event) => {
             if (event.button === 0) {
               event.preventDefault()
-              activate(previewPositionAtPoint(event.clientX, event.clientY))
+              activate({ x: event.clientX, y: event.clientY })
             }
           }}
           onKeyDown={activateOnEnter}
@@ -162,94 +144,91 @@ function IpynbCodePreview({
 function IpynbSourceEditor({
   cell,
   source,
-  openAt,
+  pressedAt,
   onDeactivate,
-  onChange,
-  onSaveRequest
-}: IpynbCellSourceProps & { openAt: SourcePosition | null }): React.JSX.Element {
+  onChange
+}: IpynbCellSourceProps & { pressedAt: ClientPoint | null }): React.JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const editorFontZoomLevel = useAppStore((s) => s.editorFontZoomLevel)
   const isDark = useDocumentDarkTheme()
-  const onDeactivateRef = useRef(onDeactivate)
-  const onSaveRequestRef = useRef(onSaveRequest)
-  useLayoutEffect(() => {
-    onDeactivateRef.current = onDeactivate
-    onSaveRequestRef.current = onSaveRequest
-  }, [onDeactivate, onSaveRequest])
+  const fontFamily = resolveEditorFontStack(settings)
   const fontSize = computeEditorFontSize(settings?.terminalFontSize ?? 13, editorFontZoomLevel)
-  const { lineHeight, paddingX, paddingY } = CODE_LAYOUT
-  const maxHeight = IPYNB_CODE_CELL_PREVIEW_MAX_LINES * lineHeight
-  // Seeds the first frame only; Monaco reports the real content height after mount.
-  const [contentHeight, setContentHeight] = useState(
-    () => getIpynbCodeCellPreviewLines(source).length * lineHeight + 2 * paddingY
-  )
-  const handleMount: OnMount = useCallback(
-    (editorInstance, monacoInstance) => {
-      // Why: place the caret before focusing; focus highlights occurrences of the word under it.
-      const endPosition = editorInstance.getModel()?.getFullModelRange().getEndPosition()
-      const position = openAt ?? endPosition
-      if (position) {
-        editorInstance.setPosition(position)
-      }
-      editorInstance.focus()
-      const cleanupSaveShortcut = installEditorSaveShortcut(
-        editorInstance.getContainerDomNode(),
-        () => {
-          void onSaveRequestRef.current()
-        }
-      )
-      const cleanupFindShortcut = installMonacoEditorFindShortcut(editorInstance)
-      const blurSub = editorInstance.onDidBlurEditorWidget(() => {
-        onDeactivateRef.current()
-      })
-      const sizeSub = editorInstance.onDidContentSizeChange((event) => {
-        setContentHeight(event.contentHeight)
-      })
-      setContentHeight(editorInstance.getContentHeight())
-      editorInstance.onDidDispose(() => {
-        cleanupSaveShortcut()
-        cleanupFindShortcut()
-        blurSub.dispose()
-        sizeSub.dispose()
-      })
-      editorInstance.addCommand(monacoInstance.KeyCode.Escape, () => {
-        onDeactivateRef.current()
-      })
-    },
-    [openAt]
-  )
+  const containerRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     monaco.editor.setTheme(isDark ? 'vs-dark' : 'vs')
   }, [isDark])
 
-  return (
-    <Editor
-      height={Math.min(contentHeight, maxHeight)}
-      language={cell.language}
-      theme={isDark ? 'vs-dark' : 'vs'}
-      value={source}
-      onMount={handleMount}
-      onChange={(value) => onChange(value ?? '')}
-      options={{
-        automaticLayout: true,
-        fontFamily: resolveEditorFontStack(settings),
-        fontSize,
-        // Why: same box as the excerpt it replaces. No gutter, so the decorations lane is the inset.
-        lineHeight,
-        padding: { top: paddingY, bottom: paddingY },
-        lineNumbers: 'off',
-        glyphMargin: false,
-        folding: false,
-        lineDecorationsWidth: paddingX,
-        minimap: { enabled: false },
-        overviewRulerLanes: 0,
-        renderLineHighlight: 'none',
-        scrollBeyondLastLine: false,
-        // Why: an auto-sized cell must let wheel events scroll the notebook, not trap them.
-        scrollbar: { alwaysConsumeMouseWheel: false },
-        wordWrap: cell.kind === 'code' ? 'off' : 'on'
-      }}
-    />
-  )
+  useLayoutEffect(() => {
+    editorRef.current?.updateOptions({ fontFamily, fontSize })
+  }, [fontFamily, fontSize])
+
+  // Why: created synchronously before paint (not via @monaco-editor/react's async loader), so the
+  // swap from the preview never shows a placeholder, an unlaid-out editor or a guessed caret.
+  // Mount-once: the props it reads cannot change while the cell is being edited.
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) {
+      return
+    }
+    const { lineHeight, paddingX, paddingY } = CODE_LAYOUT
+    const model = monaco.editor.createModel(source, cell.language)
+    const editorInstance = monaco.editor.create(container, {
+      model,
+      automaticLayout: true,
+      fontFamily,
+      fontSize,
+      // Why: same box as the preview it replaces. No gutter, so the decorations lane is the inset.
+      lineHeight,
+      padding: { top: paddingY, bottom: paddingY },
+      lineNumbers: 'off',
+      glyphMargin: false,
+      folding: false,
+      lineDecorationsWidth: paddingX,
+      minimap: { enabled: false },
+      overviewRulerLanes: 0,
+      renderLineHighlight: 'none',
+      // The preview has no indent guides; matching it keeps the swap invisible.
+      guides: { indentation: false },
+      // Clicking (word highlight) or double-clicking (selection highlight) a word should not light
+      // up its other occurrences like a search.
+      occurrencesHighlight: 'off',
+      selectionHighlight: false,
+      scrollBeyondLastLine: false,
+      // Why: an auto-sized cell must let wheel events scroll the notebook, not trap them.
+      scrollbar: { alwaysConsumeMouseWheel: false },
+      wordWrap: cell.kind === 'code' ? 'off' : 'on'
+    })
+    editorRef.current = editorInstance
+    const maxHeight = IPYNB_CODE_CELL_PREVIEW_MAX_LINES * lineHeight
+    const fitHeight = (): void => {
+      container.style.height = `${Math.min(editorInstance.getContentHeight(), maxHeight)}px`
+      editorInstance.layout()
+    }
+    fitHeight()
+    editorInstance.onDidContentSizeChange(fitHeight)
+    // Why: restoring a view state marks the visible lines stable, so Monaco tokenizes them now
+    // rather than 50ms later; without it the first frame paints uncoloured text.
+    editorInstance.restoreViewState(editorInstance.saveViewState())
+    // Monaco hit-tests the press against its own lines, so the caret lands where the user pressed.
+    const target = pressedAt && editorInstance.getTargetAtClientPoint(pressedAt.x, pressedAt.y)
+    if (target?.position) {
+      editorInstance.setPosition(target.position)
+    }
+    editorInstance.focus()
+    model.onDidChangeContent(() => onChange(model.getValue()))
+    editorInstance.onDidBlurEditorWidget(onDeactivate)
+    editorInstance.addCommand(monaco.KeyCode.Escape, onDeactivate)
+    const cleanupFindShortcut = installMonacoEditorFindShortcut(editorInstance)
+    return () => {
+      cleanupFindShortcut()
+      editorInstance.dispose()
+      model.dispose()
+      editorRef.current = null
+    }
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- mount-once; see the Why above.
+  }, [])
+
+  return <div ref={containerRef} />
 }

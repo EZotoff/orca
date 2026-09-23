@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IpynbCellOutputs } from './IpynbCellOutputs'
-import { IpynbCellSource, IpynbMarkdownCell, previewPositionAtPoint } from './IpynbCellEditor'
+import { IpynbCellSource, IpynbMarkdownCell } from './IpynbCellEditor'
 import { IpynbRunPrompt } from './IpynbCellToolbar'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type { IpynbCell, IpynbOutput } from './ipynb-parse'
@@ -10,7 +10,6 @@ import type { IpynbCell, IpynbOutput } from './ipynb-parse'
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('./use-document-dark-theme', () => ({ useDocumentDarkTheme: () => true }))
 vi.mock('@/lib/monaco-setup', () => ({ monaco: {} }))
-vi.mock('@monaco-editor/react', () => ({ default: () => null }))
 vi.mock('./MonacoCodeExcerpt', () => ({
   useMonacoColorizedLines: () => []
 }))
@@ -28,24 +27,12 @@ function renderSource(target: IpynbCell, onActivate = vi.fn()) {
       onActivate={onActivate}
       onDeactivate={vi.fn()}
       onChange={vi.fn()}
-      onSaveRequest={vi.fn()}
     />
   )
   return onActivate
 }
 
-afterEach(() => {
-  cleanup()
-  vi.restoreAllMocks()
-})
-
-function stubCaretAt(caret: { offsetNode: Node; offset: number } | null): void {
-  // happy-dom has no hit testing; the browser supplies this from layout.
-  Object.defineProperty(document, 'caretPositionFromPoint', {
-    configurable: true,
-    value: () => caret
-  })
-}
+afterEach(cleanup)
 
 describe('notebook cell source', () => {
   it('renders markdown through the full preview pipeline (GFM + math)', () => {
@@ -67,7 +54,6 @@ describe('notebook cell source', () => {
   })
 
   it('activates code cells on primary press so a collapsing neighbour cannot swallow the click', () => {
-    stubCaretAt(null)
     const onActivate = renderSource(cell('code', 'print(1)'))
     const preview = screen.getByRole('button')
     fireEvent.mouseDown(preview, { button: 2 })
@@ -84,24 +70,6 @@ describe('notebook code preview', () => {
     expect(document.querySelector('b')).toBeNull()
     // The trailing newline keeps its own row, matching the Monaco model.
     expect(document.querySelectorAll('code')).toHaveLength(2)
-  })
-})
-
-describe('previewPositionAtPoint', () => {
-  it('maps a press on a colorized preview row to its model line and column', () => {
-    const preview = document.createElement('div')
-    preview.innerHTML = '<code>import os</code><code><span>x = </span><span>12</span></code>'
-    document.body.append(preview)
-    const [firstRow, secondRow] = preview.querySelectorAll('code')
-    stubCaretAt({ offsetNode: secondRow.lastChild?.firstChild ?? secondRow, offset: 1 })
-    expect(previewPositionAtPoint(0, 0)).toEqual({ lineNumber: 2, column: 6 })
-
-    stubCaretAt({ offsetNode: firstRow, offset: 0 })
-    expect(previewPositionAtPoint(0, 0)).toEqual({ lineNumber: 1, column: 1 })
-
-    stubCaretAt(null)
-    expect(previewPositionAtPoint(0, 0)).toBeNull()
-    preview.remove()
   })
 })
 

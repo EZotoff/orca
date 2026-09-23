@@ -186,21 +186,18 @@ export default function IpynbViewer({
                       setEditingCellKey((current) => (current === cellKey ? null : current))
                     }
                     onChange={(nextSource) => updateCellSource(index, nextSource)}
-                    onSaveRequest={saveNotebook}
                   />
                   <IpynbCellOutputs cell={cell} />
                 </div>
-                <div className="absolute -top-2 right-1 z-10">
-                  <IpynbCellToolbar
-                    kind={cell.kind}
-                    canMoveUp={index > 0}
-                    canMoveDown={index < notebook.cells.length - 1}
-                    onKindChange={(kind) => updateCellKind(index, kind)}
-                    onInsert={(offset, kind) => insertCell(index + offset, kind)}
-                    onMove={(direction) => moveCell(index, direction)}
-                    onDelete={() => deleteCell(index)}
-                  />
-                </div>
+                <IpynbCellToolbar
+                  kind={cell.kind}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < notebook.cells.length - 1}
+                  onKindChange={(kind) => updateCellKind(index, kind)}
+                  onInsert={(offset, kind) => insertCell(index + offset, kind)}
+                  onMove={(direction) => moveCell(index, direction)}
+                  onDelete={() => deleteCell(index)}
+                />
               </section>
             )
           })
