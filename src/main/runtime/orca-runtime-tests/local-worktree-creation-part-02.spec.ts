@@ -547,34 +547,40 @@ describe('OrcaRuntimeService', () => {
     }
   })
 
-  it('bumps the scan generation between git worktree add and the re-list after it', async () => {
-    // Why: a listing stamps the generation its scan began at. Without the bump here, a listing
-    // that began before the add and one that began after it share a sequence, and a client cannot
-    // refuse the older one that omits the new worktree.
-    const runtime = new OrcaRuntimeService(store)
+  it('bumps the scan generation before the first step after git worktree add', async () => {
+    // Why: a listing stamps the generation its scan began at. Without the bump before any post-add
+    // await, a listing that began before the add and one that began after it share a sequence, and
+    // a client cannot refuse the older one that omits the new worktree.
+    const witness: { duringAdd?: number; afterAdd?: number } = {}
+    // Why a generated name: retiring it is the first awaited step after the add.
+    const addRetiredWorktreeName = vi.fn(() => {
+      if (witness.duringAdd !== undefined && witness.afterAdd === undefined) {
+        witness.afterAdd = getLocalWorktreeScanGeneration('repo-1')
+      }
+    })
+    const runtime = new OrcaRuntimeService({ ...store, addRetiredWorktreeName })
     const createdWorktree = {
-      path: '/tmp/workspaces/ordered',
+      path: '/tmp/workspaces/nautilus',
       head: 'abc123',
-      branch: 'refs/heads/ordered',
+      branch: 'refs/heads/nautilus',
       isBare: false,
       isMainWorktree: false
     }
     computeWorktreePathMock.mockReturnValue(createdWorktree.path)
     ensurePathWithinWorkspaceMock.mockReturnValue(createdWorktree.path)
-    const witness: { duringAdd?: number; afterAdd?: number } = {}
     vi.mocked(addWorktree).mockImplementationOnce(async () => {
       witness.duringAdd = getLocalWorktreeScanGeneration('repo-1')
       return {}
     })
-    vi.mocked(listWorktrees).mockImplementation(async () => {
-      if (witness.duringAdd !== undefined && witness.afterAdd === undefined) {
-        witness.afterAdd = getLocalWorktreeScanGeneration('repo-1')
-      }
-      return [createdWorktree]
+    vi.mocked(listWorktrees).mockResolvedValue([createdWorktree])
+
+    await runtime.createManagedWorktree({
+      repoSelector: 'id:repo-1',
+      name: 'nautilus',
+      nameWasGenerated: true
     })
 
-    await runtime.createManagedWorktree({ repoSelector: 'id:repo-1', name: 'ordered' })
-
+    expect(addRetiredWorktreeName).toHaveBeenCalledWith('repo-1', 'nautilus')
     expect(witness.afterAdd).toBeGreaterThan(witness.duringAdd ?? Infinity)
   })
 })

@@ -1,7 +1,7 @@
-// A listing's catalog version is the generation its scan began at, so a create must bump that
-// generation before anything after `git worktree add` can yield. Otherwise a listing that began
-// before the add (no new row) and one that began after it (new row) share a sequence, and the
-// client cannot refuse the older one: it purges the new workspace.
+// A listing's catalog version is the generation its scan began at, so a create or remove must bump
+// that generation before anything after its git mutation can yield. Otherwise a listing that began
+// before the mutation and one that began after it share a sequence, and the client cannot refuse
+// the older one: it purges a new workspace, or restores a removed one.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isWorktreeCatalogVersion } from '../../shared/worktree/catalog-version'
 import { getLocalWorktreeScanGeneration } from '../local-worktree-scan-generation'
@@ -9,9 +9,12 @@ import {
   addWorktreeMock,
   getActiveMultiplexerMock,
   getSshGitProviderMock,
-  listWorktreesMock
+  listWorktreesMock,
+  removeWorktreeMock
 } from './worktrees-test-module-mocks'
 import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
+import { mockKnownFeatureWorktree } from './worktrees-test-fixtures'
+import type { WorktreeRuntimeStub } from './worktrees-test-runtime-stub'
 
 vi.mock('electron', async () =>
   (await import('./worktrees-test-module-mocks')).electronModuleMock()
@@ -95,7 +98,15 @@ vi.mock('../runtime/worktree-teardown', async () =>
 )
 vi.mock('./pty', async () => (await import('./worktrees-test-module-mocks')).ptyModuleMock())
 
-type GenerationWitness = { duringAdd?: number; afterAdd?: number }
+// Why the first step after the mutation, not the re-list: every await between them is a window in
+// which a listing can begin at the old generation yet see the mutation.
+type GenerationWitness = { during?: number; after?: number }
+
+function witnessAfter(witness: GenerationWitness, repoId: string): void {
+  if (witness.during !== undefined && witness.after === undefined) {
+    witness.after = getLocalWorktreeScanGeneration(repoId)
+  }
+}
 
 function createdRow(path: string, branch: string) {
   return { path, head: 'abc123', branch, isBare: false, isMainWorktree: false }
@@ -108,34 +119,35 @@ function replySequence(reply: unknown): number | undefined {
   return isWorktreeCatalogVersion(reply.catalogVersion) ? reply.catalogVersion.sequence : undefined
 }
 
-describe('worktree create scan-generation ordering', () => {
+describe('worktree mutation scan-generation ordering', () => {
+  let runtimeStub: WorktreeRuntimeStub
+
   beforeEach(() => {
-    setupWorktreeHandlers()
+    runtimeStub = setupWorktreeHandlers()
   })
 
-  it('bumps the generation between a local git worktree add and the re-list after it', async () => {
+  it('bumps the generation before the first step after a local git worktree add', async () => {
     const witness: GenerationWitness = {}
     addWorktreeMock.mockImplementation(async () => {
-      witness.duringAdd = getLocalWorktreeScanGeneration('repo-1')
+      witness.during = getLocalWorktreeScanGeneration('repo-1')
       return {}
     })
-    listWorktreesMock.mockImplementation(async () => {
-      if (witness.duringAdd !== undefined && witness.afterAdd === undefined) {
-        witness.afterAdd = getLocalWorktreeScanGeneration('repo-1')
-      }
-      return [createdRow('/workspace/ordered', 'ordered')]
-    })
+    // Why a generated name: retiring it is the first awaited step after the add.
+    store.addRetiredWorktreeName.mockImplementation(() => witnessAfter(witness, 'repo-1'))
+    listWorktreesMock.mockResolvedValue([createdRow('/workspace/nautilus', 'nautilus')])
 
     const result: unknown = await handlers['worktrees:create'](null, {
       repoId: 'repo-1',
-      name: 'ordered'
+      name: 'nautilus',
+      nameWasGenerated: true
     })
 
-    expect(witness.afterAdd).toBeGreaterThan(witness.duringAdd ?? Infinity)
-    expect(replySequence(result)).toBeGreaterThanOrEqual(witness.afterAdd ?? Infinity)
+    expect(store.addRetiredWorktreeName).toHaveBeenCalledWith('repo-1', 'nautilus')
+    expect(witness.after).toBeGreaterThan(witness.during ?? Infinity)
+    expect(replySequence(result)).toBeGreaterThanOrEqual(witness.after ?? Infinity)
   })
 
-  it('bumps the generation between an SSH git worktree add and the re-list after it', async () => {
+  it('bumps the generation before the first step after an SSH git worktree add', async () => {
     const repo = {
       id: 'repo-ssh',
       path: '/remote/repo',
@@ -150,18 +162,17 @@ describe('worktree create scan-generation ordering', () => {
         if (args[0] === 'rev-parse' || args[0] === 'show-ref') {
           throw Object.assign(new Error('missing ref'), { code: 1 })
         }
+        // Why sparse: its checkout commands are the first awaited step after an SSH add.
+        if (args[0] === 'sparse-checkout') {
+          witnessAfter(witness, repo.id)
+        }
         return { stdout: '', stderr: '' }
       }),
       fetchRemoteTrackingRef: vi.fn(async () => undefined),
       addWorktree: vi.fn(async () => {
-        witness.duringAdd = getLocalWorktreeScanGeneration(repo.id)
+        witness.during = getLocalWorktreeScanGeneration(repo.id)
       }),
-      listWorktrees: vi.fn(async () => {
-        if (witness.duringAdd !== undefined && witness.afterAdd === undefined) {
-          witness.afterAdd = getLocalWorktreeScanGeneration(repo.id)
-        }
-        return [createdRow('/remote/repo-ordered', 'refs/heads/ordered')]
-      })
+      listWorktrees: vi.fn(async () => [createdRow('/remote/repo-ordered', 'refs/heads/ordered')])
     }
     store.getRepos.mockReturnValue([repo])
     store.getRepo.mockReturnValue(repo)
@@ -174,11 +185,73 @@ describe('worktree create scan-generation ordering', () => {
 
     const result: unknown = await handlers['worktrees:create'](null, {
       repoId: repo.id,
-      name: 'ordered'
+      name: 'ordered',
+      sparseCheckout: { directories: ['packages/web'] }
     })
 
-    expect(provider.addWorktree).toHaveBeenCalledOnce()
-    expect(witness.afterAdd).toBeGreaterThan(witness.duringAdd ?? Infinity)
-    expect(replySequence(result)).toBeGreaterThanOrEqual(witness.afterAdd ?? Infinity)
+    expect(provider.exec).toHaveBeenCalledWith(
+      ['sparse-checkout', 'init', '--cone'],
+      '/remote/repo-ordered'
+    )
+    expect(witness.after).toBeGreaterThan(witness.during ?? Infinity)
+    expect(replySequence(result)).toBeGreaterThanOrEqual(witness.after ?? Infinity)
+  })
+
+  it('bumps the generation before the first step after a local git worktree remove', async () => {
+    mockKnownFeatureWorktree()
+    const witness: GenerationWitness = {}
+    removeWorktreeMock.mockImplementation(async () => {
+      witness.during = getLocalWorktreeScanGeneration('repo-1')
+    })
+    // Why the watcher gate: releasing it is the first awaited step after the git removal.
+    runtimeStub.acquireFileWatcherRemoval.mockResolvedValue({
+      finish: vi.fn(async () => witnessAfter(witness, 'repo-1'))
+    })
+
+    const result: unknown = await handlers['worktrees:remove'](null, {
+      worktreeId: 'repo-1::/workspace/feature-wt',
+      force: true
+    })
+
+    expect(removeWorktreeMock).toHaveBeenCalledOnce()
+    expect(witness.after).toBeGreaterThan(witness.during ?? Infinity)
+    expect(replySequence(result)).toBeGreaterThanOrEqual(witness.after ?? Infinity)
+  })
+
+  it('bumps the generation before the first step after an SSH git worktree remove', async () => {
+    const repo = {
+      id: 'repo-ssh',
+      path: '/remote/repo',
+      displayName: 'ssh',
+      badgeColor: '#000',
+      addedAt: 0,
+      connectionId: 'conn-1'
+    }
+    const witness: GenerationWitness = {}
+    const provider = {
+      listWorktrees: vi.fn(async () => [
+        { ...createdRow('/remote/repo', 'main'), isMainWorktree: true },
+        createdRow('/remote/feature-wt', 'feature')
+      ]),
+      removeWorktree: vi.fn(async () => {
+        witness.during = getLocalWorktreeScanGeneration(repo.id)
+      }),
+      worktreeIsClean: vi.fn(async () => ({ clean: true }))
+    }
+    store.getRepos.mockReturnValue([repo])
+    store.getRepo.mockReturnValue(repo)
+    getSshGitProviderMock.mockReturnValue(provider)
+    runtimeStub.acquireFileWatcherRemoval.mockResolvedValue({
+      finish: vi.fn(async () => witnessAfter(witness, repo.id))
+    })
+
+    const result: unknown = await handlers['worktrees:remove'](null, {
+      worktreeId: 'repo-ssh::/remote/feature-wt',
+      force: true
+    })
+
+    expect(provider.removeWorktree).toHaveBeenCalledOnce()
+    expect(witness.after).toBeGreaterThan(witness.during ?? Infinity)
+    expect(replySequence(result)).toBeGreaterThanOrEqual(witness.after ?? Infinity)
   })
 })
