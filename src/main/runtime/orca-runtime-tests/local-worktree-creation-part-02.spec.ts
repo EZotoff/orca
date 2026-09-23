@@ -11,6 +11,7 @@ import {
   listWorktrees
 } from '../orca-runtime-test-mocks.spec'
 import { TEST_REPO_PATH, store } from '../orca-runtime-test-fixtures.spec'
+import { getLocalWorktreeScanGeneration } from '../../local-worktree-scan-generation'
 
 describe('OrcaRuntimeService', () => {
   it('creates a same-repo PR branch override from a resolved head SHA and matching push target', async () => {
@@ -544,5 +545,36 @@ describe('OrcaRuntimeService', () => {
     } finally {
       gitSpy.mockRestore()
     }
+  })
+
+  it('bumps the scan generation between git worktree add and the re-list after it', async () => {
+    // Why: a listing stamps the generation its scan began at. Without the bump here, a listing
+    // that began before the add and one that began after it share a sequence, and a client cannot
+    // refuse the older one that omits the new worktree.
+    const runtime = new OrcaRuntimeService(store)
+    const createdWorktree = {
+      path: '/tmp/workspaces/ordered',
+      head: 'abc123',
+      branch: 'refs/heads/ordered',
+      isBare: false,
+      isMainWorktree: false
+    }
+    computeWorktreePathMock.mockReturnValue(createdWorktree.path)
+    ensurePathWithinWorkspaceMock.mockReturnValue(createdWorktree.path)
+    const witness: { duringAdd?: number; afterAdd?: number } = {}
+    vi.mocked(addWorktree).mockImplementationOnce(async () => {
+      witness.duringAdd = getLocalWorktreeScanGeneration('repo-1')
+      return {}
+    })
+    vi.mocked(listWorktrees).mockImplementation(async () => {
+      if (witness.duringAdd !== undefined && witness.afterAdd === undefined) {
+        witness.afterAdd = getLocalWorktreeScanGeneration('repo-1')
+      }
+      return [createdWorktree]
+    })
+
+    await runtime.createManagedWorktree({ repoSelector: 'id:repo-1', name: 'ordered' })
+
+    expect(witness.afterAdd).toBeGreaterThan(witness.duringAdd ?? Infinity)
   })
 })
