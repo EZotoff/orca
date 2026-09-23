@@ -146,6 +146,30 @@ describe('useNativeChatFileLinkClick', () => {
     )
   })
 
+  it('opens file URIs written in inline code and prose', () => {
+    render(
+      <Transcript markdown="See `file:///repo/src/app.ts` and file:///repo/docs/release%20notes.md#L4 now." />
+    )
+
+    clickLink('file:///repo/src/app.ts')
+    clickLink('file:///repo/docs/release%20notes.md#L4')
+
+    expect(mocks.openDetectedFilePath).toHaveBeenNthCalledWith(
+      1,
+      '/repo/src/app.ts',
+      null,
+      null,
+      expect.anything()
+    )
+    expect(mocks.openDetectedFilePath).toHaveBeenNthCalledWith(
+      2,
+      '/repo/docs/release notes.md',
+      4,
+      null,
+      expect.anything()
+    )
+  })
+
   it('keeps # in a linked path instead of treating it as a fragment', () => {
     render(<Transcript markdown="Edit `My C# App/Program.cs` next." />)
 
