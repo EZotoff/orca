@@ -65,7 +65,9 @@ export function redactOperatorView(
   state: SupervisorRelayState,
   freezeReason?: FreezeReason
 ): SupervisorRelayPayload | undefined {
-  if (view.schemaVersion !== SUPERVISOR_RELAY_SCHEMA_VERSION) return undefined
+  if (view.schemaVersion !== SUPERVISOR_RELAY_SCHEMA_VERSION) {
+    return undefined
+  }
   return {
     schemaVersion: SUPERVISOR_RELAY_SCHEMA_VERSION,
     generation: view.generation,

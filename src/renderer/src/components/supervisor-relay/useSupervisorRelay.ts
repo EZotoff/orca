@@ -10,10 +10,14 @@ export function useSupervisorRelay(): SupervisorRelayPayload | undefined {
   useEffect(() => {
     let disposed = false
     const unsubscribe = window.api.supervisorRelay.onUpdate((next) => {
-      if (!disposed) setPayload(next)
+      if (!disposed) {
+        setPayload(next)
+      }
     })
     void window.api.supervisorRelay.getSnapshot().then((snapshot) => {
-      if (!disposed) setPayload(snapshot)
+      if (!disposed) {
+        setPayload(snapshot)
+      }
     })
     return () => {
       disposed = true

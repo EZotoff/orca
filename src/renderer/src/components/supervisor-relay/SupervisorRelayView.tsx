@@ -25,8 +25,12 @@ function severityLabel(severity: SupervisorRelayCard['severity']): string {
 }
 
 function formatAge(ageSeconds: number): string {
-  if (ageSeconds < 60) return `${ageSeconds}s`
-  if (ageSeconds < 3600) return `${Math.floor(ageSeconds / 60)}m`
+  if (ageSeconds < 60) {
+    return `${ageSeconds}s`
+  }
+  if (ageSeconds < 3600) {
+    return `${Math.floor(ageSeconds / 60)}m`
+  }
   return `${Math.floor(ageSeconds / 3600)}h`
 }
 

@@ -73,7 +73,9 @@ describe('operator-view reader edge cases', () => {
     const raw31 = snapshot({ producedAt: new Date(T0 - 31_000).toISOString() })
     const frozen = await readerFor(() => raw31, () => T0, () => 0).read()
     expect(frozen.state).toBe('frozen')
-    if (frozen.state === 'frozen') expect(frozen.reason).toBe('stale')
+    if (frozen.state === 'frozen') {
+      expect(frozen.reason).toBe('stale')
+    }
     expect(naiveRead(raw31)).toBeDefined()
   })
 
@@ -81,7 +83,9 @@ describe('operator-view reader edge cases', () => {
     const raw6 = snapshot({ producedAt: new Date(T0 + 6_000).toISOString() })
     const frozen = await readerFor(() => raw6, () => T0, () => 0).read()
     expect(frozen.state).toBe('frozen')
-    if (frozen.state === 'frozen') expect(frozen.reason).toBe('future-skew')
+    if (frozen.state === 'frozen') {
+      expect(frozen.reason).toBe('future-skew')
+    }
     expect(naiveRead(raw6)).toBeDefined()
 
     const raw5 = snapshot({ producedAt: new Date(T0 + 5_000).toISOString() })
@@ -113,13 +117,17 @@ describe('operator-view reader edge cases', () => {
     raw = snapshot({ generation: 5, lastSeq: 9 })
     const gap = await reader.read()
     expect(gap.state).toBe('frozen')
-    if (gap.state === 'frozen') expect(gap.reason).toBe('missing-updates')
+    if (gap.state === 'frozen') {
+      expect(gap.reason).toBe('missing-updates')
+    }
     expect(naiveRead(raw)).toBeDefined()
 
     raw = snapshot({ generation: 6, lastSeq: 3 })
     const regression = await reader.read()
     expect(regression.state).toBe('frozen')
-    if (regression.state === 'frozen') expect(regression.reason).toBe('missing-updates')
+    if (regression.state === 'frozen') {
+      expect(regression.reason).toBe('missing-updates')
+    }
     expect(naiveRead(raw)).toBeDefined()
   })
 
@@ -134,7 +142,9 @@ describe('operator-view reader edge cases', () => {
     mono = 1_000
     const forward = reader.validity(wall, mono)
     expect(forward.state).toBe('frozen')
-    if (forward.state === 'frozen') expect(forward.reason).toBe('clock-jump')
+    if (forward.state === 'frozen') {
+      expect(forward.reason).toBe('clock-jump')
+    }
 
     expect((await reader.read()).state).toBe('live')
     expect(reader.validity(wall, mono).state).toBe('live')
@@ -143,7 +153,9 @@ describe('operator-view reader edge cases', () => {
     mono = 2_000
     const backward = reader.validity(wall, mono)
     expect(backward.state).toBe('frozen')
-    if (backward.state === 'frozen') expect(backward.reason).toBe('clock-jump')
+    if (backward.state === 'frozen') {
+      expect(backward.reason).toBe('clock-jump')
+    }
 
     wall = T0 + 7_000 + 4_000
     mono = 3_000
@@ -156,7 +168,9 @@ describe('operator-view reader edge cases', () => {
     expect((await reader.read()).state).toBe('live')
     const stale = reader.validity(T0 + 31_000, 31_000)
     expect(stale.state).toBe('frozen')
-    if (stale.state === 'frozen') expect(stale.reason).toBe('stale')
+    if (stale.state === 'frozen') {
+      expect(stale.reason).toBe('stale')
+    }
   })
 
   test('(c6) 10-minute quiet period — heartbeat keeps producedAt fresh, cards never grey', async () => {
@@ -172,12 +186,14 @@ describe('operator-view reader edge cases', () => {
       raw = snapshot({ generation: minute + 1, lastSeq: 5, producedAt: new Date(wall).toISOString() })
       const out = await reader.read()
       expect(out.state).toBe('live')
-      if (out.state === 'live') expect(out.view.cards.length).toBe(1)
+      if (out.state === 'live') {
+        expect(out.view.cards.length).toBe(1)
+      }
     }
   })
 
   test('(c7) invalid schema → frozen; naive reader would render', async () => {
-    const invalid: Array<{ name: string; raw: string; naiveAccepts: boolean }> = [
+    const invalid: { name: string; raw: string; naiveAccepts: boolean }[] = [
       { name: 'malformed JSON', raw: '{not json', naiveAccepts: false },
       { name: 'wrong schemaVersion', raw: snapshot({ schemaVersion: 2 }), naiveAccepts: true },
       { name: 'generation 0', raw: snapshot({ generation: 0 }), naiveAccepts: true },
@@ -198,9 +214,13 @@ describe('operator-view reader edge cases', () => {
     for (const entry of invalid) {
       const out = await readerFor(() => entry.raw, () => T0, () => 0).read()
       expect(out.state, entry.name).toBe('frozen')
-      if (out.state === 'frozen') expect(out.reason, entry.name).toBe('invalid-schema')
+      if (out.state === 'frozen') {
+        expect(out.reason, entry.name).toBe('invalid-schema')
+      }
       expect(parseOperatorView(entry.raw), entry.name).toBeUndefined()
-      if (entry.naiveAccepts) expect(naiveRead(entry.raw), entry.name).toBeDefined()
+      if (entry.naiveAccepts) {
+        expect(naiveRead(entry.raw), entry.name).toBeDefined()
+      }
     }
   })
 
@@ -212,14 +232,18 @@ describe('operator-view reader edge cases', () => {
       await writeFile(path, snapshot({ generation: 1, lastSeq: 5, cards: [card('att_A')] }))
       const first = await reader.read()
       expect(first.state).toBe('live')
-      if (first.state === 'live') expect(first.view.cards[0]?.id).toBe('att_A')
+      if (first.state === 'live') {
+        expect(first.view.cards[0]?.id).toBe('att_A')
+      }
 
       const temporary = `${path}.tmp-test`
       await writeFile(temporary, snapshot({ generation: 2, lastSeq: 5, cards: [card('att_B')] }))
       await rename(temporary, path)
       const second = await reader.read()
       expect(second.state).toBe('live')
-      if (second.state === 'live') expect(second.view.cards[0]?.id).toBe('att_B')
+      if (second.state === 'live') {
+        expect(second.view.cards[0]?.id).toBe('att_B')
+      }
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
@@ -238,14 +262,18 @@ describe('operator-view reader edge cases', () => {
     })
     const out = await reader.read()
     expect(out.state).toBe('frozen')
-    if (out.state === 'frozen') expect(out.reason).toBe('read-error')
+    if (out.state === 'frozen') {
+      expect(out.reason).toBe('read-error')
+    }
   })
 
   test('(c10) validity before any read → frozen read-error (no image to extend)', () => {
     const reader = new OperatorViewReader({ path: 'operator-view.json', wallMs: () => T0, monoMs: () => 0 })
     const out = reader.validity(T0, 0)
     expect(out.state).toBe('frozen')
-    if (out.state === 'frozen') expect(out.reason).toBe('read-error')
+    if (out.state === 'frozen') {
+      expect(out.reason).toBe('read-error')
+    }
   })
 
   test('contract thresholds are pinned', () => {

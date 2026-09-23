@@ -82,15 +82,21 @@ export class SupervisorRelayService {
   }
 
   start(): void {
-    if (this.pollTimer !== undefined) return
+    if (this.pollTimer !== undefined) {
+    return
+  }
     void this.poll()
     this.pollTimer = setInterval(() => void this.poll(), this.pollMs)
     this.tickTimer = setInterval(() => this.validityTick(), this.tickMs)
   }
 
   stop(): void {
-    if (this.pollTimer !== undefined) clearInterval(this.pollTimer)
-    if (this.tickTimer !== undefined) clearInterval(this.tickTimer)
+    if (this.pollTimer !== undefined) {
+      clearInterval(this.pollTimer)
+    }
+    if (this.tickTimer !== undefined) {
+      clearInterval(this.tickTimer)
+    }
     this.pollTimer = undefined
     this.tickTimer = undefined
     this.live = false
@@ -102,7 +108,9 @@ export class SupervisorRelayService {
   }
 
   private validityTick(): void {
-    if (!this.live) return
+    if (!this.live) {
+    return
+  }
     const outcome = this.reader.validity(this.wallMs(), this.monoMs())
     if (outcome.state === 'frozen') {
       this.applyOutcome(outcome)
@@ -136,7 +144,9 @@ export class SupervisorRelayService {
     // Push only on change: a hydrating renderer pulls the snapshot (getSnapshot),
     // and not-running stays silent so a dead supervisor never spams windows.
     const changed = JSON.stringify(next) !== JSON.stringify(this.current)
-    if (!changed) return
+    if (!changed) {
+    return
+  }
     this.current = next
     this.onPayload(next)
   }

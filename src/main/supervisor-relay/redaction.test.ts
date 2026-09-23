@@ -37,7 +37,7 @@ describe('supervisor relay redaction', () => {
       view([
         viewCard({
           rootLabel: 'sk-abcdefgh12345678',
-          sessionLabel: 'ghp_' + 'a'.repeat(30),
+          sessionLabel: 'ghp_'.concat('a'.repeat(30)),
           reasonText: 'Use xoxb-1234567890abcdef keys',
           premiseTexts: ['bearer AbCdEfGhIjK1234567890', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig_nature']
         })
@@ -45,10 +45,10 @@ describe('supervisor relay redaction', () => {
       'live'
     )
     expect(payload).toBeDefined()
-    if (payload === undefined) return
+    if (payload === undefined) {return}
     const card = payload.cards[0]
     expect(card).toBeDefined()
-    if (card === undefined) return
+    if (card === undefined) {return}
     expect(card.rootLabel).not.toContain('sk-abcdefgh12345678')
     expect(card.sessionLabel).not.toContain('ghp_')
     expect(card.reasonText).not.toContain('xoxb-')
@@ -69,10 +69,10 @@ describe('supervisor relay redaction', () => {
       'live'
     )
     expect(payload).toBeDefined()
-    if (payload === undefined) return
+    if (payload === undefined) {return}
     const card = payload.cards[0]
     expect(card).toBeDefined()
-    if (card === undefined) return
+    if (card === undefined) {return}
     expect(card.rootLabel).not.toContain('/home/')
     expect(card.reasonText).not.toContain('/Users/bob/token')
     expect(card.reasonText).not.toContain('~/notes')
@@ -91,7 +91,7 @@ describe('supervisor relay redaction', () => {
       'live'
     )
     expect(payload).toBeDefined()
-    if (payload === undefined) return
+    if (payload === undefined) {return}
     expect(payload.cards.length).toBe(MAX_RELAY_CARDS)
     for (const card of payload.cards) {
       expect(card.reasonText.length).toBeLessThanOrEqual(MAX_TEXT_CHARS)
@@ -105,7 +105,7 @@ describe('supervisor relay redaction', () => {
   test('forwards only whitelisted scalar fields — no extra properties', () => {
     const payload = redactOperatorView(view([viewCard()]), 'live')
     expect(payload).toBeDefined()
-    if (payload === undefined) return
+    if (payload === undefined) {return}
     expect(Object.keys(payload).sort()).toEqual([
       'cards',
       'generation',
@@ -138,7 +138,7 @@ describe('supervisor relay redaction', () => {
   test('frozen payload carries the freeze reason and greyed cards', () => {
     const payload = redactOperatorView(view([viewCard()]), 'frozen', 'stale')
     expect(payload).toBeDefined()
-    if (payload === undefined) return
+    if (payload === undefined) {return}
     expect(payload.state).toBe('frozen')
     expect(payload.freezeReason).toBe('stale')
     expect(payload.cards.length).toBe(1)
