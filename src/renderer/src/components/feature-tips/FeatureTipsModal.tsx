@@ -30,6 +30,7 @@ import {
 } from './feature-tip-telemetry'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { translate } from '@/i18n/i18n'
+import { notifyOrcaCliInstallStateChanged } from '@/lib/orca-cli-install-state-event'
 import { VoiceDictationTipDialog } from './VoiceDictationTipDialog'
 
 function WorktreePromptTerm({ children }: { children: string }): JSX.Element {
@@ -163,7 +164,11 @@ export default function FeatureTipsModal(): JSX.Element | null {
         trackOrcaCliFeatureTipSetupClicked(telemetrySource)
         setPrimaryBusy(true)
         try {
-          const result = await installCliFromFeatureTip(() => window.api.cli.install())
+          const result = await installCliFromFeatureTip(async () => {
+            const next = await window.api.cli.install()
+            notifyOrcaCliInstallStateChanged()
+            return next
+          })
           if (result.kind === 'installed') {
             trackOrcaCliFeatureTipSetupResult(telemetrySource, 'installed')
             if (!canApplySetupResult()) {

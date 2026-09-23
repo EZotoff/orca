@@ -13,6 +13,8 @@ type BrowserUseCliStepProps = {
   cliBusy: boolean
   cliSupported: boolean
   cliPathNeedsAttention: boolean
+  /** Why the CLI cannot be registered from this pane; shown so a disabled button is never silent. */
+  cliUnavailableReason: string | null
   onEnableCli: () => void
 }
 
@@ -23,6 +25,7 @@ export function BrowserUseCliStep({
   cliBusy,
   cliSupported,
   cliPathNeedsAttention,
+  cliUnavailableReason,
   onEnableCli
 }: BrowserUseCliStepProps): React.JSX.Element {
   return (
@@ -56,6 +59,9 @@ export function BrowserUseCliStep({
           {cliPathNeedsAttention && cliStatus?.detail ? (
             <p className="text-[11px] text-amber-600 dark:text-amber-400">{cliStatus.detail}</p>
           ) : null}
+          {!cliLoading && cliUnavailableReason ? (
+            <p className="text-[11px] text-muted-foreground">{cliUnavailableReason}</p>
+          ) : null}
         </div>
         <TooltipProvider delayDuration={250}>
           <Tooltip>
@@ -83,9 +89,9 @@ export function BrowserUseCliStep({
                 </Button>
               </span>
             </TooltipTrigger>
-            {!cliSupported && !cliLoading && cliStatus?.detail ? (
+            {!cliLoading && cliUnavailableReason ? (
               <TooltipContent side="left" sideOffset={6}>
-                {cliStatus.detail}
+                {cliUnavailableReason}
               </TooltipContent>
             ) : null}
           </Tooltip>

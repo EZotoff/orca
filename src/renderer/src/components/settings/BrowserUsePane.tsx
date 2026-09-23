@@ -17,10 +17,7 @@ import {
 } from '@/hooks/useInstalledAgentSkills'
 import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
 import { useOrcaCliInstallStatus } from '@/hooks/use-orca-cli-install-status'
-import {
-  notifyOrcaCliInstallStateChanged,
-  readOrcaCliInstallStatus
-} from '@/lib/orca-cli-install-status'
+import { readOrcaCliInstallStatus } from '@/lib/orca-cli-install-status'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '../../store'
@@ -95,6 +92,14 @@ export function BrowserUseSetup({
   const cliPathNeedsAttention =
     cliStatus?.state === 'installed' && cliStatus.pathConfigured === false
   const cliSupported = cliStatus?.supported ?? false
+  const cliUnavailableReason = orcaCli.unverifiable
+    ? translate(
+        'auto.components.settings.BrowserUsePane.remoteManaged',
+        'CLI registration is managed on the Orca server that runs your agents.'
+      )
+    : !cliSupported
+      ? (cliStatus?.detail ?? null)
+      : null
 
   const {
     installed: skillDetected,
@@ -117,7 +122,6 @@ export function BrowserUseSetup({
         activeSkillRuntime.agentRuntime?.runtime === 'wsl'
           ? await ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
           : await ensureOrcaCliAvailableForAgentSkillTerminal()
-      notifyOrcaCliInstallStateChanged()
       if (mountedRef.current && isOrcaCliAvailableOnPath(next)) {
         toast.success(
           translate(
@@ -214,6 +218,7 @@ export function BrowserUseSetup({
           cliBusy={cliBusy}
           cliSupported={cliSupported}
           cliPathNeedsAttention={cliPathNeedsAttention}
+          cliUnavailableReason={cliUnavailableReason}
           onEnableCli={() => void handleEnableCli()}
         />
       ) : null}
@@ -250,7 +255,6 @@ export function BrowserUseSetup({
               await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
                 ? ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
                 : ensureOrcaCliAvailableForAgentSkillTerminal())
-              notifyOrcaCliInstallStateChanged()
             }}
             onRecheck={refreshSkill}
           />

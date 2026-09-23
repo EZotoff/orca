@@ -2,6 +2,7 @@ import { useCallback, useState, type MutableRefObject } from 'react'
 import { toast } from 'sonner'
 import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import { translate } from '@/i18n/i18n'
+import { notifyOrcaCliInstallStateChanged } from '@/lib/orca-cli-install-state-event'
 import {
   readCliInstallFailure,
   readCliInstallRejection,
@@ -52,6 +53,7 @@ export function useCliRegistrationActions({
     setBusyAction('install')
     try {
       const next = await window.api.cli.install()
+      notifyOrcaCliInstallStateChanged()
       if (!mountedRef.current) {
         return
       }
@@ -92,6 +94,7 @@ export function useCliRegistrationActions({
     setBusyAction('remove')
     try {
       const next = await window.api.cli.remove()
+      notifyOrcaCliInstallStateChanged()
       if (mountedRef.current) {
         onStatusChange(next)
         onSettled()

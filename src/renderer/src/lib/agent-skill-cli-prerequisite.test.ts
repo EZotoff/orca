@@ -7,6 +7,7 @@ import {
   ensureOrcaCliAvailableForAgentSkillTerminal,
   isOrcaCliAvailableOnPath
 } from './agent-skill-cli-prerequisite'
+import { ORCA_CLI_INSTALL_STATE_EVENT } from './orca-cli-install-state-event'
 
 vi.mock('sonner', () => ({
   toast: {
@@ -58,6 +59,7 @@ describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
     const getInstallStatus = vi.fn().mockResolvedValue(initial)
     const install = vi.fn().mockResolvedValue(installed)
     const onStatusChange = vi.fn()
+    const dispatchEvent = vi.fn()
 
     vi.stubGlobal('window', {
       api: {
@@ -65,7 +67,8 @@ describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
           getInstallStatus,
           install
         }
-      }
+      },
+      dispatchEvent
     })
 
     await expect(
@@ -76,6 +79,9 @@ describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
     ).resolves.toBe(installed)
 
     expect(install).toHaveBeenCalledTimes(1)
+    // Why: every other CLI status reader (checklist, sidebar, panes) re-reads on this event.
+    expect(dispatchEvent).toHaveBeenCalledTimes(1)
+    expect(dispatchEvent.mock.calls[0]?.[0]).toMatchObject({ type: ORCA_CLI_INSTALL_STATE_EVENT })
     expect(toast.message).toHaveBeenCalledWith(CLI_PREREQUISITE_REGISTRATION_TOAST, {
       description: CLI_PREREQUISITE_REGISTRATION_TOAST_DESCRIPTION
     })
@@ -114,6 +120,7 @@ describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
 
     vi.stubGlobal('window', {
       setTimeout,
+      dispatchEvent: vi.fn(),
       api: {
         cli: {
           getInstallStatus,

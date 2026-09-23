@@ -25,7 +25,6 @@ import { FullDiskAccessSetupPrompt } from './FullDiskAccessSetupPrompt'
 import { OrcaCliRegistrationStatusRow } from './OrcaCliRegistrationStatusRow'
 import { isOrcaCliRegistrationNeeded } from './orca-cli-registration-status'
 import { ensureOrcaCliAvailableForAgentSkillTerminal } from '@/lib/agent-skill-cli-prerequisite'
-import { notifyOrcaCliInstallStateChanged } from '@/lib/orca-cli-install-status'
 import { ensureWslCliAvailableForAgentSkillTerminal } from '../settings/CliSkillRuntimeSetup'
 import { translate } from '@/i18n/i18n'
 
@@ -80,8 +79,6 @@ export function AgentCapabilitiesSetupAction(): React.JSX.Element {
           : ensureOrcaCliAvailableForAgentSkillTerminal())
       } finally {
         setSetupBusyLabel(null)
-        // Why: the sidebar progress reads the CLI through its own hook instance, so broadcast.
-        notifyOrcaCliInstallStateChanged()
       }
       return
     }
@@ -138,8 +135,6 @@ export function AgentCapabilitiesSetupAction(): React.JSX.Element {
       }
     } finally {
       setSetupBusyLabel(null)
-      // Why: the setup-state event fires before the CLI install, so it alone reads stale state.
-      notifyOrcaCliInstallStateChanged()
     }
   }, [
     activeSkillRuntime,

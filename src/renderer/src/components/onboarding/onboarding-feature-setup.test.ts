@@ -162,6 +162,7 @@ describe('onboarding feature setup runner', () => {
     const getWslInstallStatus = vi.fn(async () => INSTALLED_CLI_STATUS)
     const installWsl = vi.fn(async () => INSTALLED_CLI_STATUS)
     vi.stubGlobal('window', {
+      dispatchEvent: vi.fn(),
       api: { cli: { getInstallStatus, install, getWslInstallStatus, installWsl } }
     })
     const deps = createOnboardingFeatureSetupDeps({

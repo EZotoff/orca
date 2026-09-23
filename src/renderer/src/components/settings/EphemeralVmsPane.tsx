@@ -22,10 +22,7 @@ import {
   useInstalledAgentSkill
 } from '@/hooks/useInstalledAgentSkills'
 import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
-import {
-  notifyOrcaCliInstallStateChanged,
-  readOrcaCliInstallStatus
-} from '@/lib/orca-cli-install-status'
+import { readOrcaCliInstallStatus } from '@/lib/orca-cli-install-status'
 import {
   buildSkillCommandForRuntime,
   ensureWslCliAvailableForAgentSkillTerminal
@@ -196,7 +193,6 @@ export function EphemeralVmsPane(): React.JSX.Element {
           await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
             ? ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
             : ensureOrcaCliAvailableForAgentSkillTerminal())
-          notifyOrcaCliInstallStateChanged()
         }}
         onRecheck={refreshSkill}
         freshnessSkillName={

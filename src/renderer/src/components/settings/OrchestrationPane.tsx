@@ -16,10 +16,7 @@ import {
   useInstalledAgentSkill
 } from '@/hooks/useInstalledAgentSkills'
 import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
-import {
-  notifyOrcaCliInstallStateChanged,
-  readOrcaCliInstallStatus
-} from '@/lib/orca-cli-install-status'
+import { readOrcaCliInstallStatus } from '@/lib/orca-cli-install-status'
 import { SearchableSetting } from './SearchableSetting'
 import { matchesSettingsSearch } from './settings-search'
 import { useAppStore } from '../../store'
@@ -142,7 +139,6 @@ export function OrchestrationPane({
           await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
             ? ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
             : ensureOrcaCliAvailableForAgentSkillTerminal())
-          notifyOrcaCliInstallStateChanged()
         }}
         actionHint={
           // Installed updates stay on the primary panel so there is only one update path.

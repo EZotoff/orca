@@ -17,6 +17,7 @@ import { Label } from '../ui/label'
 import { Switch } from '../ui/switch'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 import { translate } from '@/i18n/i18n'
+import { notifyOrcaCliInstallStateChanged } from '@/lib/orca-cli-install-state-event'
 
 type WslCliRegistrationProps = {
   currentPlatform: string
@@ -76,6 +77,7 @@ export function WslCliRegistration({
     setBusyAction('install')
     try {
       const next = await window.api.cli.installWsl()
+      notifyOrcaCliInstallStateChanged()
       if (!mountedRef.current) {
         return
       }
@@ -111,6 +113,7 @@ export function WslCliRegistration({
     setBusyAction('remove')
     try {
       const next = await window.api.cli.removeWsl()
+      notifyOrcaCliInstallStateChanged()
       if (!mountedRef.current) {
         return
       }

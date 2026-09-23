@@ -6,10 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CliInstallStatus } from '../../../shared/cli-install-types'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { notifyOrchestrationSetupStateChanged } from '@/lib/orchestration-setup-state'
-import {
-  notifyOrcaCliInstallStateChanged,
-  type OrcaCliSkillRuntime
-} from '@/lib/orca-cli-install-status'
+import type { OrcaCliSkillRuntime } from '@/lib/orca-cli-install-status'
+import { notifyOrcaCliInstallStateChanged } from '@/lib/orca-cli-install-state-event'
 import {
   useOrcaCliInstallStatus,
   type OrcaCliInstallStatusState

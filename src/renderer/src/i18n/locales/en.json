@@ -6939,7 +6939,8 @@
           "0289434ed6": "Enabled",
           "8b3054dac7": "Registering...",
           "8f2675c2f3": "Imported {{value0}} cookies from file.",
-          "5301857d88": "From {{value0}}"
+          "5301857d88": "From {{value0}}",
+          "remoteManaged": "CLI registration is managed on the Orca server that runs your agents."
         },
         "BrowserUseSkillStep": {
           "0871b6998d": "Enables agents to navigate and verify pages in Orca's browser.",

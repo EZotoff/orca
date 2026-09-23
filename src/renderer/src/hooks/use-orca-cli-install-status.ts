@@ -5,10 +5,10 @@ import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { ORCHESTRATION_SETUP_STATE_EVENT } from '@/lib/orchestration-setup-state'
 import {
   getOrcaCliInstallTargetKey,
-  ORCA_CLI_INSTALL_STATE_EVENT,
   readOrcaCliInstallStatus,
   type OrcaCliSkillRuntime
 } from '@/lib/orca-cli-install-status'
+import { ORCA_CLI_INSTALL_STATE_EVENT } from '@/lib/orca-cli-install-state-event'
 import { useActiveSkillDiscoveryRuntimeTarget } from './use-active-skill-discovery-runtime-target'
 
 export type OrcaCliInstallStatusState = {

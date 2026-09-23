@@ -1,17 +1,11 @@
 import type { CliInstallStatus } from '../../../shared/cli-install-types'
 import type { ProjectAgentSkillRuntime } from './project-skill-runtime'
 import { getWslCliDistroRequest } from '@/components/settings/CliSkillRuntimeSetup'
+import { notifyOrcaCliInstallStateChanged } from './orca-cli-install-state-event'
 
 export type OrcaCliSkillRuntime = {
   agentRuntime?: ProjectAgentSkillRuntime
   installDisabledReason: string | null
-}
-
-export const ORCA_CLI_INSTALL_STATE_EVENT = 'orca:cli-install-state'
-
-/** Tell every mounted CLI status reader to re-read after a registration attempt. */
-export function notifyOrcaCliInstallStateChanged(): void {
-  window.dispatchEvent(new CustomEvent(ORCA_CLI_INSTALL_STATE_EVENT))
 }
 
 /** Reads `orca` where this runtime's agents run it: the WSL distro for a WSL runtime, else the host. */
@@ -21,6 +15,17 @@ export function readAgentRuntimeCliInstallStatus(
   return agentRuntime?.runtime === 'wsl'
     ? window.api.cli.getWslInstallStatus(getWslCliDistroRequest(agentRuntime))
     : window.api.cli.getInstallStatus()
+}
+
+/** Registers `orca` where this runtime's agents run it, then tells every status reader to re-read. */
+export async function installAgentRuntimeCli(
+  agentRuntime?: ProjectAgentSkillRuntime
+): Promise<CliInstallStatus> {
+  const next = await (agentRuntime?.runtime === 'wsl'
+    ? window.api.cli.installWsl(getWslCliDistroRequest(agentRuntime))
+    : window.api.cli.install())
+  notifyOrcaCliInstallStateChanged()
+  return next
 }
 
 /** Identifies what `readOrcaCliInstallStatus` reads, so callers can drop results for a retired target. */

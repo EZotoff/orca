@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import type { CliInstallStatus } from '../../../shared/cli-install-types'
 import { translate } from '@/i18n/i18n'
+import { notifyOrcaCliInstallStateChanged } from './orca-cli-install-state-event'
 
 type EnsureOrcaCliAvailableOptions = {
   onStatusChange?: (status: CliInstallStatus) => void
@@ -41,6 +42,7 @@ export async function ensureOrcaCliAvailableForAgentSkillTerminal({
       // user needs app-level context before that OS dialog appears.
       await showOrcaCliRegistrationPromptToast(registrationPromptDelayMs)
       const next = await window.api.cli.install()
+      notifyOrcaCliInstallStateChanged()
       onStatusChange?.(next)
       showCliPrerequisiteWarning(next)
       return next

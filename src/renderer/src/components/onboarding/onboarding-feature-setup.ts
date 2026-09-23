@@ -15,17 +15,17 @@ import { e2eConfig } from '@/lib/e2e-config'
 import { showOrcaCliRegistrationPromptToast } from '@/lib/agent-skill-cli-prerequisite'
 import type { ProjectAgentSkillRuntime } from '@/lib/project-skill-runtime'
 import type { OnboardingFeatureSetupRuntimeContext } from './onboarding-feature-setup-runtime'
-import {
-  buildSkillCommandForRuntime,
-  getWslCliDistroRequest
-} from '../settings/CliSkillRuntimeSetup'
+import { buildSkillCommandForRuntime } from '../settings/CliSkillRuntimeSetup'
 import {
   ORCHESTRATION_ENABLED_STORAGE_KEY,
   ORCHESTRATION_SETUP_DISMISSED_STORAGE_KEY,
   notifyOrchestrationSetupStateChanged
 } from '@/lib/orchestration-setup-state'
 import type { EventProps } from '../../../../shared/telemetry-events'
-import { readAgentRuntimeCliInstallStatus } from '@/lib/orca-cli-install-status'
+import {
+  installAgentRuntimeCli,
+  readAgentRuntimeCliInstallStatus
+} from '@/lib/orca-cli-install-status'
 
 export type OnboardingFeatureSetupId =
   | 'browserUse'
@@ -179,14 +179,10 @@ export function createOnboardingFeatureSetupDeps(
   }
 
   // Register `orca` on the same PATH used by the skill install (#12103).
-  const wslDistroRequest =
-    agentRuntime?.runtime === 'wsl' ? getWslCliDistroRequest(agentRuntime) : undefined
-  const isWsl = agentRuntime?.runtime === 'wsl'
   return {
     getCliStatus: () => readAgentRuntimeCliInstallStatus(agentRuntime),
     showCliRegistrationPrompt: showOrcaCliRegistrationPromptToast,
-    installCli: () =>
-      isWsl ? window.api.cli.installWsl(wslDistroRequest) : window.api.cli.install(),
+    installCli: () => installAgentRuntimeCli(agentRuntime),
     writeClipboardText: (text) => window.api.ui.writeClipboardText(text),
     getComputerUsePermissionStatus: () => window.api.computerUsePermissions.getStatus(),
     openComputerUsePermissionSetup: () => window.api.computerUsePermissions.openSetup(),
