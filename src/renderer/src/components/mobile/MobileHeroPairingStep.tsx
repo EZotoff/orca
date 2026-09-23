@@ -198,8 +198,8 @@ export function MobileHeroPairingStep({
           </strong>
           {translate('auto.components.mobile.MobileHero.2f077ef4eb', ', and scan the code.')}
         </p>
+        <MachineNameField id="mobile-hero-machine-name" className="mp-pairing-machine" />
       </div>
-      <MachineNameField id="mobile-hero-machine-name" className="mp-pairing-machine" />
       <div className="mp-pairing-relay">
         <MobilePairingConnectionOptions
           value={connectionMode}

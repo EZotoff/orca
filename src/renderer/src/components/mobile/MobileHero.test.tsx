@@ -378,8 +378,9 @@ describe('HeroFlow height', () => {
     expect(field).toHaveAttribute('data-id', 'mobile-hero-machine-name')
     const qr = screen.getByRole('img', { name: 'Pairing QR' })
     expect(field.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    // Why: the class rides on the field itself so the web client, where it renders nothing, gets
-    // no empty grid row.
+    // Why: the field lives inside the copy cell, so the web client, where it renders nothing,
+    // leaves no empty grid track behind.
+    expect(field.parentElement).toHaveClass('mp-pairing-copy')
     expect(field).toHaveClass('mp-pairing-machine')
   })
 
