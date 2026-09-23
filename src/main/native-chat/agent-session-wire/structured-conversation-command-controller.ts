@@ -11,7 +11,10 @@ export class StructuredConversationCommandController {
   readonly pending = new Map<string, { key: string; count: number }>()
   constructor(
     private readonly context: () => StructuredAgentSessionMutationContext,
-    private readonly host: Pick<StructuredAgentSessionHost, 'attach' | 'flushStreamedEvents'>
+    private readonly host: Pick<
+      StructuredAgentSessionHost,
+      'attach' | 'flushStreamedEvents' | 'restartResume'
+    >
   ) {}
   send = (
     caller: StructuredAgentSessionCaller,
@@ -25,7 +28,16 @@ export class StructuredConversationCommandController {
             message: 'Wait for the conversation operation to finish.'
           }
         })
-      : sendStructuredAgentSessionTurn(this.context(), caller, params)
+      : this.admitSend(caller, params)
+
+  private admitSend = (
+    caller: StructuredAgentSessionCaller,
+    params: Parameters<typeof sendStructuredAgentSessionTurn>[2]
+  ): ReturnType<typeof sendStructuredAgentSessionTurn> => {
+    // The user's own message is the manual continuation a failed restart resume asked for.
+    this.host.restartResume.releaseFailureOnUserSend(caller, params)
+    return sendStructuredAgentSessionTurn(this.context(), caller, params)
+  }
 
   run = (caller: StructuredAgentSessionCaller, params: ConversationCommandParams) => {
     const key = JSON.stringify([caller.callerKey, params.envelope.clientOperationId])
