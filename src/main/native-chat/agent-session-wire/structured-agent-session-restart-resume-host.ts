@@ -168,7 +168,7 @@ export function createStructuredAgentSessionRestartResume(
     sessionIds: readonly string[] | undefined,
     owner: string,
     afterAcquire?: (marker: AgentSessionResumeMarker) => Promise<void>,
-    settlement: Omit<Parameters<typeof failures.settle>[2], 'candidates' | 'markers'> = {
+    settlement: Omit<Parameters<typeof failures.settle>[2], 'candidates' | 'attempts'> = {
       failureAfterResume: () => null,
       failureReason: () => 'agent_session_resume_refused'
     }
@@ -197,6 +197,7 @@ export function createStructuredAgentSessionRestartResume(
       )) ?? []
     const markersBySession = new Map(reserved.map((marker) => [marker.sessionId, marker]))
     const candidates = derive(reserved, 'may-be-held')
+    const attempts = failures.attempts(markersBySession)
 
     let outcomes: StructuredAgentSessionResumeOutcome[]
     try {
@@ -204,6 +205,7 @@ export function createStructuredAgentSessionRestartResume(
         {
           admission,
           consumeMarker: async (sessionId) => {
+            attempts.observe(sessionId)
             const marker = markersBySession.get(sessionId)
             return marker !== undefined && derive([marker], 'may-be-held').length === 1
           },
@@ -216,6 +218,7 @@ export function createStructuredAgentSessionRestartResume(
                 await afterAcquire?.(marker)
               }
             } finally {
+              attempts.observe(sessionId)
               surfaces.release(sessionId, holder)
             }
           }
@@ -233,11 +236,7 @@ export function createStructuredAgentSessionRestartResume(
       }
       throw error
     }
-    await failures.settle(operationId, outcomes, {
-      candidates,
-      markers: markersBySession,
-      ...settlement
-    })
+    await failures.settle(operationId, outcomes, { candidates, attempts, ...settlement })
     return outcomes
   }
 

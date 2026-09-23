@@ -44,12 +44,24 @@ type FailureCapsule = Pick<
   | 'forgetFailures'
 >
 
+/** What a failure is filed against: the chat's newest user message as its own attempt ended. Kept
+ *  per chat rather than read at settlement, because the rest of a batch can take a while and a
+ *  message the user sends meanwhile answers the failure rather than belongs to it. */
+export type StructuredAgentSessionRestartAttempts = {
+  observe: (sessionId: string) => void
+  latestUserItemId: (sessionId: string) => string | null
+}
+
 export type StructuredAgentSessionRestartFailureLedger = {
   /** The stored records, current or not. */
   read: () => Promise<AgentSessionResumeFailureRecord[]>
   /** The current records as rows a surface can show; sessions this host no longer holds are left
    *  out, and records the chat has since superseded are dropped and pruned. */
   list: () => Promise<StructuredAgentSessionResumeFailure[]>
+  /** One action's attempts; a chat unreadable at its attempt falls back to its reserved marker. */
+  attempts: (
+    markers: ReadonlyMap<string, AgentSessionResumeMarker>
+  ) => StructuredAgentSessionRestartAttempts
   /** Settles one operation's reservations: the agent carried on, or the failure is filed. Rows the
    *  operation still owns after that are reopened. */
   settle: (
@@ -57,8 +69,7 @@ export type StructuredAgentSessionRestartFailureLedger = {
     outcomes: readonly StructuredAgentSessionResumeOutcome[],
     action: {
       candidates: readonly StructuredAgentSessionResumeCandidate[]
-      /** The reserved markers, for a chat whose journal is not readable here at settlement. */
-      markers: ReadonlyMap<string, AgentSessionResumeMarker>
+      attempts: StructuredAgentSessionRestartAttempts
       /** How a reattached session's action ended; null when the agent carried on. Reattaching alone
        *  is not the whole action, so the runner's own outcome cannot decide this. */
       failureAfterResume: (sessionId: string) => AgentSessionResumeFailureOutcome | null
@@ -179,8 +190,6 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
         completed.push(outcome.sessionId)
         continue
       }
-      // Read after the action, so the continuation's own message is part of the filed state.
-      const latest = liveStructuredAgentSessionLatestUserItemId(deps.sessions, outcome.sessionId)
       failures.push({
         sessionId: outcome.sessionId,
         failedAt: deps.now(),
@@ -189,10 +198,7 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
           ? action.failureReason(outcome.sessionId)
           : (outcome.reason ?? 'agent_session_resume_refused'),
         latestPrompt: promptBySession.get(outcome.sessionId) ?? '',
-        latestUserItemId:
-          latest !== undefined
-            ? latest
-            : (action.markers.get(outcome.sessionId)?.latestUserItemId ?? null)
+        latestUserItemId: action.attempts.latestUserItemId(outcome.sessionId)
       })
     }
     await deps
@@ -216,9 +222,27 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
       })
   }
 
+  const attempts: StructuredAgentSessionRestartFailureLedger['attempts'] = (markers) => {
+    const observed = new Map<string, string | null>()
+    return {
+      // Observed after the attempt, so the continuation's own message is part of the filed state.
+      observe: (sessionId) => {
+        const latest = liveStructuredAgentSessionLatestUserItemId(deps.sessions, sessionId)
+        if (latest !== undefined) {
+          observed.set(sessionId, latest)
+        }
+      },
+      latestUserItemId: (sessionId) => {
+        const latest = observed.get(sessionId)
+        return latest !== undefined ? latest : (markers.get(sessionId)?.latestUserItemId ?? null)
+      }
+    }
+  }
+
   return {
     read,
     list,
+    attempts,
     settle,
     dismiss: (sessionIds, beforeClearAll) =>
       deps.enqueue(async () => {

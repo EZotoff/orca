@@ -19,6 +19,7 @@ import {
 import { latestStructuredAgentSessionUserItem } from '../../../shared/structured-agent-session-projection'
 import { agentJournalSubmissionKey } from '../../../shared/agent-session-journal-item-key'
 import { STRUCTURED_AGENT_SESSION_RESTART_CONTINUATION_CALLER } from './structured-agent-session-restart-resume-wiring'
+import { StructuredAgentSessionResumeAdmission } from './structured-agent-session-restart-resume-runner'
 import {
   adapter,
   attach,
@@ -674,7 +675,9 @@ it('fails closed on corrupt recovery storage while ordinary hold and send still 
 
 /** A reattach that succeeds and a continuation the host refuses: the provider finished the turn
  *  while the continuation was being recorded, as the superseded-evidence cases above set up. */
-async function supersededRefusal() {
+/** `afterAttempt` runs once this chat's own attempt has ended, before the action settles — where
+ *  the rest of a batch would still be running. */
+async function supersededRefusal(afterAttempt?: () => Promise<void>) {
   const { host, acquire, dispatch, root } = await interruptedRestart()
   await host.restartResume.list()
   await host.hold(SESSION, 'pane')
@@ -693,13 +696,25 @@ async function supersededRefusal() {
     )
     return cursor
   })
+  const admit = StructuredAgentSessionResumeAdmission.prototype.run
+  const admitting = vi.spyOn(StructuredAgentSessionResumeAdmission.prototype, 'run')
+  if (afterAttempt) {
+    admitting.mockImplementationOnce(async function (this, ...args) {
+      try {
+        return await admit.apply(this, args)
+      } finally {
+        await afterAttempt()
+      }
+    })
+  }
   try {
     const result = await host.restartResume.continueAfterRestart([SESSION], 'modal')
     expect(result.continued).toMatchObject([{ outcome: 'refused' }])
-    expect(dispatch).not.toHaveBeenCalled()
+    expect(dispatch).toHaveBeenCalledTimes(afterAttempt ? 1 : 0)
     return { host, root, result }
   } finally {
     writing.mockRestore()
+    admitting.mockRestore()
   }
 }
 
@@ -742,6 +757,27 @@ it('retires a recorded failure once the user sends in that chat, with no send ho
   await host.send(CALLER, { envelope: envelope('agentSession.send', { body }), body })
   expect(await host.restartResume.listFailures()).toEqual([])
   // Pruned from the file too, not only hidden.
+  await vi.waitFor(async () => {
+    expect(await new AgentSessionRecoveryCapsule(root).listFailed(NOW)).toEqual([])
+  })
+  host.release(SESSION, 'pane')
+})
+
+// The chat's own note asks for a message, and the user can send it while other chats in the same
+// action are still being continued. That message answers the failure; it is not part of it.
+it('retires a failure the user answered before the rest of the action settled', async () => {
+  const body = hostTestMessage('Carry on from where you stopped')
+  const { host, root, result } = await supersededRefusal(async () => {
+    await hostTestState().host.send(CALLER, {
+      envelope: envelope('agentSession.send', { body }),
+      body
+    })
+  })
+  expect(statusNotes(host)).toContainEqual({
+    text: AGENT_SESSION_RESTART_CONTINUATION_REFUSED_NOTE,
+    tone: 'error'
+  })
+  expect(result.failed).toEqual([])
   await vi.waitFor(async () => {
     expect(await new AgentSessionRecoveryCapsule(root).listFailed(NOW)).toEqual([])
   })
