@@ -84,7 +84,8 @@ describe('main agent turn verdicts and clocks', () => {
       const cancelled = server.getStatusSnapshot()[0]?.mainAgent
       expect(cancelled).toMatchObject({ state: 'done', outcome: 'cancellation' })
 
-      vi.setSystemTime(1_005_000)
+      // Past the late-event suppression window, so the restatement itself is published.
+      vi.setSystemTime(1_030_000)
       await post(
         '/hook/grok',
         restatement === 'session end'
