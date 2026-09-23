@@ -178,9 +178,9 @@ export function useNativeChatTranscriptWindow({
   }, [])
   useEffect(() => finishReaderTakeover, [finishReaderTakeover])
 
-  // Read, never assumed: the "load earlier" button sits above the window and
-  // appears exactly when a prepend is about to land, which is the one moment a
-  // stale margin would place every row wrong.
+  // Read, never assumed: the older-history row sits above the window and
+  // leaves exactly when the last prepend lands, which is the one moment a stale
+  // margin would place every row wrong.
   const readScrollMargin = useCallback(() => {
     const container = scrollRef.current
     const sizer = sizerElementRef.current

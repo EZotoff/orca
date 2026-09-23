@@ -25,6 +25,7 @@ type StructuredSessionMessageListProps = {
   showLiveTurnActivity?: boolean
   isWorking?: boolean
   runtimeContext?: unknown
+  session?: { hasMore: boolean; loadingEarlier: boolean; loadEarlier: () => Promise<void> }
 }
 
 const initialMessageListProps: StructuredSessionMessageListProps | null = null
@@ -67,7 +68,10 @@ export function createStructuredSessionMocks() {
     supportsBackgroundTaskStopAll: true,
     backgroundTasks: [] as AgentSessionBackgroundTask[],
     settledBackgroundTasks: [] as AgentSessionBackgroundTask[],
-    stopBackgroundTask: vi.fn<StopBackgroundTaskSpy>()
+    stopBackgroundTask: vi.fn<StopBackgroundTaskSpy>(),
+    hasOlder: false,
+    loadingOlder: false,
+    loadOlder: vi.fn<() => Promise<void>>()
   }
 
   const moduleFactories = {
@@ -111,9 +115,9 @@ export function createStructuredSessionMocks() {
                   ]),
             status: mocks.status,
             error: outbox.error,
-            hasOlder: false,
-            loadingOlder: false,
-            loadOlder: vi.fn<() => Promise<void>>(),
+            hasOlder: mocks.hasOlder,
+            loadingOlder: mocks.loadingOlder,
+            loadOlder: mocks.loadOlder,
             prompts: mocks.promptItems,
             outbox: outbox.outbox,
             blockedClientMessageId: outbox.blockedClientMessageId,
@@ -242,6 +246,9 @@ export function createStructuredSessionMocks() {
     mocks.stopBackgroundTask.mockReset()
     mocks.backgroundTasks = []
     mocks.settledBackgroundTasks = []
+    mocks.hasOlder = false
+    mocks.loadingOlder = false
+    mocks.loadOlder.mockReset()
   }
 
   return { mocks, moduleFactories, resetStructuredSessionMocks }

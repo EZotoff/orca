@@ -30,7 +30,7 @@ afterAll(() => restoreViewport())
 afterEach(cleanup)
 
 const EMPTY: never[] = []
-const loadEarlier = () => {}
+const loadEarlier = async (): Promise<void> => {}
 function Transcript({ items }: { items: AgentJournalRenderItem[] }) {
   const messages = useStructuredAgentSessionMessages(items, EMPTY, EMPTY)
   const session: NativeChatLiveSession = {

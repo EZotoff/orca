@@ -46,8 +46,9 @@ export type NativeChatLiveSession = NativeChatSession & {
   hasMore: boolean
   /** Whether an older-history page is currently loading. */
   loadingEarlier: boolean
-  /** Grow the read window to page in older history (scrolled-to-top trigger). */
-  loadEarlier: () => void
+  /** Grow the read window to page in older history. Rejects when the page did
+   *  not land, so the list stops paging automatically and offers a retry. */
+  loadEarlier: () => Promise<void>
   /** Raw initial-read phase. `status` is not a substitute: a live 'working' hook
    *  outranks (and so hides) 'loading', which would let a consumer deciding from
    *  an empty list treat an in-flight transcript as real history. */
@@ -284,7 +285,7 @@ export function useNativeChatLiveSession(
     // `transport` identity changes on an owner flip, re-running this effect to re-subscribe against the new host.
   }, [agent, enabled, sessionId, sourceKey, transcriptPath, transport, transcriptLifecycleControl])
 
-  const loadEarlier = useCallback(() => {
+  const loadEarlier = useCallback(async (): Promise<void> => {
     if (
       !latestEnabled.current ||
       !sessionId ||
@@ -298,36 +299,37 @@ export function useNativeChatLiveSession(
     const requestEpoch = transcriptEpochRef.current
     const lifecycleRevision = transcriptLifecycleControl.revision()
     setLoadingEarlier(true)
-    void transport
-      .readSession(agent, sessionId, nextLimit, transcriptPath ?? undefined)
-      .then((result) => {
-        // Ignore a stale resolve from a swapped session or flipped owner — either would paint the wrong host's history.
-        if (
-          !latestEnabled.current ||
-          latestSessionId.current !== sessionId ||
-          latestTransport.current !== transport ||
-          transcriptEpochRef.current !== requestEpoch
-        ) {
-          return
-        }
-        if (!result || 'error' in result) {
-          return
-        }
-        limitRef.current = nextLimit
-        // Read results are an ordered tail: replace the base list so the older page prepends in order; live appends stay separate.
-        setRead({ phase: 'ready', messages: result.messages })
-        transcriptLifecycleControl.replaceFromPagination(result.lifecycle, lifecycleRevision)
-        setHasMore(hasMoreNativeChatHistory(result.messages.length, nextLimit))
-      })
-      .catch(() => {
-        // Swallow a rejected "load more" read: keep the already-loaded transcript intact rather than surface the rejection.
-      })
-      .finally(() => {
-        // Clear the loading flag on the current epoch even when the result is discarded, so a stale resolve can't wedge it true.
-        if (latestEnabled.current && transcriptEpochRef.current === requestEpoch) {
-          setLoadingEarlier(false)
-        }
-      })
+    try {
+      const result = await transport.readSession(
+        agent,
+        sessionId,
+        nextLimit,
+        transcriptPath ?? undefined
+      )
+      // Ignore a stale resolve from a swapped session or flipped owner — either would paint the wrong host's history.
+      if (
+        !latestEnabled.current ||
+        latestSessionId.current !== sessionId ||
+        latestTransport.current !== transport ||
+        transcriptEpochRef.current !== requestEpoch
+      ) {
+        return
+      }
+      // A failed page leaves the loaded transcript intact; the caller decides whether to retry.
+      if (!result || 'error' in result) {
+        throw new Error(result?.error ?? 'Earlier messages could not be read')
+      }
+      limitRef.current = nextLimit
+      // Read results are an ordered tail: replace the base list so the older page prepends in order; live appends stay separate.
+      setRead({ phase: 'ready', messages: result.messages })
+      transcriptLifecycleControl.replaceFromPagination(result.lifecycle, lifecycleRevision)
+      setHasMore(hasMoreNativeChatHistory(result.messages.length, nextLimit))
+    } finally {
+      // Clear the loading flag on the current epoch even when the result is discarded, so a stale resolve can't wedge it true.
+      if (latestEnabled.current && transcriptEpochRef.current === requestEpoch) {
+        setLoadingEarlier(false)
+      }
+    }
   }, [
     agent,
     sessionId,

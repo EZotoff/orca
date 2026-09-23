@@ -28,6 +28,8 @@ import {
 } from './native-chat-transcript-slots'
 import { useNativeChatTranscriptWindow } from './use-native-chat-transcript-window'
 import { useNativeChatTranscriptScroll } from './use-native-chat-transcript-scroll'
+import { useNativeChatOlderHistoryAutoload } from './use-native-chat-older-history-autoload'
+import { NativeChatOlderHistoryRow } from './NativeChatOlderHistoryRow'
 import { useNativeChatMessageRail } from './use-native-chat-message-rail'
 import { NativeChatMessageRail } from './NativeChatMessageRail'
 import type { NativeChatRailItem } from './native-chat-message-rail-items'
@@ -225,14 +227,19 @@ export function NativeChatMessageList({
     isWorking,
     showTypingIndicator,
     isVisible,
-    hasMore,
-    loadingEarlier,
-    loadEarlier,
     alignToViewportTop: transcriptWindow.alignToViewportTop,
     scrollToEnd: transcriptWindow.scrollToEnd,
     restoreScrollOffset: transcriptWindow.restoreScrollOffset,
     consumeProgrammaticScroll: transcriptWindow.consumeProgrammaticScroll,
     reconcileReaderScroll: transcriptWindow.reconcileReaderScroll
+  })
+  const olderHistory = useNativeChatOlderHistoryAutoload({
+    scrollRef,
+    historyKey: `${session.agent}:${session.sessionId ?? ''}`,
+    isVisible,
+    hasMore,
+    loadingEarlier,
+    loadEarlier
   })
   const rail = useNativeChatMessageRail({
     scrollRef,
@@ -329,18 +336,10 @@ export function NativeChatMessageList({
                 className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-[5px]"
               >
                 {hasMore ? (
-                  <div className="flex justify-center py-1">
-                    <button
-                      type="button"
-                      onClick={loadEarlier}
-                      disabled={loadingEarlier}
-                      className="rounded-md px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                    >
-                      {loadingEarlier
-                        ? translate('components.native-chat.loadingEarlier', 'Loading…')
-                        : translate('components.native-chat.loadEarlier', 'Load earlier messages')}
-                    </button>
-                  </div>
+                  <NativeChatOlderHistoryRow
+                    olderHistory={olderHistory}
+                    loadingEarlier={loadingEarlier}
+                  />
                 ) : null}
                 <NativeChatTranscriptItems
                   slots={slots}

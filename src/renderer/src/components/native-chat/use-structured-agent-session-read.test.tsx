@@ -305,21 +305,61 @@ describe('useStructuredAgentSessionRead unattached page refusals', () => {
       useStructuredAgentSessionRead({ sessionId: 'session-a', target: LOCAL_TARGET })
     )
     await waitFor(() => expect(result.current.state.hasOlder).toBe(true))
-    await act(async () => result.current.loadOlder())
-    return result
+    let rejection: unknown = null
+    await act(async () => {
+      await result.current.loadOlder().catch((reason: unknown) => {
+        rejection = reason
+      })
+    })
+    return { result, rejection }
   }
 
   it('leaves the transcript alone when an older page hits a closed session', async () => {
-    const result = await loadedTailThatRefusesOlder(refusal('agent_session_ownership_unknown'))
+    const closed = refusal('agent_session_ownership_unknown')
+    const { result, rejection } = await loadedTailThatRefusesOlder(closed)
     expect(result.current.state.status).not.toBe('error')
     expect(result.current.state.error).toBeUndefined()
     expect(result.current.state.items).toHaveLength(300)
     expect(result.current.loadingOlder).toBe(false)
+    // Still a page that did not land, so automatic paging stops.
+    expect(rejection).toBe(closed)
   })
 
   it('still reports an older page that failed for any other reason', async () => {
-    const result = await loadedTailThatRefusesOlder(new Error('journal read failed'))
+    const failure = new Error('journal read failed')
+    const { result, rejection } = await loadedTailThatRefusesOlder(failure)
     expect(result.current.state.status).toBe('error')
     expect(result.current.state.error).toBe('Error: journal read failed')
+    expect(rejection).toBe(failure)
+  })
+
+  it('rejects an older page the host answered with a reset, without failing the pane', async () => {
+    const tailItems = Array.from({ length: 300 }, (_, index) =>
+      message(`tail-${index}`, 301 + index, 'assistant')
+    )
+    mocks.call
+      .mockResolvedValueOnce({ ok: true, page: page('tail', tailItems, true) })
+      .mockResolvedValueOnce({
+        ok: false,
+        reset: 'cursor_compacted',
+        page: page('tail', tailItems, true)
+      })
+    const { result } = renderHook(() =>
+      useStructuredAgentSessionRead({ sessionId: 'session-a', target: LOCAL_TARGET })
+    )
+    await waitFor(() => expect(result.current.state.hasOlder).toBe(true))
+
+    let outcome = 'pending'
+    await act(async () => {
+      outcome = await result.current.loadOlder().then(
+        () => 'resolved',
+        () => 'rejected'
+      )
+    })
+
+    expect(outcome).toBe('rejected')
+    expect(result.current.state.status).not.toBe('error')
+    expect(result.current.state.items).toHaveLength(300)
+    expect(result.current.loadingOlder).toBe(false)
   })
 })

@@ -229,7 +229,7 @@ describe('useNativeChatLiveSession — transport routing', () => {
     )
     // Kick off load-earlier against env-1, then flip the owner before it resolves.
     await act(async () => {
-      latest?.loadEarlier()
+      void latest?.loadEarlier()
     })
     await rerender(root, {
       paneKey: PANE,
@@ -264,7 +264,9 @@ describe('useNativeChatLiveSession — transport routing', () => {
     transport.readSession.mockImplementationOnce(
       () => new Promise((resolve) => (resolveEarlier = resolve))
     )
-    await act(async () => latest?.loadEarlier())
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
 
     await act(async () =>
       transport.emit({
@@ -298,7 +300,9 @@ describe('useNativeChatLiveSession — transport routing', () => {
     transport.readSession.mockImplementationOnce(
       () => new Promise((resolve) => (resolveEarlier = resolve))
     )
-    await act(async () => latest?.loadEarlier())
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
 
     await act(async () =>
       transport.emit({
@@ -333,7 +337,9 @@ describe('useNativeChatLiveSession — transport routing', () => {
     transport.readSession.mockImplementationOnce(
       () => new Promise((resolve) => (resolveEarlier = resolve))
     )
-    await act(async () => latest?.loadEarlier())
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
 
     await rerender(root, {
       paneKey: PANE,
@@ -348,6 +354,53 @@ describe('useNativeChatLiveSession — transport routing', () => {
     })
 
     expect(latest?.messages.map((message) => message.id)).not.toContain('stale-old-path')
+  })
+
+  // The list pages automatically; a page that did not land must reject or it
+  // would look like progress and be asked for again.
+  it.each([
+    ['an error result', () => Promise.resolve({ error: 'unreadable transcript' })],
+    ['a rejected read', () => Promise.reject(new Error('host unreachable'))]
+  ])('rejects load-earlier on %s and keeps the loaded transcript', async (_case, read) => {
+    const transport = getMockTransport('env-1')
+    const many = Array.from({ length: NATIVE_CHAT_INITIAL_LIMIT }, (_unused, n) =>
+      assistant(`kept-${n}`, 'kept')
+    )
+    await render({ paneKey: PANE, agent: AGENT, sessionId: SESSION, runtimeEnvironmentId: 'env-1' })
+    await act(async () => transport.emit({ type: 'snapshot', messages: many, hasMore: true }))
+    transport.readSession.mockImplementationOnce(read)
+
+    let outcome: unknown = 'pending'
+    await act(async () => {
+      outcome = await latest?.loadEarlier().then(
+        () => 'resolved',
+        () => 'rejected'
+      )
+    })
+
+    expect(outcome).toBe('rejected')
+    expect(latest?.loadingEarlier).toBe(false)
+    expect(latest?.hasMore).toBe(true)
+    expect(latest?.messages).toHaveLength(NATIVE_CHAT_INITIAL_LIMIT)
+  })
+
+  it('resolves load-earlier once the older page lands', async () => {
+    const transport = getMockTransport('env-1')
+    const many = Array.from({ length: NATIVE_CHAT_INITIAL_LIMIT }, (_unused, n) =>
+      assistant(`page-${n}`, 'page')
+    )
+    await render({ paneKey: PANE, agent: AGENT, sessionId: SESSION, runtimeEnvironmentId: 'env-1' })
+    await act(async () => transport.emit({ type: 'snapshot', messages: many, hasMore: true }))
+    transport.readSession.mockResolvedValueOnce({
+      messages: [assistant('older', 'older'), ...many]
+    })
+
+    await act(async () => {
+      await latest?.loadEarlier()
+    })
+
+    expect(latest?.messages[0]?.id).toBe('older')
+    expect(latest?.hasMore).toBe(false)
   })
 
   it('seeds ready from readSession when the subscription never delivers a frame', async () => {
@@ -521,7 +574,9 @@ describe('useNativeChatLiveSession — transport routing', () => {
     transport.readSession.mockImplementationOnce(
       () => new Promise((resolve) => (resolveEarlier = resolve))
     )
-    await act(async () => latest?.loadEarlier())
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
     await act(async () =>
       transport.emit({
         type: 'appended',

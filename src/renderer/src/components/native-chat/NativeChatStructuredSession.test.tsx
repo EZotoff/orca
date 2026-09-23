@@ -151,6 +151,29 @@ describe('NativeChatStructuredSession', () => {
     expect(mocks.messageListProps?.isVisible).toBe(isVisible)
   })
 
+  // The list pages automatically and stops on a rejected page, so the controller's
+  // promise has to reach it rather than be swallowed on the way.
+  it('hands the list the controller older-history state and its load promise', async () => {
+    const failure = new Error('older page failed')
+    mocks.hasOlder = true
+    mocks.loadingOlder = true
+    mocks.loadOlder.mockRejectedValueOnce(failure)
+    render(
+      <NativeChatStructuredSession
+        isVisible
+        isFocusedGroup
+        tabId="structured-tab-older"
+        sessionId="session-older"
+        target={{ kind: 'local' }}
+        agent="codex"
+      />
+    )
+
+    expect(mocks.messageListProps?.session).toMatchObject({ hasMore: true, loadingEarlier: true })
+    await expect(mocks.messageListProps?.session?.loadEarlier()).rejects.toBe(failure)
+    expect(mocks.loadOlder).toHaveBeenCalledOnce()
+  })
+
   // Turn status and transcript image previews shipped Codex-first. Every
   // structured session renders through the same list, so neither is agent-gated.
   it.each(['codex', 'claude'] as const)(
