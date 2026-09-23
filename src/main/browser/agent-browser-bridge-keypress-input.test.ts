@@ -234,9 +234,7 @@ describe('AgentBrowserBridge keypress input', () => {
     })
   })
 
-  // Why: one keypress looks the page up three times — the queued target, the
-  // automation-visibility refresh, then the dispatch guard. Serving the first N keeps the
-  // later ones on the guard; the trailing assertions fail loudly if that count ever moves.
+  // Why: one keypress looks the page up twice — the queued target, then the dispatch guard. Serving the first N keeps the later ones on the guard; the trailing assertions fail loudly if that count ever moves.
   function killPageAfterLookups(lookups: number): () => number {
     let remaining = lookups
     webContentsFromIdMock.mockImplementation((id: number) => {

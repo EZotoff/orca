@@ -106,8 +106,7 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
       const visibleTarget = await this.refreshTargetAfterAutomationVisibility(
         sessionName,
         worktreeId,
-        target,
-        options
+        target
       )
       return await execute(sessionName, visibleTarget)
     } finally {
@@ -118,8 +117,7 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
   protected async refreshTargetAfterAutomationVisibility(
     sessionName: string,
     worktreeId: string | undefined,
-    target: ResolvedBrowserCommandTarget,
-    options: EnqueueTargetedCommandOptions
+    target: ResolvedBrowserCommandTarget
   ): Promise<ResolvedBrowserCommandTarget> {
     const visibleTarget = this.resolveCommandTarget(worktreeId, target.browserPageId)
     if (visibleTarget.webContentsId === target.webContentsId) {
@@ -137,8 +135,7 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
     await this.restartSessionForTarget(
       sessionName,
       visibleTarget.browserPageId,
-      visibleTarget.webContentsId,
-      { recreate: options.ensureSession !== false }
+      visibleTarget.webContentsId
     )
 
     return visibleTarget

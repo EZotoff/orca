@@ -205,11 +205,10 @@ describe('AgentBrowserBridge', () => {
         restartSessionForTarget: (
           sessionName: string,
           browserPageId: string,
-          webContentsId: number,
-          options: { recreate: boolean }
+          webContentsId: number
         ) => Promise<void>
       }
-    ).restartSessionForTarget('orca-tab-tab-1', 'tab-1', 100, { recreate: false })
+    ).restartSessionForTarget('orca-tab-tab-1', 'tab-1', 100)
 
     const closeCall = execFileMock.mock.calls.find((call: unknown[]) =>
       (call[1] as string[]).includes('close')

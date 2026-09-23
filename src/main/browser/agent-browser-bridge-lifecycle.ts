@@ -134,8 +134,7 @@ export abstract class AgentBrowserBridgeLifecycle extends AgentBrowserBridgeRawP
   protected async restartSessionForTarget(
     sessionName: string,
     browserPageId: string,
-    webContentsId: number,
-    options: { recreate: boolean } = { recreate: true }
+    webContentsId: number
   ): Promise<void> {
     const pendingCreation = this.pendingSessionCreation.get(sessionName)
     if (pendingCreation) {
@@ -177,9 +176,7 @@ export abstract class AgentBrowserBridgeLifecycle extends AgentBrowserBridgeRawP
       }
     }
 
-    if (options.recreate) {
-      await this.ensureSession(sessionName, browserPageId, webContentsId)
-    }
+    await this.ensureSession(sessionName, browserPageId, webContentsId)
   }
 
   protected async destroySession(
