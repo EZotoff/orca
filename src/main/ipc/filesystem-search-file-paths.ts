@@ -1,3 +1,4 @@
+import type { ChildProcess } from 'node:child_process'
 import { sep } from 'node:path'
 import type { Store } from '../persistence'
 import { fileListingCancellationError } from '../../shared/file-listing-cancellation'
@@ -18,16 +19,12 @@ import {
   RipgrepLaunchFailureError,
   RipgrepUnavailableError
 } from '../../shared/ripgrep-process-availability'
-import { wslAwareSpawn } from '../git/runner'
 import { parseWslPath, toWindowsWslPath } from '../wsl'
 import { resolveAuthorizedPath } from './filesystem-auth'
 import { getLocalGitOptionsForRegisteredWorktree } from './local-worktree-runtime-options'
 import { QuickOpenSubprocessPathAccumulator } from '../../shared/quick-open-listing-limits'
-import {
-  bundledRipgrepCommand,
-  bundledRipgrepUnavailableError,
-  bundledRipgrepWslSpawnOptions
-} from '../ripgrep/bundled-ripgrep-path'
+import { bundledRipgrepUnavailableError } from '../ripgrep/bundled-ripgrep-path'
+import { spawnBundledRipgrep } from '../ripgrep/bundled-ripgrep-spawn'
 
 export type QuickOpenFilePathSearchResult = {
   paths: string[]
@@ -115,13 +112,12 @@ function scanRipgrepPaths(args: {
     let parseablePathCount = 0
     let processErrorObserved = false
     let unavailableExitObserved = false
-    let child: ReturnType<typeof wslAwareSpawn>
+    let child: ChildProcess
     try {
-      const rgCommand = bundledRipgrepCommand({ wsl: Boolean(args.wslDistroForOutput) })
-      child = wslAwareSpawn(rgCommand, args.args, {
+      child = spawnBundledRipgrep(args.args, {
         cwd: args.authorizedRootPath,
-        ...(args.localGitOptions.wslDistro ? { wslDistro: args.localGitOptions.wslDistro } : {}),
-        ...(args.wslDistroForOutput ? bundledRipgrepWslSpawnOptions(rgCommand) : {}),
+        wslDistro: args.localGitOptions.wslDistro,
+        wslDistroForOutput: args.wslDistroForOutput,
         stdio: ['ignore', 'pipe', 'pipe']
       })
     } catch (error) {

@@ -13,11 +13,8 @@ import {
   ingestRgJsonLine
 } from '../../shared/text-search'
 import { parseWslPath, toWindowsWslPath } from '../wsl'
-import {
-  bundledRipgrepCommand,
-  bundledRipgrepUnavailableError,
-  bundledRipgrepWslSpawnOptions
-} from '../ripgrep/bundled-ripgrep-path'
+import { bundledRipgrepUnavailableError } from '../ripgrep/bundled-ripgrep-path'
+import { spawnBundledRipgrep } from '../ripgrep/bundled-ripgrep-spawn'
 import {
   absorbPendingRipgrepSpawnError,
   isRipgrepUnavailableExit,
@@ -25,7 +22,6 @@ import {
   killSpawnedRipgrepProcess
 } from '../../shared/ripgrep-process-availability'
 import type { ChildProcessHandle } from '../../shared/child-process/process-spec'
-import { wslAwareSpawn } from '../git/runner'
 import type { RuntimeFileExplorerPath } from './runtime-file-command-target'
 import type { IFilesystemProvider } from '../providers/types'
 import { joinWorktreeRelativePath, normalizeRuntimeRelativePath } from './runtime-relative-paths'
@@ -112,11 +108,10 @@ export class RuntimeFileCommandsWithSearchLocalRuntimeFiles extends RuntimeFileC
         }
       }
 
-      const rgCommand = bundledRipgrepCommand({ wsl: Boolean(wslDistroForOutput) })
-      const nextChild = wslAwareSpawn(rgCommand, rgArgs, {
+      const nextChild = spawnBundledRipgrep(rgArgs, {
         cwd: authorizedRootPath,
-        ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
-        ...(wslDistroForOutput ? bundledRipgrepWslSpawnOptions(rgCommand) : {}),
+        wslDistro: localGitOptions.wslDistro,
+        wslDistroForOutput,
         stdio: ['ignore', 'pipe', 'pipe']
       })
       child = nextChild

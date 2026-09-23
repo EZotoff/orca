@@ -77,6 +77,9 @@ export async function isRipgrepSpawnCwdUsable(cwd: string): Promise<boolean> {
   }
 }
 
+// Why a bare 'rg' is allowed here, against the rule in AGENTS.md: this asks "does this host have any
+// ripgrep on PATH", which only the relay's git/readdir fallback chain needs. Main-process code has a
+// bundled binary and must resolve it by absolute path instead -- see spawnBundledRipgrep.
 function checkRipgrepAvailableWithoutCwd(): Promise<boolean> {
   return new Promise((resolve) => {
     let child: ChildProcess

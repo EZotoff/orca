@@ -2,7 +2,6 @@ import { sep } from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import type { Store } from '../persistence'
 import { resolveAuthorizedPath } from './filesystem-auth'
-import { wslAwareSpawn } from '../git/runner'
 import { parseWslPath, toWindowsWslPath } from '../wsl'
 import { getLocalGitOptionsForRegisteredWorktree } from './local-worktree-runtime-options'
 import {
@@ -17,11 +16,8 @@ import {
   limitQuickOpenFilesBySerializedBytes,
   serializedQuickOpenPathBytes
 } from '../../shared/quick-open-transport-budget'
-import {
-  bundledRipgrepCommand,
-  bundledRipgrepUnavailableError,
-  bundledRipgrepWslSpawnOptions
-} from '../ripgrep/bundled-ripgrep-path'
+import { bundledRipgrepUnavailableError } from '../ripgrep/bundled-ripgrep-path'
+import { spawnBundledRipgrep } from '../ripgrep/bundled-ripgrep-spawn'
 import {
   absorbPendingRipgrepSpawnError,
   isRipgrepUnavailableExit,
@@ -76,7 +72,6 @@ export async function listQuickOpenFiles(
   })
   const primary = rgArgs.primary
   const ignoredPass = rgArgs.ignoredPass
-  const rgCommand = bundledRipgrepCommand({ wsl: Boolean(wslDistroForOutput) })
 
   const runRg = (args: string[]): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -125,10 +120,10 @@ export async function listQuickOpenFiles(
         return maxResults !== undefined && files.size >= maxResults
       }
 
-      const child = wslAwareSpawn(rgCommand, args, {
+      const child = spawnBundledRipgrep(args, {
         cwd: authorizedRootPath,
-        ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
-        ...(wslDistroForOutput ? bundledRipgrepWslSpawnOptions(rgCommand) : {}),
+        wslDistro: localGitOptions.wslDistro,
+        wslDistroForOutput,
         stdio: ['ignore', 'pipe', 'pipe']
       })
       let timer: ReturnType<typeof setTimeout>

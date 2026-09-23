@@ -17,7 +17,6 @@ import {
   killSpawnedRipgrepProcess
 } from '../../../shared/ripgrep-process-availability'
 import { toWindowsWslPath, parseWslPath } from '../../wsl'
-import { wslAwareSpawn } from '../../git/runner'
 import {
   getSshFilesystemProvider,
   requireSshFilesystemProvider
@@ -29,11 +28,8 @@ import {
   pathMatchesFileNameFilterTokens,
   splitFileNameFilterTokens
 } from '../../../shared/file-name-filter-tokens'
-import {
-  bundledRipgrepCommand,
-  bundledRipgrepUnavailableError,
-  bundledRipgrepWslSpawnOptions
-} from '../../ripgrep/bundled-ripgrep-path'
+import { bundledRipgrepUnavailableError } from '../../ripgrep/bundled-ripgrep-path'
+import { spawnBundledRipgrep } from '../../ripgrep/bundled-ripgrep-spawn'
 import { getLocalGitOptionsForRegisteredWorktree } from '../local-worktree-runtime-options'
 import { QuickOpenPathRanker } from '../../../shared/quick-open-path-search'
 import type { FilesystemHandlerContext } from './filesystem-handler-context'
@@ -118,11 +114,10 @@ export function registerFilesystemSearchHandlers(context: FilesystemHandlerConte
           }
         }
 
-        const rgCommand = bundledRipgrepCommand({ wsl: Boolean(wslDistroForOutput) })
-        const nextChild = wslAwareSpawn(rgCommand, rgArgs, {
+        const nextChild = spawnBundledRipgrep(rgArgs, {
           cwd: rootPath,
-          ...(localGitOptions.wslDistro ? { wslDistro: localGitOptions.wslDistro } : {}),
-          ...(wslDistroForOutput ? bundledRipgrepWslSpawnOptions(rgCommand) : {}),
+          wslDistro: localGitOptions.wslDistro,
+          wslDistroForOutput,
           stdio: ['ignore', 'pipe', 'pipe']
         })
         child = nextChild
