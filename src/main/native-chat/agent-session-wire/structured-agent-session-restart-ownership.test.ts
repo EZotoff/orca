@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import {
   AgentSessionRecoveryCapsule,
   AGENT_SESSION_RECOVERY_CAPSULE_FILE
@@ -6,8 +6,7 @@ import {
 import { parseAgentSessionResumeMarker } from '../../../shared/agent-session-resume-marker'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
-import { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
-import { StructuredAgentSessionHost } from './structured-agent-session-host'
+import type { StructuredAgentSessionHost } from './structured-agent-session-host'
 import { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import { pendingApproval } from './structured-agent-session-restart-resume-test-harness'
 import { restartContinuationEnvelope } from './structured-agent-session-restart-continuation'
@@ -20,13 +19,12 @@ import { latestStructuredAgentSessionUserItem } from '../../../shared/structured
 import { agentJournalSubmissionKey } from '../../../shared/agent-session-journal-item-key'
 import { STRUCTURED_AGENT_SESSION_RESTART_CONTINUATION_CALLER } from './structured-agent-session-restart-resume-wiring'
 import { StructuredAgentSessionResumeAdmission } from './structured-agent-session-restart-resume-runner'
+import { GRACE, interruptedRestart } from './structured-agent-session-interrupted-restart-test-support'
 import {
-  adapter,
   attach,
   CALLER,
   envelope,
-  hostTestState,
-  replaceHostTestState
+  hostTestState
 } from './structured-agent-session-host-test-harness'
 import {
   HOST_TEST_NOW as NOW,
@@ -34,69 +32,6 @@ import {
   HOST_TEST_THREAD as THREAD,
   hostTestMessage
 } from './structured-agent-session-host-test-data'
-
-const GRACE = 15_000
-
-async function interruptedRestart(
-  work: 'turn' | 'submission' = 'turn',
-  historyBoundaryConsistent = true
-) {
-  const previous = hostTestState()
-  await attach()
-  const events = previous.acquire.mock.calls[0]?.[0].events
-  if (!events) {
-    throw new Error('missing provider event sink')
-  }
-  if (work === 'submission') {
-    previous.dispatch.mockResolvedValueOnce({ state: 'admitted' })
-    const body = hostTestMessage('Perform the original task')
-    await previous.host.send(CALLER, { envelope: envelope('agentSession.send', { body }), body })
-  } else {
-    events.appendItem(
-      { provider: 'codex', threadId: THREAD, turnId: 'interrupted-turn', ordinal: 1 },
-      { kind: 'turn', turnId: 'interrupted-turn', state: 'running' }
-    )
-  }
-  await previous.host.flushStreamedEvents(SESSION)
-  await previous.host.flushAllStreamedEvents()
-  const store = await AgentSessionRecordStore.open({
-    directory: join(previous.root, 'store'),
-    hostId: 'local'
-  })
-  const closeSession = vi.fn(async () => true)
-  const host = new StructuredAgentSessionHost({
-    store,
-    adapter: {
-      ...adapter(),
-      closeSession,
-      ...(work === 'submission'
-        ? {
-            providerHistoryWindow: async () => ({
-              items: [],
-              boundaryConsistent: historyBoundaryConsistent,
-              turnInFlight: false
-            })
-          }
-        : {})
-    },
-    journalRoot: previous.root,
-    claimKeyId: 'key-1',
-    mintSpawnToken: () => 'spawn-next',
-    probeOwner: async () => ({ outcome: 'pid-absent' }),
-    recoveryCapsule: new AgentSessionRecoveryCapsule(previous.root),
-    releaseGraceMs: GRACE,
-    now: () => NOW
-  })
-  replaceHostTestState({ store, host })
-  previous.acquire.mockClear()
-  previous.releaseAcquisition.mockClear()
-  previous.dispatch.mockClear()
-  const capsule = JSON.parse(
-    await readFile(join(previous.root, AGENT_SESSION_RECOVERY_CAPSULE_FILE), 'utf8')
-  )
-  const marker = parseAgentSessionResumeMarker(capsule.entries[0]?.marker)
-  return { ...hostTestState(), host, store, closeSession, marker }
-}
 
 afterEach(() => vi.useRealTimers())
 
@@ -107,6 +42,7 @@ function statusNotes(host: StructuredAgentSessionHost) {
       item.body.kind === 'status' ? [{ text: item.body.text, tone: item.body.tone }] : []
     )
 }
+
 
 it('publishes continuation attribution to the subscribed chat without another provider event', async () => {
   const { host } = await interruptedRestart()
@@ -202,6 +138,8 @@ it('does not continue work that acquisition proves was never delivered', async (
   expect(host.isHeld(SESSION)).toBe(false)
 })
 
+// Newer work is the user's message or anything still live. A turn the provider opened and already
+// closed on its own is neither — Claude opens one on resume just to report what it lost.
 it.each(['turn', 'message'] as const)(
   'checks interrupted work at send admission after a newer %s supersedes it',
   async (newer) => {
@@ -225,7 +163,7 @@ it.each(['turn', 'message'] as const)(
     events.appendItem(
       { provider: 'codex', threadId: THREAD, turnId: 'newer-turn', ordinal: 1 },
       newer === 'turn'
-        ? { kind: 'turn', turnId: 'newer-turn', state: 'completed' }
+        ? { kind: 'turn', turnId: 'newer-turn', state: 'running' }
         : hostTestMessage('A newer task from another client')
     )
     await host.flushStreamedEvents(SESSION)
