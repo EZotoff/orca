@@ -30,7 +30,11 @@ import { useNativeChatTranscriptWindow } from './use-native-chat-transcript-wind
 import { useNativeChatTranscriptScroll } from './use-native-chat-transcript-scroll'
 import { useNativeChatMessageRail } from './use-native-chat-message-rail'
 import { NativeChatMessageRail } from './NativeChatMessageRail'
-import type { NativeChatRailItem } from './native-chat-message-rail-items'
+import type {
+  NativeChatRailItem,
+  NativeChatRailOutlineEntry
+} from './native-chat-message-rail-items'
+import { useNativeChatRailHistoryJump } from './use-native-chat-rail-history-jump'
 
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import { isStructuredAgentSessionThinking } from '../../../../shared/structured-agent-session-live-turn'
@@ -53,6 +57,7 @@ type NativeChatNavigationRequest =
 export function NativeChatMessageList({
   session,
   journalItems,
+  railOutline = null,
   isVisible = true,
   isWorking,
   expandSignal,
@@ -69,6 +74,8 @@ export function NativeChatMessageList({
 }: {
   session: NativeChatLiveSession
   journalItems?: readonly AgentJournalRenderItem[]
+  /** User messages older than the loaded window, from the host's outline. */
+  railOutline?: readonly NativeChatRailOutlineEntry[] | null
   isVisible?: boolean
   isWorking: boolean
   /** Toolbar-driven desired open state for every tool run; each flip re-syncs. */
@@ -237,10 +244,11 @@ export function NativeChatMessageList({
   const rail = useNativeChatMessageRail({
     scrollRef,
     slots,
-    virtualItems: transcriptWindow.virtualItems
+    virtualItems: transcriptWindow.virtualItems,
+    outline: railOutline
   })
   const servicedRailJumpRef = useRef(0)
-  const selectRailItem = useCallback((item: NativeChatRailItem) => {
+  const jumpToLoadedRailItem = useCallback((item: NativeChatRailItem) => {
     navigationSequence.current += 1
     setNavigationRequest({
       kind: 'rail',
@@ -248,6 +256,20 @@ export function NativeChatMessageList({
       requestId: navigationSequence.current
     })
   }, [])
+  const railHistoryJump = useNativeChatRailHistoryJump({
+    items: rail.items,
+    messages: session.messages,
+    hasMore,
+    loadEarlier,
+    jumpToLoaded: jumpToLoadedRailItem
+  })
+  const jumpThroughHistory = railHistoryJump.jump
+  // A tick with no slot is older history: page it in, then jump.
+  const selectRailItem = useCallback(
+    (item: NativeChatRailItem) =>
+      item.slotIndex === null ? jumpThroughHistory(item) : jumpToLoadedRailItem(item),
+    [jumpThroughHistory, jumpToLoadedRailItem]
+  )
   // Pinning the target mounts it in the same commit, so the row exists by the time
   // layout runs. Routed through `scrollMessageToTop` rather than the virtualizer
   // because that is what releases the bottom pin — without it the next streamed
@@ -332,7 +354,7 @@ export function NativeChatMessageList({
                   <div className="flex justify-center py-1">
                     <button
                       type="button"
-                      onClick={loadEarlier}
+                      onClick={() => void loadEarlier()}
                       disabled={loadingEarlier}
                       className="rounded-md px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                     >
@@ -357,7 +379,12 @@ export function NativeChatMessageList({
               </div>
             </div>
           </div>
-          <NativeChatMessageRail rail={rail} scrollRef={scrollRef} onSelect={selectRailItem} />
+          <NativeChatMessageRail
+            rail={rail}
+            scrollRef={scrollRef}
+            onSelect={selectRailItem}
+            pendingId={railHistoryJump.pendingId}
+          />
           {showJump ? (
             <button
               type="button"

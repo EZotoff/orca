@@ -46,8 +46,9 @@ export type NativeChatLiveSession = NativeChatSession & {
   hasMore: boolean
   /** Whether an older-history page is currently loading. */
   loadingEarlier: boolean
-  /** Grow the read window to page in older history (scrolled-to-top trigger). */
-  loadEarlier: () => void
+  /** Grow the read window to page in older history (scrolled-to-top trigger). A lane
+   *  that can say when the page has landed returns that promise. */
+  loadEarlier: () => void | Promise<void>
   /** Raw initial-read phase. `status` is not a substitute: a live 'working' hook
    *  outranks (and so hides) 'loading', which would let a consumer deciding from
    *  an empty list treat an in-flight transcript as real history. */

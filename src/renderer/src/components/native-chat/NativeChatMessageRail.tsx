@@ -28,11 +28,13 @@ function NativeChatMessageRailItems({
   mode,
   items,
   activeId,
+  pendingId,
   onSelect
 }: {
   mode: NativeChatMessageRailMode
   items: readonly NativeChatRailItem[]
   activeId: string | null
+  pendingId: string | null
   onSelect: (item: NativeChatRailItem) => void
 }): React.JSX.Element {
   const listRef = useRef<HTMLUListElement>(null)
@@ -60,6 +62,7 @@ function NativeChatMessageRailItems({
             ref={item.id === activeId ? currentItemRef : undefined}
             onClick={() => onSelect(item)}
             aria-current={item.id === activeId ? 'true' : undefined}
+            aria-busy={item.id === pendingId ? true : undefined}
             data-current={item.id === activeId}
             className={cn(
               'flex w-full cursor-pointer rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -69,7 +72,8 @@ function NativeChatMessageRailItems({
             <span
               className={cn(
                 'line-clamp-2 text-xs leading-snug',
-                item.id === activeId ? 'text-foreground' : 'text-muted-foreground'
+                item.id === activeId ? 'text-foreground' : 'text-muted-foreground',
+                item.id === pendingId && 'animate-pulse'
               )}
             >
               {railItemLabel(item)}
@@ -84,11 +88,14 @@ function NativeChatMessageRailItems({
 export const NativeChatMessageRail = memo(function NativeChatMessageRail({
   rail,
   scrollRef,
-  onSelect
+  onSelect,
+  pendingId = null
 }: {
   rail: NativeChatMessageRailState
   scrollRef: React.RefObject<HTMLDivElement | null>
   onSelect: (item: NativeChatRailItem) => void
+  /** A tick whose older history is still paging in. */
+  pendingId?: string | null
 }): React.JSX.Element | null {
   // Hover preserves focus; activation enters the focus-managed prompt picker.
   const [mode, setMode] = useState<NativeChatMessageRailMode>(null)
@@ -209,6 +216,7 @@ export const NativeChatMessageRail = memo(function NativeChatMessageRail({
           mode={mode}
           items={rail.items}
           activeId={rail.activeId}
+          pendingId={pendingId}
           onSelect={(item) => {
             onSelect(item)
             setMode(null)
