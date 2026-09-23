@@ -275,10 +275,6 @@ function ignoredStructuredAgentArgsWarning(
       }
 }
 
-/**
- * The one place a terminal agent is created, so the structured-refusal downgrade builds the same
- * surface — carrying the same argv prompt — as a launch that chose a terminal outright.
- */
 /** What every route that builds a terminal agent passes on, so the startup terminal of a new
  *  workspace and the terminal of an existing one start the same agent. */
 function terminalLaunchInputs(intent: AgentLaunchIntent) {
@@ -292,6 +288,10 @@ function terminalLaunchInputs(intent: AgentLaunchIntent) {
   }
 }
 
+/**
+ * The one place a terminal agent is created, so the structured-refusal downgrade builds the same
+ * surface — carrying the same argv prompt — as a launch that chose a terminal outright.
+ */
 async function createTerminalSurface(
   execution: AgentLaunchExecution,
   worktreeId: string

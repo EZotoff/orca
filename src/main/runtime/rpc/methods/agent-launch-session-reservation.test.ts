@@ -1,9 +1,8 @@
 /**
  * The chat session a caller reserves for the structured launch `agent.launch` creates.
  *
- * The structured counterpart of the reserved pane: a client that places its own tabs mints the
- * session id first, because the chat tab's id derives from it, and records where that tab goes
- * before the launch returns. The outcome's `sessionId` says which session really exists.
+ * The caller mints the conversation's id so it knows which session it started before the reply
+ * arrives. The outcome's `sessionId` says which session really exists.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises'

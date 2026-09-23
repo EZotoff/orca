@@ -44,7 +44,8 @@ export type AgentLaunchFingerprintInput = {
   /** In: it is baked into the pane's PTY env and names the tab the caller placed, so a retry that
    *  reserved another pane must conflict rather than replay a key its placement cannot find. */
   paneKey?: string
-  /** In, for the same reason as `paneKey`: it names the chat tab the caller placed. */
+  /** In: a retry that minted another session is a different request, since replaying would answer
+   *  with a conversation this caller did not mint. */
   sessionId?: string
   /**
    * `launchSource` is deliberately absent, and this is the reasoned exclusion rather than an

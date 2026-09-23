@@ -110,9 +110,8 @@ export const AgentLaunchFields = z.object({
     }, 'Malformed launch pane key')
     .optional(),
   /**
-   * The chat session a structured launch should create, minted by a caller that places its own
-   * tabs: the structured counterpart of `paneKey`. The chat tab's id derives from it, so the caller
-   * can record its placement before the launch returns. Refused when a session with this id already
+   * The id of the chat session a structured launch creates, minted by the caller so it knows which
+   * conversation it started before the reply arrives. Refused when a session with this id already
    * exists. Ignored when the launch settles as a terminal; the outcome's `sessionId` says which
    * session really exists.
    */
