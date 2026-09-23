@@ -71,7 +71,7 @@ describe('the Codex root verdict across the Stop that follows an inferred interr
     markCodexLeadTurnInterrupted(state, PANE_KEY)
     // A late Stop for that same turn carries no verdict of its own; it must not erase ours.
     const stopped = post({ hook_event_name: 'Stop' })
-    expect(stopped?.payload.lead).toEqual({
+    expect(stopped?.payload.mainAgent).toEqual({
       state: 'done',
       outcome: 'cancellation',
       stateStartedAt: expect.any(Number)
@@ -83,9 +83,15 @@ describe('the Codex root verdict across the Stop that follows an inferred interr
     markCodexLeadTurnInterrupted(state, PANE_KEY)
     post({ hook_event_name: 'Stop' })
     const resumed = post({ hook_event_name: 'UserPromptSubmit', prompt: 'again' })
-    expect(resumed?.payload.lead).toEqual({ state: 'working', stateStartedAt: expect.any(Number) })
+    expect(resumed?.payload.mainAgent).toEqual({
+      state: 'working',
+      stateStartedAt: expect.any(Number)
+    })
     const finished = post({ hook_event_name: 'Stop' })
-    expect(finished?.payload.lead).toEqual({ state: 'done', stateStartedAt: expect.any(Number) })
+    expect(finished?.payload.mainAgent).toEqual({
+      state: 'done',
+      stateStartedAt: expect.any(Number)
+    })
   })
 
   it('carries the verdict through a relayed root Stop the same way', () => {
@@ -98,7 +104,7 @@ describe('the Codex root verdict across the Stop that follows an inferred interr
       { state: 'done', prompt: 'ship', agentType: 'codex' },
       undefined
     )
-    expect(reconciled.lead).toEqual({
+    expect(reconciled.mainAgent).toEqual({
       state: 'done',
       outcome: 'cancellation',
       stateStartedAt: expect.any(Number)
