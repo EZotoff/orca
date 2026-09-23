@@ -66,19 +66,18 @@ afterEach(async () => {
 })
 
 describe('failed create owner verdict', () => {
-  it('replays an exit-proven failure as exited with its reason, and a new operation starts fresh', async () => {
+  it('answers an exit-proven failure as exited on the first call and its replay, and a new operation starts fresh', async () => {
+    // The cleanup's release proves the whole tree gone: the common failed start.
     acquire.mockRejectedValueOnce(new Error(EXIT_REASON))
     const first = hostTestAttachParams(null)
+    const refusal = {
+      code: 'agent_session_operation_invalid',
+      message: EXIT_REASON,
+      ownerVerdict: 'exited'
+    }
 
-    await expect(host.attach(CALLER, first)).rejects.toThrow(EXIT_REASON)
-    await expect(host.attach(CALLER, first)).resolves.toEqual({
-      ok: false,
-      refusal: {
-        code: 'agent_session_operation_invalid',
-        message: EXIT_REASON,
-        ownerVerdict: 'exited'
-      }
-    })
+    await expect(host.attach(CALLER, first)).resolves.toEqual({ ok: false, refusal })
+    await expect(host.attach(CALLER, first)).resolves.toEqual({ ok: false, refusal })
     expect(acquire).toHaveBeenCalledOnce()
 
     const retry = hostTestAttachParams(null)

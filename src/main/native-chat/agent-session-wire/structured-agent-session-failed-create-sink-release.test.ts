@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
-import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
+import {
+  AgentSessionPreSpawnError,
+  type StructuredAgentSessionAdapter
+} from './structured-agent-session-adapter'
 import { StructuredAgentSessionHost } from './structured-agent-session-host'
 import {
   HOST_TEST_NOW as NOW,
@@ -59,20 +62,31 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-describe('a create that throws after its child wrote through the unbound sink', () => {
-  it('releases the sink, so a new create and shutdown both proceed', async () => {
-    acquire.mockImplementationOnce(async ({ events }) => {
-      // The published child's exit reached the translator before any journal was attached.
-      events?.setActivity?.(null)
-      throw new Error(EXIT_REASON)
-    })
+describe('a create that fails after its child wrote through the unbound sink', () => {
+  it.each([
+    // The common failed start: answered as a refusal.
+    ['refused', new Error(EXIT_REASON)],
+    // A failure the attach cannot classify still throws, and must release the sink too.
+    ['thrown', new AgentSessionPreSpawnError(new Error(EXIT_REASON))]
+  ])(
+    'releases the sink when %s, so a new create and shutdown both proceed',
+    async (_how, cause) => {
+      acquire.mockImplementationOnce(async ({ events }) => {
+        // The published child's exit reached the translator before any journal was attached.
+        events?.setActivity?.(null)
+        throw cause
+      })
 
-    await expect(host.attach(CALLER, hostTestAttachParams(null))).rejects.toThrow(EXIT_REASON)
+      const failed = host.attach(CALLER, hostTestAttachParams(null))
+      await (cause instanceof AgentSessionPreSpawnError
+        ? expect(failed).rejects.toThrow(EXIT_REASON)
+        : expect(failed).resolves.toMatchObject({ ok: false, refusal: { message: EXIT_REASON } }))
 
-    await expect(host.attach(CALLER, hostTestAttachParams(null))).resolves.toMatchObject({
-      ok: true
-    })
-    await expect(host.flushAllStreamedEvents()).resolves.toBeUndefined()
-    expect(acquire).toHaveBeenCalledTimes(2)
-  })
+      await expect(host.attach(CALLER, hostTestAttachParams(null))).resolves.toMatchObject({
+        ok: true
+      })
+      await expect(host.flushAllStreamedEvents()).resolves.toBeUndefined()
+      expect(acquire).toHaveBeenCalledTimes(2)
+    }
+  )
 })

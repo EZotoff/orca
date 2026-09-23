@@ -132,7 +132,7 @@ function fakeClaude() {
       exitVerdict: selfExit?.exitVerdict ?? { root: 'live', tree: 'unverifiable' },
       close: async () => {
         connection.closed = true
-        return selfExit === null
+        return selfExit === null || selfExit.exitVerdict.tree === 'exited'
       }
     }
     connections.push(connection)
@@ -486,7 +486,18 @@ describe('a structured Claude session over agentSession.*', () => {
 
     const failed = await call('agentSession.create', createIntentParams())
 
-    expect(JSON.stringify(failed)).toContain('claude: not signed in')
+    // Answered once, as the refusal a replay of this operation gives, never thrown first.
+    expect(failed).toMatchObject({
+      ok: true,
+      result: {
+        ok: false,
+        refusal: {
+          code: 'agent_session_operation_invalid',
+          message: expect.stringContaining('claude: not signed in'),
+          ownerVerdict: 'exited'
+        }
+      }
+    })
     const lease = leaseOf(SESSION)
     // Latching here would refuse every later attach with agent_session_ownership_unknown,
     // wedging a user who only needs to sign in.
@@ -499,6 +510,30 @@ describe('a structured Claude session over agentSession.*', () => {
     claude.setSelfExit(null)
     // Signing in and reopening the chat works: the reservation was not latched.
     await ok<{ fence: number }>('agentSession.ensure', ensureParams(lease.runtimeFence))
+  })
+
+  it('answers a create whose whole CLI tree exited as exited on the first call', async () => {
+    claude.setSelfExit({
+      message: 'claude stream-json exited (code 1): claude: not signed in',
+      // The common case: the close ladder proves the root and every descendant gone.
+      exitVerdict: { root: 'exited', tree: 'exited' }
+    })
+
+    const failed = await call('agentSession.create', createIntentParams())
+
+    expect(failed).toMatchObject({
+      ok: true,
+      result: {
+        ok: false,
+        refusal: {
+          code: 'agent_session_operation_invalid',
+          message: expect.stringContaining('claude: not signed in'),
+          ownerVerdict: 'exited'
+        }
+      }
+    })
+    expect(leaseOf(SESSION)).toMatchObject({ claimStatus: 'released', handoffStage: null })
+    claude.setSelfExit(null)
   })
 
   it('keeps a session reserved when a descendant of the failed start was seen alive', async () => {

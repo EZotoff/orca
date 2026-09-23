@@ -1,14 +1,12 @@
 import { settlePostAcquisitionAttachFailure } from './structured-agent-session-attach-failure'
-import { rewindRefusal } from './structured-rewind-refusal'
 import {
-  AgentSessionRewindRefusal,
-  AgentSessionAcquisitionExitUnprovenError,
-  AgentSessionAcquisitionRootExitObservedError,
-  AgentSessionAcquisitionRefusal,
-  isAgentSessionPreSpawnError,
-  type StructuredAgentSessionAcquireInput,
-  type StructuredAgentSessionAdapter,
-  type StructuredAgentSessionProviderChildPhase
+  failedAcquisitionRefusal,
+  failedAcquisitionSettlement
+} from './structured-agent-session-failed-create-refusal'
+import type {
+  StructuredAgentSessionAcquireInput,
+  StructuredAgentSessionAdapter,
+  StructuredAgentSessionProviderChildPhase
 } from './structured-agent-session-adapter'
 // The host supplies owner authority; this flow reserves, proves, and publishes the session.
 
@@ -175,31 +173,6 @@ export async function performAttach(
     const spawnToken = reservedRecord?.lease.reservedSpawnToken
     if (reservedRecord && spawnToken && !unsupportedReservationSettlementAttempted) {
       // Settle processless proof and failed operation atomically.
-      const exitProof = isAgentSessionPreSpawnError(error)
-        ? 'processless'
-        : error instanceof AgentSessionAcquisitionExitUnprovenError
-          ? 'unproven'
-          : error instanceof AgentSessionAcquisitionRootExitObservedError
-            ? 'root-exit-observed'
-            : 'exit-proven'
-      const outcome =
-        error instanceof AgentSessionAcquisitionExitUnprovenError
-          ? {
-              status: 'failed' as const,
-              code: 'agent_session_ownership_unknown',
-              message: error.message
-            }
-          : error instanceof AgentSessionAcquisitionRefusal
-            ? {
-                status: 'failed' as const,
-                code: error.code,
-                message: error.message
-              }
-            : {
-                status: 'failed' as const,
-                code: 'agent_session_operation_invalid',
-                message: error instanceof Error ? error.message : String(error)
-              }
       try {
         await store.settleFailedAcquisition({
           sessionId,
@@ -207,8 +180,7 @@ export async function performAttach(
           spawnToken,
           callerKey: input.callerKey,
           operationId: params.envelope.clientOperationId,
-          outcome,
-          exitProof,
+          ...failedAcquisitionSettlement(error),
           now: input.now()
         })
       } catch (settlementError) {
@@ -218,28 +190,16 @@ export async function performAttach(
         )
       }
     }
-    if (error instanceof AgentSessionRewindRefusal) {
-      return rewindRefusal(error.rewindReason)
-    }
-    if (error instanceof AgentSessionAcquisitionRefusal) {
-      return { ok: false, refusal: { code: error.code, message: error.message } }
-    }
-    // A first-hand root exit is a settled fact, answered once as a refusal rather than thrown
-    // now and refused only on replay; its message is the provider's own diagnostic.
-    if (error instanceof AgentSessionAcquisitionRootExitObservedError) {
-      return {
+    return (
+      failedAcquisitionRefusal(error) ?? {
         ok: false,
-        refusal: { code: 'agent_session_operation_invalid', message: error.message }
+        refusal: classifyStoreFailure(
+          error,
+          store.getRecord(sessionId)?.lease.runtimeFence ?? null,
+          store.getRecord(sessionId)
+        )
       }
-    }
-    return {
-      ok: false,
-      refusal: classifyStoreFailure(
-        error,
-        store.getRecord(sessionId)?.lease.runtimeFence ?? null,
-        store.getRecord(sessionId)
-      )
-    }
+    )
   }
 
   let attached: AttachedJournal
