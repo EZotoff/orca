@@ -229,7 +229,8 @@ child-work fact `mainAgent` cannot express: a shell running beside the main agen
 whose liveness hydration does not restore, so such a row is not seeded. Writers that
 restate a row without their own inventory (an OSC repaint, an inferred answer) carry
 it forward beside the `mainAgent` they keep. A child's sticky permission prompt
-still records the main agent's own progress in the held row's `mainAgent`.
+still records the main agent's own progress in the held row's `mainAgent`, with the
+shell fact beside it, and pushes the held row to subscribers when `mainAgent` changes.
 
 Two combining rules remain outside the shared fold and are named so a reader
 does not mistake them for drift:
