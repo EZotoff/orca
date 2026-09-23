@@ -291,6 +291,33 @@ describe('host-owned terminal open-or-attach', () => {
     await expect(mounted).resolves.toMatchObject({ id: fixture.ptyId })
   })
 
+  // Why a pane with no owner: the owner probe waits on its own, so only a fresh spawn shows this gate.
+  it('holds a fresh pty:spawn with no owner until the local provider startup settles', async () => {
+    const fixture = paneFixture('fresh-spawn-waits')
+    fixture.store.getWorkspaceSession.mockReturnValue({
+      tabsByWorktree: {},
+      terminalLayoutsByTabId: {},
+      terminalPtyIncarnationsByPaneKey: {}
+    })
+    let releaseStartup!: () => void
+    const startup = new Promise<void>((resolve) => {
+      releaseStartup = resolve
+    })
+    const providerSpawn = vi.fn(async () => ({ id: fixture.ptyId, incarnationId: 'inc-fresh' }))
+    installProvider(providerSpawn)
+    register(fixture, { awaitLocalPtyStartup: () => startup })
+
+    const mounted = handlers.get('pty:spawn')!(null, fixture.spawnArgs)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(providerSpawn).not.toHaveBeenCalled()
+
+    releaseStartup()
+    await expect(mounted).resolves.toMatchObject({ id: fixture.ptyId })
+    expect(providerSpawn).toHaveBeenCalledExactlyOnceWith(
+      expect.not.objectContaining({ attachOnly: true })
+    )
+  })
+
   it('holds runtime terminal.create adoption until the local provider startup settles', async () => {
     const fixture = paneFixture('runtime-adopt-waits')
     let releaseStartup!: () => void
