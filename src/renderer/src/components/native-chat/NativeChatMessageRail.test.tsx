@@ -316,6 +316,59 @@ describe('message rail interaction', () => {
       expect(scrolled).toEqual([screen.getByRole('button', { name: 'Prompt 2' })])
     })
 
+    // Pressing an item focuses it, which turns a hover preview interactive. Scrolling
+    // the lit row into view at that moment moved the list under the pointer, so the
+    // release landed on the list instead of the pressed item and the click was lost.
+    it('does not move the list or focus when a press makes a hover preview interactive', async () => {
+      const user = userEvent.setup()
+      const select = vi.fn()
+      render(
+        <NativeChatMessageRail
+          rail={{
+            items: overflowItems,
+            ticks: overflowItems,
+            activeId: overflowItems[19].id,
+            visible: true
+          }}
+          scrollRef={{ current: document.createElement('div') }}
+          onSelect={select}
+        />
+      )
+      await user.hover(screen.getByRole('button', { name: 'Your messages' }))
+      await screen.findByRole('dialog')
+      // Anti-vacuous: opening revealed the lit row.
+      expect(scrolled).toEqual([screen.getByRole('button', { name: 'Overflow prompt 19' })])
+      scrolled.length = 0
+
+      const older = screen.getByRole('button', { name: 'Overflow prompt 0' })
+      await user.pointer({ keys: '[MouseLeft>]', target: older })
+      expect(scrolled).toEqual([])
+      expect(document.activeElement).toBe(older)
+      await user.pointer({ keys: '[/MouseLeft]', target: older })
+      expect(select).toHaveBeenCalledWith(overflowItems[0])
+    })
+
+    it('reveals the lit row when the list opens from the keyboard', async () => {
+      const user = userEvent.setup()
+      render(
+        <NativeChatMessageRail
+          rail={{
+            items: overflowItems,
+            ticks: overflowItems,
+            activeId: overflowItems[12].id,
+            visible: true
+          }}
+          scrollRef={{ current: document.createElement('div') }}
+          onSelect={vi.fn()}
+        />
+      )
+      screen.getByRole('button', { name: 'Your messages' }).focus()
+      await user.keyboard('{Enter}')
+      const lit = screen.getByRole('button', { name: 'Overflow prompt 12' })
+      await waitFor(() => expect(document.activeElement).toBe(lit))
+      expect(scrolled).toContain(lit)
+    })
+
     it('leaves the panel alone when no message is lit', async () => {
       render(
         <NativeChatMessageRail

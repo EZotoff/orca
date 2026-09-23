@@ -41,17 +41,31 @@ function NativeChatMessageRailItems({
   const currentItemRef = useRef<HTMLButtonElement>(null)
   const previousMode = useRef<NativeChatMessageRailMode>(null)
 
+  const open = mode !== null
+  // Reveal the lit row when the list opens or its rows shift — not when a hover
+  // preview turns interactive, which a press on an item does: moving the list
+  // then slides the item out from under the pointer and the click is lost.
   useLayoutEffect(() => {
-    const currentItem = activeId === null || items.length === 0 ? null : currentItemRef.current
-    if (mode !== null) {
-      currentItem?.scrollIntoView({ block: 'nearest' })
+    if (open && activeId !== null && items.length > 0) {
+      currentItemRef.current?.scrollIntoView({ block: 'nearest' })
     }
-    if (mode === 'interactive' && previousMode.current !== 'interactive') {
-      const focusTarget = currentItem ?? listRef.current?.querySelector<HTMLButtonElement>('button')
+  }, [activeId, items, open])
+
+  // Entering interactive from the rail moves focus into the list; entering it by
+  // focusing an item already put focus where the reader chose.
+  useLayoutEffect(() => {
+    if (
+      mode === 'interactive' &&
+      previousMode.current !== 'interactive' &&
+      !listRef.current?.contains(document.activeElement)
+    ) {
+      const focusTarget =
+        (activeId === null ? null : currentItemRef.current) ??
+        listRef.current?.querySelector<HTMLButtonElement>('button')
       focusTarget?.focus({ preventScroll: true })
     }
     previousMode.current = mode
-  }, [activeId, items, mode])
+  }, [activeId, mode])
 
   return (
     <ul ref={listRef} className="scrollbar-sleek max-h-64 overflow-y-auto overflow-x-hidden">
