@@ -11,7 +11,7 @@ type KeyboardHarness = {
   /** Every call, not the surviving subscriptions: a hook that subscribes and unsubscribes still
    *  costs a phone a render per keyboard event, which `listeners.size` alone would not show. */
   addListenerCalls: number
-  /** What `Keyboard.metrics()` answers: the keyboard already up when the hook subscribes. */
+  /** What `Keyboard.metrics()` answers. */
   metrics: { height: number } | undefined
 }
 
@@ -45,6 +45,8 @@ vi.mock('react-native', () => ({
 }))
 
 import {
+  currentSoftKeyboardHeight,
+  subscribeSoftKeyboard,
   useKeyboardAvoidingPadding,
   useKeyboardOcclusion,
   useSoftKeyboard,
@@ -53,7 +55,7 @@ import {
 
 let lift = 0
 let padding = 0
-let keyboardState: SoftKeyboardState = { height: 0, visible: false, duration: 0 }
+let keyboardState: SoftKeyboardState = { height: 0, visible: false }
 
 function Harness(): null {
   lift = useKeyboardOcclusion()
@@ -93,7 +95,7 @@ describe('the keyboard the phone reports', () => {
     keyboard.metrics = undefined
     lift = 0
     padding = 0
-    keyboardState = { height: 0, visible: false, duration: 0 }
+    keyboardState = { height: 0, visible: false }
   })
 
   it('animates with the keyboard on iOS and after it on Android', async () => {
@@ -157,11 +159,11 @@ describe('the keyboard the phone reports', () => {
         duration: 250
       })
     })
-    expect(keyboardState).toEqual({ height: 336, visible: true, duration: 250 })
+    expect(keyboardState).toEqual({ height: 336, visible: true })
     await act(async () => {
       keyboard.listeners.get('keyboardWillHide')?.({ endCoordinates: { height: 0 }, duration: 0 })
     })
-    expect(keyboardState).toEqual({ height: 0, visible: false, duration: 0 })
+    expect(keyboardState).toEqual({ height: 0, visible: false })
   })
 
   it('calls a keyboard that reports no height open anyway, because the event is the fact', async () => {
@@ -169,43 +171,32 @@ describe('the keyboard the phone reports', () => {
     await act(async () => {
       keyboard.listeners.get('keyboardWillShow')?.({ endCoordinates: { height: 0 }, duration: 0 })
     })
-    expect(keyboardState).toEqual({ height: 0, visible: true, duration: 0 })
+    expect(keyboardState).toEqual({ height: 0, visible: true })
   })
 
-  it('starts from a keyboard already up, because autoFocus can raise it before the subscription', async () => {
+  it('hands a sheet each event with its duration, and removes both listeners', () => {
+    const calls: string[] = []
+    const unsubscribe = subscribeSoftKeyboard(
+      (height, duration) => calls.push(`show ${height} ${duration}`),
+      (duration) => calls.push(`hide ${duration}`)
+    )
+    keyboard.listeners.get('keyboardWillShow')?.({ endCoordinates: { height: 336 }, duration: 250 })
+    keyboard.listeners.get('keyboardWillHide')?.({ endCoordinates: { height: 0 }, duration: 180 })
+    expect(calls).toEqual(['show 336 250', 'hide 180'])
+    unsubscribe()
+    expect(keyboard.removed.sort()).toEqual(['keyboardWillHide', 'keyboardWillShow'])
+  })
+
+  it('reads a keyboard already up from metrics(), and 0 when there is none', () => {
+    expect(currentSoftKeyboardHeight()).toBe(0)
+    keyboard.metrics = { height: 291 }
+    expect(currentSoftKeyboardHeight()).toBe(291)
+  })
+
+  it('never seeds the hook from metrics(), so a stale iOS reading cannot open it', async () => {
+    // RN clears metrics() on didHide, after the willHide this hook closes on.
     keyboard.metrics = { height: 291 }
     await mountComponent(StateHarness)
-    expect(keyboardState).toEqual({ height: 291, visible: true, duration: 0 })
-  })
-
-  it('catches a keyboard that rose between the first render and the subscription', async () => {
-    function RisesAfterRender(): null {
-      keyboardState = useSoftKeyboard()
-      // The keyboard comes up after the state was seeded and before the effect subscribes.
-      keyboard.metrics = { height: 305 }
-      return null
-    }
-    await mountComponent(RisesAfterRender)
-    expect(keyboardState).toEqual({ height: 305, visible: true, duration: 0 })
-  })
-
-  it('starts closed when metrics() reports no keyboard or one of no height', async () => {
-    keyboard.metrics = { height: 0 }
-    await mountComponent(StateHarness)
-    expect(keyboardState).toEqual({ height: 0, visible: false, duration: 0 })
-  })
-
-  it('carries the hide event duration, so a lifted sheet drops with the keyboard', async () => {
-    await mountComponent(StateHarness)
-    await act(async () => {
-      keyboard.listeners.get('keyboardWillShow')?.({
-        endCoordinates: { height: 336 },
-        duration: 250
-      })
-    })
-    await act(async () => {
-      keyboard.listeners.get('keyboardWillHide')?.({ endCoordinates: { height: 0 }, duration: 180 })
-    })
-    expect(keyboardState).toEqual({ height: 0, visible: false, duration: 180 })
+    expect(keyboardState).toEqual({ height: 0, visible: false })
   })
 })

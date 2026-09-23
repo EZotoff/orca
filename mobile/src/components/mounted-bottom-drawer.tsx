@@ -28,7 +28,7 @@ import { bottomDrawerStyles as styles } from './bottom-drawer-styles'
 import { useInsideBottomDrawerModalHost } from './bottom-drawer-modal-host'
 import { useResponsiveLayout } from '../layout/responsive-layout'
 import { useBackClaim } from '../navigation/use-back-claim'
-import { useSoftKeyboard } from '../platform/keyboard-occlusion'
+import { currentSoftKeyboardHeight, subscribeSoftKeyboard } from '../platform/keyboard-occlusion'
 
 const DISMISS_THRESHOLD = 80
 const SPRING_CONFIG = { damping: 28, stiffness: 400 }
@@ -130,14 +130,10 @@ export function MountedBottomDrawer({
 
   // Why: KeyboardAvoidingView and useAnimatedKeyboard are both unreliable
   // inside Modal (iOS ignores KAV; Android needs adjustNothing for
-  // useAnimatedKeyboard). The keyboard seam's events work on both platforms and
-  // give the exact height; on the page it reads 0, because the shell has
-  // already shortened the WebView above the IME.
-  const keyboard = useSoftKeyboard()
-  const seenKeyboardRef = useRef(keyboard)
+  // useAnimatedKeyboard). The keyboard seam's events work on both platforms
+  // and give the exact height; inside the shell's page none fire, because
+  // the shell shortens the WebView above the IME.
   useEffect(() => {
-    const seen = seenKeyboardRef.current
-    seenKeyboardRef.current = keyboard
     // Pinned-under sheets stay visible for size but must not ride the keyboard —
     // only the top interactive sheet owns inset/lift.
     if (!visible || !interactive) {
@@ -161,37 +157,32 @@ export function MountedBottomDrawer({
       }
     }
 
-    const moved =
-      seen.visible !== keyboard.visible ||
-      seen.height !== keyboard.height ||
-      seen.duration !== keyboard.duration
-    if (!moved) {
-      // The sheet took the window or its layout changed: start clear. Why: fill
-      // sheets dock to the true keyboard top and autoFocus can raise the keyboard
-      // before this runs, so they seed from one already up; content-sized outer
-      // sheets must not inherit a stale height after an inner dismiss.
+    // Why: fill sheets dock to the true keyboard top; autoFocus can raise the
+    // keyboard before listeners attach. Seed only in fill mode so content-sized
+    // outer sheets do not inherit a stale metrics height after an inner dismiss.
+    if (fillAvailable) {
+      const existing = currentSoftKeyboardHeight()
+      if (existing > 0) {
+        applyKeyboardHeight(existing)
+      }
+    }
+
+    const unsubscribe = subscribeSoftKeyboard(
+      (height, duration) => {
+        applyKeyboardHeight(height, duration || 250)
+      },
+      (duration) => {
+        setKeyboardInset(0)
+        keyboardOffset.value = withTiming(0, { duration: duration || 250 })
+      }
+    )
+
+    return () => {
+      unsubscribe()
       keyboardOffset.value = 0
       setKeyboardInset(0)
-      if (fillAvailable && keyboard.visible && keyboard.height > 0) {
-        applyKeyboardHeight(keyboard.height)
-      }
-      return
     }
-    if (keyboard.visible) {
-      applyKeyboardHeight(keyboard.height, keyboard.duration || 250)
-    } else {
-      setKeyboardInset(0)
-      keyboardOffset.value = withTiming(0, { duration: keyboard.duration || 250 })
-    }
-  }, [
-    keyboard.visible,
-    keyboard.height,
-    keyboard.duration,
-    visible,
-    interactive,
-    insets.bottom,
-    fillAvailable
-  ])
+  }, [visible, interactive, insets.bottom, fillAvailable])
 
   const dismiss = useCallback(() => {
     Keyboard.dismiss()

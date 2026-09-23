@@ -1,21 +1,37 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SoftKeyboardState } from '../platform/keyboard-occlusion'
-
 type Harness = {
-  keyboard: SoftKeyboardState
+  /** What `currentSoftKeyboardHeight()` answers: a keyboard already up when the sheet opens. */
+  current: number
+  show: ((height: number, duration: number) => void) | null
+  hide: ((duration: number) => void) | null
   timings: { to: number; duration: number | undefined }[]
   /** Every shared-value write: a seed lands here directly, without a timing. */
   writes: number[]
 }
 
 const harness = vi.hoisted((): Harness => ({
-  keyboard: { height: 0, visible: false, duration: 0 },
+  current: 0,
+  show: null,
+  hide: null,
   timings: [],
   writes: []
 }))
 
-vi.mock('../platform/keyboard-occlusion', () => ({ useSoftKeyboard: () => harness.keyboard }))
+vi.mock('../platform/keyboard-occlusion', () => ({
+  currentSoftKeyboardHeight: () => harness.current,
+  subscribeSoftKeyboard: (
+    show: (height: number, duration: number) => void,
+    hide: (duration: number) => void
+  ) => {
+    harness.show = show
+    harness.hide = hide
+    return () => {
+      harness.show = null
+      harness.hide = null
+    }
+  }
+}))
 vi.mock('../navigation/use-back-claim', () => ({ useBackClaim: () => {} }))
 vi.mock('react-native', () => ({
   Keyboard: { dismiss: () => {} },
@@ -96,13 +112,12 @@ function render(fillAvailable: boolean): ReactTestRenderer {
   return renderer
 }
 
-function moveKeyboard(
-  renderer: ReactTestRenderer,
-  fillAvailable: boolean,
-  next: SoftKeyboardState
-): void {
-  harness.keyboard = next
-  act(() => renderer.update(sheet(fillAvailable)))
+function keyboardShows(height: number, duration: number): void {
+  act(() => harness.show?.(height, duration))
+}
+
+function keyboardHides(duration: number): void {
+  act(() => harness.hide?.(duration))
 }
 
 function marginBottom(renderer: ReactTestRenderer): unknown {
@@ -114,37 +129,44 @@ function marginBottom(renderer: ReactTestRenderer): unknown {
 
 describe('the drawer riding the keyboard seam', () => {
   afterEach(() => {
-    harness.keyboard = { height: 0, visible: false, duration: 0 }
+    harness.current = 0
     harness.timings.length = 0
     harness.writes.length = 0
   })
 
   it('docks a fill sheet on a keyboard already up when it opens', () => {
-    harness.keyboard = { height: 300, visible: true, duration: 0 }
+    harness.current = 300
     const renderer = render(true)
     expect(marginBottom(renderer)).toBe(300)
     act(() => renderer.unmount())
   })
 
   it('does not seed a content-sized sheet from a keyboard already up', () => {
-    harness.keyboard = { height: 300, visible: true, duration: 0 }
+    harness.current = 300
     const renderer = render(false)
     expect(harness.writes).not.toContain(300)
-    // It still rides the keyboard's next move.
-    moveKeyboard(renderer, false, { height: 310, visible: true, duration: 0 })
+    // It still rides the keyboard's next event.
+    keyboardShows(310, 0)
     expect(harness.timings).toContainEqual({ to: 310, duration: 250 })
     act(() => renderer.unmount())
   })
 
   it('lifts with the event duration and drops back when the keyboard hides', () => {
     const renderer = render(true)
-    moveKeyboard(renderer, true, { height: 280, visible: true, duration: 120 })
+    keyboardShows(280, 120)
     expect(marginBottom(renderer)).toBe(280)
     expect(harness.timings).toContainEqual({ to: 280, duration: 120 })
-    moveKeyboard(renderer, true, { height: 0, visible: false, duration: 0 })
+    keyboardHides(0)
     expect(marginBottom(renderer)).toBe(0)
-    // An event without a duration still animates, as it did when the drawer listened itself.
+    // An event without a duration still animates.
     expect(harness.timings).toContainEqual({ to: 0, duration: 250 })
     act(() => renderer.unmount())
+  })
+
+  it('unsubscribes on unmount', () => {
+    const renderer = render(true)
+    expect(harness.show).not.toBeNull()
+    act(() => renderer.unmount())
+    expect(harness.show).toBeNull()
   })
 })

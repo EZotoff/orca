@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 // The page's module graph: react-native-web's own `Keyboard` (no `metrics`, an inert
 // `addListener`) and the web sibling of the keyboard seam, as the page bundler resolves them.
 vi.mock('react-native', async () => {
+  const React = await import('react')
   const { default: Keyboard }: { default: unknown } =
     // @ts-expect-error TS7016: react-native-web ships no type declarations.
     await import('react-native-web/dist/exports/Keyboard')
@@ -17,7 +18,17 @@ vi.mock('react-native', async () => {
     ScrollView: 'ScrollView',
     StyleSheet: { create: <T,>(styles: T) => styles, absoluteFillObject: {} },
     View: 'View',
-    useWindowDimensions: () => ({ width: window.innerWidth, height: window.innerHeight })
+    // Subscribed, as react-native-web's is: the shell shortening the WebView is a resize.
+    useWindowDimensions: () => {
+      const read = () => ({ width: window.innerWidth, height: window.innerHeight })
+      const [size, setSize] = React.useState(read)
+      React.useEffect(() => {
+        const onResize = () => setSize(read())
+        window.addEventListener('resize', onResize)
+        return () => window.removeEventListener('resize', onResize)
+      }, [])
+      return size
+    }
   }
 })
 vi.mock(

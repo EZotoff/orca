@@ -3,6 +3,8 @@ import { createElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  currentSoftKeyboardHeight,
+  subscribeSoftKeyboard,
   useKeyboardAvoidingPadding,
   useKeyboardOcclusion,
   useSoftKeyboard,
@@ -201,8 +203,49 @@ describe('the keyboard the browser reports', () => {
   })
 })
 
+/** The pair a sheet animates with: events rather than state, each with duration 0. */
+describe('the keyboard as events, for a sheet', () => {
+  it('shows by the uncovered strip and hides once when it closes', () => {
+    const calls: string[] = []
+    const unsubscribe = subscribeSoftKeyboard(
+      (height, duration) => calls.push(`show ${height} ${duration}`),
+      (duration) => calls.push(`hide ${duration}`)
+    )
+    viewport?.resizeTo(464)
+    viewport?.resizeTo(LAYOUT_HEIGHT)
+    viewport?.resizeTo(LAYOUT_HEIGHT)
+    expect(calls).toEqual(['show 336 0', 'hide 0'])
+    unsubscribe()
+    expect(viewport?.counts).toEqual({ resize: 0, scroll: 0 })
+  })
+
+  it('stays silent when nothing is covered, which is the shell shortening the WebView', () => {
+    const calls: string[] = []
+    const unsubscribe = subscribeSoftKeyboard(
+      () => calls.push('show'),
+      () => calls.push('hide')
+    )
+    viewport?.resizeTo(LAYOUT_HEIGHT)
+    expect(calls).toEqual([])
+    unsubscribe()
+  })
+
+  it('reads a keyboard already up, and 0 without a visual viewport', () => {
+    viewport?.resizeTo(464)
+    expect(currentSoftKeyboardHeight()).toBe(336)
+    Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true })
+    expect(currentSoftKeyboardHeight()).toBe(0)
+    expect(() =>
+      subscribeSoftKeyboard(
+        () => {},
+        () => {}
+      )()
+    ).not.toThrow()
+  })
+})
+
 const LAYOUT_WIDTH = 400
-let keyboardState: SoftKeyboardState = { height: 0, visible: false, duration: 0 }
+let keyboardState: SoftKeyboardState = { height: 0, visible: false }
 
 function StateHarness(): null {
   keyboardState = useSoftKeyboard()
@@ -242,21 +285,20 @@ describe('the keyboard the page cannot see, because the shell already moved it',
         tree.unmount()
       }
     })
-    keyboardState = { height: 0, visible: false, duration: 0 }
+    keyboardState = { height: 0, visible: false }
     Object.defineProperty(window, 'innerWidth', { value: LAYOUT_WIDTH, configurable: true })
     Object.defineProperty(window, 'innerHeight', { value: LAYOUT_HEIGHT, configurable: true })
   })
 
   it('reads no keyboard while the window keeps the height it mounted at', async () => {
     await mountState()
-    expect(keyboardState).toEqual({ height: 0, visible: false, duration: 0 })
+    expect(keyboardState).toEqual({ height: 0, visible: false })
   })
 
   it('calls the window shortened at an unchanged width the keyboard, and covers nothing by it', async () => {
     await mountState()
     await act(async () => resizeWindow(LAYOUT_WIDTH, LAYOUT_HEIGHT - 336))
-    // Duration 0: the shell has already resized the WebView, so there is nothing left to animate.
-    expect(keyboardState).toEqual({ height: 0, visible: true, duration: 0 })
+    expect(keyboardState).toEqual({ height: 0, visible: true })
   })
 
   it('drops the flag when the window gets its height back', async () => {
