@@ -15,7 +15,8 @@ export function createClaudeSessionPublication(input: {
   leafUuid: string | null
   fence: number
   acquisitionGeneration: string
-  resumed: boolean
+  /** The record's chain already heads this provider session: the link resumes, never creates. */
+  continuesChain: boolean
   prompts: ClaudePromptRegistry
   translator: ClaudeJournalTranslator | null
   events: ClaudeSession['events']
@@ -31,7 +32,7 @@ export function createClaudeSessionPublication(input: {
       link: claudeProviderHandleLink({
         sessionId: input.providerSessionId,
         leafUuid: input.leafUuid,
-        resumed: input.resumed,
+        resumed: input.continuesChain,
         fence: input.fence,
         ...(input.linkId ? { linkId: input.linkId } : {}),
         observedAt: input.observedAt

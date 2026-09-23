@@ -13,7 +13,8 @@ const proofLaunch = {
   providerSessionId: PROVIDER_SESSION_ID,
   claudeConfigDir: '/claude',
   options: {},
-  resumed: true,
+  resumesTranscript: true,
+  continuesChain: true,
   resumeLeafUuid: 'tip',
   cwd: '/workspace',
   pathToClaudeCodeExecutable: 'claude'
@@ -25,7 +26,7 @@ describe('Claude rewind acquisition', () => {
     const proof = vi.fn(async (_input: { intentionalRewindUuid?: string }) => 'kept')
     const adapter = adapterFor(
       fake,
-      { resumed: true, resumeLeafUuid: 'tip' },
+      { resumesTranscript: true, continuesChain: true, resumeLeafUuid: 'tip' },
       [],
       [],
       undefined,
@@ -81,7 +82,14 @@ describe('Claude rewind acquisition', () => {
       return connection
     }
     const proof = vi.fn(async (_input: { intentionalRewindUuid?: string }) => 'kept')
-    const adapter = adapterFor(fake, { resumed: true }, [], [], undefined, proof)
+    const adapter = adapterFor(
+      fake,
+      { resumesTranscript: true, continuesChain: true },
+      [],
+      [],
+      undefined,
+      proof
+    )
     await expect(
       adapter.acquire({ identity: identityFor(), fence: 7, spawnToken: 'spawn', rewind: intent })
     ).rejects.toMatchObject({ rewindReason: 'provider-refused' })
@@ -99,7 +107,8 @@ describe('Claude rewind acquisition', () => {
       providerSessionId: PROVIDER_SESSION_ID,
       claudeConfigDir: '/claude',
       options: {},
-      resumed: true,
+      resumesTranscript: true,
+      continuesChain: true,
       resumeLeafUuid: 'tip',
       cwd: '/workspace',
       pathToClaudeCodeExecutable: 'claude'
@@ -129,7 +138,8 @@ describe('Claude rewind acquisition', () => {
       providerSessionId: PROVIDER_SESSION_ID,
       claudeConfigDir: '/claude',
       options: {},
-      resumed: true,
+      resumesTranscript: true,
+      continuesChain: true,
       resumeLeafUuid: 'tip',
       cwd: '/workspace',
       pathToClaudeCodeExecutable: 'claude'
@@ -141,7 +151,7 @@ describe('Claude rewind acquisition', () => {
   })
   it('checkpoints the proved target before late acquisition failure without persisting a stale cursor', async () => {
     const fake = fakeClaude()
-    const launch = { resumed: true, resumeLeafUuid: 'tip' }
+    const launch = { resumesTranscript: true, continuesChain: true, resumeLeafUuid: 'tip' }
     const persisted: unknown[] = []
     const proof = vi.fn(async () => 'kept')
     const adapter = adapterFor(fake, launch, [], persisted, undefined, proof)
@@ -178,7 +188,7 @@ describe('Claude rewind acquisition', () => {
     const restored = vi.fn(async () => {})
     const adapter = adapterFor(
       fake,
-      { resumed: true, resumeLeafUuid: 'tip' },
+      { resumesTranscript: true, continuesChain: true, resumeLeafUuid: 'tip' },
       [],
       [],
       undefined,

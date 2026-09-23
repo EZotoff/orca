@@ -47,7 +47,8 @@ beforeEach(async () => {
       providerSessionId: PROVIDER_SESSION_ID,
       resumeLeafUuid: null,
       // A session that already minted its provider handle resumes it, as the real launch does.
-      resumed: (store.getRecord(SESSION)?.providerHandleChain.length ?? 0) > 0
+      resumesTranscript: (store.getRecord(SESSION)?.providerHandleChain.length ?? 0) > 0,
+      continuesChain: (store.getRecord(SESSION)?.providerHandleChain.length ?? 0) > 0
     }),
     // The runtime's own mapping, so this test drives the same lifecycle path production does.
     onEvent: (event) => {

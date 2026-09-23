@@ -65,7 +65,8 @@ describe('ClaudeStructuredSessionAdapter transcript-derived recovery', () => {
         claudeConfigDir: '/accounts/claude',
         providerSessionId: PROVIDER_SESSION_ID,
         resumeLeafUuid: null,
-        resumed: false
+        resumesTranscript: false,
+        continuesChain: false
       }),
       onEvent: (event) => {
         events.push(event)
@@ -479,7 +480,8 @@ describe('ClaudeStructuredSessionAdapter transcript-derived recovery', () => {
           claudeConfigDir: '/accounts/claude',
           providerSessionId: PROVIDER_SESSION_ID,
           resumeLeafUuid: null,
-          resumed: false
+          resumesTranscript: false,
+          continuesChain: false
         }
       }
       return {
@@ -489,7 +491,8 @@ describe('ClaudeStructuredSessionAdapter transcript-derived recovery', () => {
         claudeConfigDir: '/accounts/claude',
         providerSessionId: PROVIDER_SESSION_ID,
         resumeLeafUuid: durableLeafUuid,
-        resumed: true
+        resumesTranscript: true,
+        continuesChain: true
       }
     })
     const persistHandle = vi.fn<NonNullable<ClaudeStructuredSessionAdapterDeps['persistHandle']>>(

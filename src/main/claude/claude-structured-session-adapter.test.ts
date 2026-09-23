@@ -67,7 +67,7 @@ describe('ClaudeStructuredSessionAdapter.acquire', () => {
 
   it('restores persisted model and effort before publishing a reacquired session', async () => {
     const claude = fakeClaude()
-    const adapter = adapterFor(claude, { resumed: true })
+    const adapter = adapterFor(claude, { resumesTranscript: true, continuesChain: true })
 
     await adapter.acquire({
       identity: identityFor(),
@@ -140,7 +140,7 @@ describe('ClaudeStructuredSessionAdapter.acquire', () => {
         list_models: () => [{ value: 'opus', displayName: 'Opus', supportsFastMode: true }]
       }
     })
-    const adapter = adapterFor(claude, { resumed: true })
+    const adapter = adapterFor(claude, { resumesTranscript: true, continuesChain: true })
 
     await adapter.acquire({
       identity: identityFor(),
@@ -462,7 +462,8 @@ describe('ClaudeStructuredSessionAdapter.acquire', () => {
   it('resumes the same provider id and refuses an init proof for another session', async () => {
     const resumedClaude = fakeClaude()
     const resumed = adapterFor(resumedClaude, {
-      resumed: true,
+      resumesTranscript: true,
+      continuesChain: true,
       resumeLeafUuid: 'leaf-before'
     })
     const acquisition = await resumed.acquire({
@@ -555,7 +556,14 @@ describe('ClaudeStructuredSessionAdapter acquisition cleanup', () => {
       exitBeforeInit: 'claude stream-json exited (code 1): not logged in',
       unprovenCloseVerdict
     })
-    return adapterFor(claude, { resumed: true, resumeLeafUuid: 'tip' }, [], [], undefined, kept)
+    return adapterFor(
+      claude,
+      { resumesTranscript: true, continuesChain: true, resumeLeafUuid: 'tip' },
+      [],
+      [],
+      undefined,
+      kept
+    )
       .acquire({ identity: identityFor(), fence: 7, spawnToken: 'spawn-9', rewind })
       .catch((error: unknown) => error)
   }
@@ -621,7 +629,7 @@ describe('ClaudeStructuredSessionAdapter acquisition cleanup', () => {
     const claude = fakeClaude(options)
     const adapter = adapterFor(
       claude,
-      { resumed: true, resumeLeafUuid: 'tip' },
+      { resumesTranscript: true, continuesChain: true, resumeLeafUuid: 'tip' },
       [],
       [],
       undefined,

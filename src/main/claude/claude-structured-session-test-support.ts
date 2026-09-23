@@ -237,7 +237,8 @@ export function adapterAtPublishFor(
       claudeConfigDir: '/accounts/claude',
       providerSessionId: PROVIDER_SESSION_ID,
       resumeLeafUuid: null,
-      resumed: false,
+      resumesTranscript: false,
+      continuesChain: false,
       ...launch
     }),
     onEvent: (event) => events.push(event),

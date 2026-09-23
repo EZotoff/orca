@@ -67,7 +67,7 @@ export async function readClaudeStartupFacts(input: {
   initProof: ClaudeInitProof
   sessionId: string
   providerSessionId: string
-  resumed: boolean
+  resumesTranscript: boolean
   inputOptions: StructuredAgentSessionAcquireInput['options']
   requestTimeoutMs: number | undefined
   recordPhase?: StructuredAgentSessionAcquireInput['recordPhase']
@@ -115,7 +115,7 @@ export async function readClaudeStartupFacts(input: {
       settings,
       initialization,
       inputOptions: input.inputOptions,
-      resumed: input.resumed
+      resumesTranscript: input.resumesTranscript
     })
   }
 }

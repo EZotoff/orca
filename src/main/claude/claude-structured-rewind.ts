@@ -43,7 +43,7 @@ export class ClaudeRewindAttempt {
     if (!this.intent) {
       return
     }
-    if (!launch.resumed || !deps.readTranscriptLeaf) {
+    if (!launch.resumesTranscript || !deps.readTranscriptLeaf) {
       throw new AgentSessionRewindRefusal('unsupported')
     }
     launch.options = {
@@ -102,7 +102,11 @@ export async function proveClaudeRewindRecovery(
   if (!recovery) {
     return null
   }
-  if (!launch.resumed || launch.resumeLeafUuid !== recovery.leafUuid || !deps.readTranscriptLeaf) {
+  if (
+    !launch.resumesTranscript ||
+    launch.resumeLeafUuid !== recovery.leafUuid ||
+    !deps.readTranscriptLeaf
+  ) {
     throw new AgentSessionRewindRefusal('proof-mismatch')
   }
   const leaf = await deps.readTranscriptLeaf({
