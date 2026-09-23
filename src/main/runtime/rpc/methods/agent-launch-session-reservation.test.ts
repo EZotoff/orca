@@ -86,7 +86,8 @@ describe('a launch the host settles as a chat', () => {
 
     await launch(EXISTING_LAUNCH, runtime)
 
-    expect(requestedSessionId()).toEqual(expect.any(String))
+    // Shaped like every other host-minted id: named for its agent, one token.
+    expect(requestedSessionId()).toMatch(/^claude_[A-Za-z0-9_]+$/)
     expect(requestedSessionId()).not.toBe(SESSION_ID)
   })
 
@@ -142,9 +143,20 @@ describe('the reservation at the wire', () => {
   it.each([
     ['too short', 'claude_'],
     ['a character outside the id alphabet', 'claude_9b1d:eb4d'],
-    ['surrounding space', ` ${SESSION_ID}`]
+    ['surrounding space', ` ${SESSION_ID}`],
+    ['named for another agent', 'codex_9b1deb4d_3b7d_4bad_9bdd_2b0d7b3dcb6d'],
+    ['more than one token', 'claude_9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d']
   ])('refuses a session id that is %s', (_, sessionId) => {
     expect(AGENT_LAUNCH.params.safeParse({ ...EXISTING_LAUNCH, sessionId }).success).toBe(false)
+  })
+
+  it('refuses a session id named for another agent on the replay method too', () => {
+    const params = {
+      ...EXISTING_LAUNCH,
+      operationId: `${Date.now()}-000000000000000000000000000000dd`,
+      sessionId: 'codex_9b1deb4d_3b7d_4bad_9bdd_2b0d7b3dcb6d'
+    }
+    expect(AGENT_LAUNCH_REPLAY.params.safeParse(params).success).toBe(false)
   })
 
   it('accepts a well-formed session id', () => {

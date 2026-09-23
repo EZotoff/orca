@@ -34,6 +34,12 @@ export function createStructuredAgentSessionId(
   return `${agent}_${randomUuid().replaceAll('-', '_')}`
 }
 
+/** Whether a caller-minted id keeps the shape `createStructuredAgentSessionId` gives every id:
+ *  named for the agent it launches, and one token. */
+export function isStructuredAgentSessionIdFor(agent: string, sessionId: string): boolean {
+  return sessionId.startsWith(`${agent}_`) && /^[A-Za-z0-9_]+$/.test(sessionId)
+}
+
 /**
  * The durable `agentSession.create` envelope every client replays on an ambiguous
  * transport failure. The fingerprint must be computed over the same fields the host

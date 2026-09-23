@@ -20,6 +20,7 @@ import type { TuiAgent } from '../tui-agent'
 import { WorktreeCreate } from './worktree-create-params'
 import { TerminalTabIdParam } from './agent-session-params'
 import { SessionId } from './structured-agent-session-params'
+import { isStructuredAgentSessionIdFor } from '../structured-agent-session-create'
 
 const LaunchAgent = z
   .unknown()
@@ -31,7 +32,7 @@ const LaunchAgent = z
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the superRefine above rejects anything isTuiAgent refuses, so the transform only ever runs on a TuiAgent.
   .transform((value): TuiAgent => value as TuiAgent)
 
-export const AgentLaunch = z.object({
+const AgentLaunchFields = z.object({
   agent: LaunchAgent,
   /**
    * Names this launch so a retry replays instead of starting a second agent.
@@ -116,7 +117,26 @@ export const AgentLaunch = z.object({
   sessionId: SessionId.optional()
 })
 
+/** A caller-minted session id must be shaped like every id the host mints, so an id still names
+ *  its lane on sight. */
+function refuseSessionIdForAnotherAgent(
+  launch: { agent: string; sessionId?: string | undefined },
+  ctx: z.RefinementCtx
+): void {
+  if (launch.sessionId && !isStructuredAgentSessionIdFor(launch.agent, launch.sessionId)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['sessionId'],
+      message: 'Launch session id must be named for its agent'
+    })
+  }
+}
+
+export const AgentLaunch = AgentLaunchFields.superRefine(refuseSessionIdForAnotherAgent)
+
 export type AgentLaunchParams = z.infer<typeof AgentLaunch>
 
 // A distinct method prevents an older receiver from silently dropping the replay requirement.
-export const AgentLaunchReplay = AgentLaunch.required({ operationId: true })
+export const AgentLaunchReplay = AgentLaunchFields.required({ operationId: true }).superRefine(
+  refuseSessionIdForAnotherAgent
+)

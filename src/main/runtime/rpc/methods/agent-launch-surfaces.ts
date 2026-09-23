@@ -33,6 +33,7 @@ import { createStructuredAgentSessionForWorktree } from './structured-agent-sess
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
 import { deliverTerminalAgentLaunchPrompt } from './agent-launch-terminal-prompt'
 import { AgentLaunchSessionAlreadyExistsError } from '../../../../shared/agent-launch-session-already-exists'
+import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
 import { toAgentLaunchPreferences } from '../../../../shared/agent-launch-preferences'
 import { paneIdentity } from '../../runtime-terminal-pane-identity'
 
@@ -44,7 +45,7 @@ export function agentLaunchSurfaceFactory(
 ): AgentLaunchSurfaceFactory {
   return {
     createStructuredSession: async ({ worktreeId, agent, options, sessionId: requested }) => {
-      const sessionId = requested ?? randomUUID()
+      const sessionId = requested ?? createStructuredAgentSessionId(agent, randomUUID)
       const seeded = narrowStructuredLaunchSeedOptions(options)
       const created = await createStructuredAgentSessionForWorktree({
         runtime: context.runtime,
