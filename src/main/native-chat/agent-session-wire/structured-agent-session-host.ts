@@ -204,8 +204,7 @@ export class StructuredAgentSessionHost {
       await this.handoffs.closeRetainedTuiOwner(sessionId)
       await evictHeldStructuredAgentSession(this.lifetimeContext(), sessionId)
       this.clientDelivery.closeSession(sessionId)
-      // Whoever asked for the close, the surfaces that were holding this session are looking at a
-      // session that no longer exists. A failed eviction throws above and keeps them.
+      // The holders now look at a session that is gone; a failed eviction throws above, keeping them.
       this.holds.forget(sessionId)
     })
   }
@@ -273,8 +272,7 @@ export class StructuredAgentSessionHost {
       sessions: this.sessions,
       publish: (sessionId, journal) => this.subscribers.publish(sessionId, journal),
       flushStreamedEvents: this.flushStreamedEvents,
-      hasPendingStreamedEvents: (sessionId) =>
-        this.runtimeState.hasPendingStreamedEvents(sessionId),
+      hasPendingStreamedEvents: (id) => this.runtimeState.hasPendingStreamedEvents(id),
       requireSession: (sessionId) => this.requireSession(sessionId),
       serialize: (sessionId, task) => this.serialize(sessionId, task),
       holds: this.holds,
@@ -292,6 +290,7 @@ export class StructuredAgentSessionHost {
   cancel = this.mutations.cancel
   respondToPrompt = this.mutations.respondToPrompt
   setOption = this.mutations.setOption
+  changeThreadGoal = this.mutations.changeThreadGoal
   readOptions = this.mutations.readOptions
 
   requestHandoff = (

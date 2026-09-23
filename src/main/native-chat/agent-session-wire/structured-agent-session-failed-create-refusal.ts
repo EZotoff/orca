@@ -9,6 +9,60 @@ import type {
 } from '../../../shared/agent-session-operation-ledger'
 import { agentSessionLeaseOwnerVerdict } from '../../../shared/agent-session-lease-adjudication'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import type { AgentSessionAcquisitionExitProof } from '../../runtime/agent-session-acquisition-failure-settlement'
+import {
+  AgentSessionAcquisitionExitProvenError,
+  AgentSessionAcquisitionExitUnprovenError,
+  AgentSessionAcquisitionRefusal,
+  AgentSessionAcquisitionRootExitObservedError,
+  AgentSessionRewindRefusal,
+  isAgentSessionPreSpawnError
+} from './structured-agent-session-adapter'
+import { rewindRefusal } from './structured-rewind-refusal'
+
+/** What a failed acquisition proved about its process, and the outcome its operation settles to. */
+export function failedAcquisitionSettlement(error: unknown): {
+  exitProof: AgentSessionAcquisitionExitProof
+  outcome: Extract<AgentSessionOperationOutcome, { status: 'failed' }>
+} {
+  if (error instanceof AgentSessionAcquisitionExitUnprovenError) {
+    const outcome = { code: 'agent_session_ownership_unknown', message: error.message }
+    return { exitProof: 'unproven', outcome: { status: 'failed', ...outcome } }
+  }
+  const exitProof = isAgentSessionPreSpawnError(error)
+    ? 'processless'
+    : error instanceof AgentSessionAcquisitionRootExitObservedError
+      ? 'root-exit-observed'
+      : 'exit-proven'
+  const message = error instanceof Error ? error.message : String(error)
+  const code =
+    error instanceof AgentSessionAcquisitionRefusal ? error.code : 'agent_session_operation_invalid'
+  return { exitProof, outcome: { status: 'failed', code, message } }
+}
+
+/** A failed acquisition answered as a refusal on the first call, in the shape its replay takes;
+ *  null leaves the error to the store-failure classification. */
+export function failedAcquisitionRefusal(
+  error: unknown
+): { ok: false; refusal: AgentSessionWireRefusal } | null {
+  if (error instanceof AgentSessionRewindRefusal) {
+    return rewindRefusal(error.rewindReason)
+  }
+  if (error instanceof AgentSessionAcquisitionRefusal) {
+    return { ok: false, refusal: { code: error.code, message: error.message } }
+  }
+  // A proven exit is a settled fact; its message is the provider's own diagnostic.
+  if (
+    error instanceof AgentSessionAcquisitionRootExitObservedError ||
+    error instanceof AgentSessionAcquisitionExitProvenError
+  ) {
+    return {
+      ok: false,
+      refusal: { code: 'agent_session_operation_invalid', message: error.message }
+    }
+  }
+  return null
+}
 
 /** Only a durably failed operation says anything about retrying under a new one. */
 export function failedCreateRefusal(

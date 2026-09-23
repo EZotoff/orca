@@ -17,9 +17,12 @@ import type {
   AgentSessionOptionResult,
   AgentSessionOptionsResult,
   AgentSessionPromptResult,
-  AgentSessionSendResult
+  AgentSessionSendResult,
+  AgentSessionThreadGoalChange,
+  AgentSessionThreadGoalResult
 } from '../../../shared/agent-session-wire'
 import type { StructuredAgentSessionHolds } from './structured-agent-session-holds'
+import { threadGoalPlan } from './structured-agent-session-thread-goal'
 import {
   admitAndRunAgentSessionMutation,
   type AgentSessionMutationRequest
@@ -153,6 +156,14 @@ export function setStructuredAgentSessionOption(
   return mutate(context, caller, params.envelope, setOptionPlan(params))
 }
 
+export function changeStructuredAgentSessionThreadGoal(
+  context: StructuredAgentSessionMutationContext,
+  caller: StructuredAgentSessionCaller,
+  params: { envelope: AgentSessionMutationEnvelope; change: AgentSessionThreadGoalChange }
+): Promise<AgentSessionMutationResult<AgentSessionThreadGoalResult>> {
+  return mutate(context, caller, params.envelope, threadGoalPlan(params))
+}
+
 export function readStructuredAgentSessionOptions(
   context: StructuredAgentSessionMutationContext,
   sessionId: string
@@ -173,7 +184,10 @@ export function readStructuredAgentSessionOptions(
               supported: false,
               reason: 'unsupported'
             }),
-      conversationCommands: context.deps.adapter.compact ? ['clear', 'compact'] : ['clear']
+      conversationCommands: context.deps.adapter.compact ? ['clear', 'compact'] : ['clear'],
+      ...(context.deps.adapter.supportsThreadGoal?.(sessionId)
+        ? { threadGoal: { current: session.journal.threadGoal() } }
+        : {})
     }
   })
 }
@@ -266,6 +280,10 @@ export function structuredAgentSessionMutationDelegates(
       caller: StructuredAgentSessionCaller,
       params: Parameters<typeof setStructuredAgentSessionOption>[2]
     ) => setStructuredAgentSessionOption(context(), caller, params),
+    changeThreadGoal: (
+      caller: StructuredAgentSessionCaller,
+      params: Parameters<typeof changeStructuredAgentSessionThreadGoal>[2]
+    ) => changeStructuredAgentSessionThreadGoal(context(), caller, params),
     readOptions: (sessionId: string) => readStructuredAgentSessionOptions(context(), sessionId)
   }
 }

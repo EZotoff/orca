@@ -27,8 +27,10 @@ import type {
   AgentSessionBackgroundTaskState,
   AgentSessionOptionsResult,
   AgentSessionSlashCommand,
+  AgentSessionThreadGoalChange,
   AgentSessionWireRefusalCode
 } from '../../../shared/agent-session-wire'
+import { isAgentSessionWireRefusalCode } from '../../../shared/agent-session-wire-refusals'
 import type { ProviderHistoryWindow } from '../agent-session-journal/journal-submission-reconciler'
 import type { StructuredAgentSessionEventSink } from './structured-agent-session-event-sink'
 import type { AgentSessionCreatePhaseRecorder } from '../../observability/agent-session-instrumentation'
@@ -67,6 +69,15 @@ export class AgentSessionAcquisitionRootExitObservedError extends Error {
     // The provider's own diagnostic is the only thing the user can act on.
     super(cause instanceof Error ? cause.message : String(cause), { cause })
     this.name = 'AgentSessionAcquisitionRootExitObservedError'
+  }
+}
+
+/** The provider child failed and cleanup proved its whole tree gone. As with a root exit, the
+ *  provider's own diagnostic is the message. */
+export class AgentSessionAcquisitionExitProvenError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause })
+    this.name = 'AgentSessionAcquisitionExitProvenError'
   }
 }
 
@@ -238,6 +249,18 @@ export type StructuredAgentSessionAdapter = {
      *  delivery fence may have waited. Absent for direct callers with no journal. */
     resolveLiveTurnId?: () => string | null
   }): Promise<{ cancelled: boolean }>
+  /** Changes the provider thread's goal. `rejected` is the provider refusing the
+   *  change; a throw leaves its effect unknown. Absent where no goal exists. */
+  changeThreadGoal?(input: {
+    sessionId: string
+    fence: number
+    change: AgentSessionThreadGoalChange
+    /** True when the journal records a goal, whatever its status: a `set` must
+     *  start a new goal rather than rewrite that one's objective in place. */
+    replacesGoal: boolean
+  }): Promise<{ ok: true } | { ok: false; rejected: string }>
+  /** Whether this live session can change its goal. */
+  supportsThreadGoal?(sessionId: string): boolean
   stopBackgroundTasks?(input: {
     sessionId: string
     fence: number
@@ -306,7 +329,19 @@ export async function rethrowAfterAgentSessionAcquisitionCleanup(
         )
   }
   if (released) {
-    throw cause
+    throw provenExitAcquisitionFailure(cause)
   }
   throw new AgentSessionAcquisitionExitUnprovenError(cause)
+}
+
+/** A failure whose child cleanup proved gone. One that already names its own verdict — a
+ *  refusal, a typed exit proof, or a host store code — keeps it. */
+function provenExitAcquisitionFailure(cause: unknown): unknown {
+  const classified =
+    cause instanceof AgentSessionAcquisitionRefusal ||
+    cause instanceof AgentSessionAcquisitionRootExitObservedError ||
+    cause instanceof AgentSessionAcquisitionExitUnprovenError ||
+    isAgentSessionPreSpawnError(cause) ||
+    (cause instanceof Error && isAgentSessionWireRefusalCode(cause.message))
+  return classified ? cause : new AgentSessionAcquisitionExitProvenError(cause)
 }

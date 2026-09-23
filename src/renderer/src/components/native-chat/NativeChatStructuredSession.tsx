@@ -25,6 +25,7 @@ import { useNativeChatProvisionalLaunch } from './use-native-chat-provisional-la
 import { NativeChatDeliveryRetry } from './NativeChatDeliveryRetry'
 import { useStructuredAgentSessionStatusSummary } from './StructuredAgentSessionStatusBridge'
 import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
+import { NativeChatThreadGoalBanner } from './NativeChatThreadGoalBanner'
 
 function encodeQuestionAnswer(questionId: string, answer: string): string {
   return `${encodeURIComponent(questionId)}:${encodeURIComponent(answer)}`
@@ -159,8 +160,12 @@ export function NativeChatStructuredSession(
           }
         ]
       : [])
-  const structuredTransport = useMemo(
-    () => ({
+  const structuredTransport = useMemo(() => {
+    const threadGoal = controller.threadGoal
+    const setThreadGoalObjective = threadGoal
+      ? (objective: string) => threadGoal.change({ kind: 'set', objective })
+      : null
+    return {
       send: (text: string, attachments: readonly { id: string; path: string }[]): boolean =>
         sendThroughRelaunch(() =>
           controller.send(
@@ -181,8 +186,10 @@ export function NativeChatStructuredSession(
           },
           setOption: controller.setStructuredOption,
           conversationCommands: controller.conversationCommands,
-          runConversationCommand: controller.runConversationCommand
+          runConversationCommand: controller.runConversationCommand,
+          ...(setThreadGoalObjective ? { setThreadGoalObjective } : {})
         }),
+      ...(setThreadGoalObjective ? { threadGoal: { setObjective: setThreadGoalObjective } } : {}),
       optionsSurface: controller.optionSurface,
       conversationCommands: controller.conversationCommands,
       optionSnapshot: controller.optionSnapshot,
@@ -194,17 +201,16 @@ export function NativeChatStructuredSession(
       sessionId: props.sessionId,
       runtimeEnvironmentId:
         props.target.kind === 'local' ? null : (props.target.environmentId ?? null)
-    }),
-    [
-      controller,
-      fileLinkContext?.worktreeId,
-      optionPickerRequest,
-      props.agent,
-      props.sessionId,
-      props.target,
-      sendThroughRelaunch
-    ]
-  )
+    }
+  }, [
+    controller,
+    fileLinkContext?.worktreeId,
+    optionPickerRequest,
+    props.agent,
+    props.sessionId,
+    props.target,
+    sendThroughRelaunch
+  ])
 
   return (
     <div
@@ -330,6 +336,18 @@ export function NativeChatStructuredSession(
         backgroundTasks={controller.backgroundTasks}
         stopBackgroundTask={controller.stopBackgroundTask}
       />
+      {!prompt && controller.threadGoal?.goal ? (
+        <NativeChatThreadGoalBanner
+          key={props.sessionId}
+          goal={controller.threadGoal.goal}
+          pending={controller.threadGoal.pending}
+          isVisible={props.isVisible}
+          runningTurn={
+            controller.turnId === null ? null : { startedAt: controller.workingStartedAt ?? null }
+          }
+          onChange={(change) => void controller.threadGoal?.change(change)}
+        />
+      ) : null}
       {prompt ? null : (
         <NativeChatComposer
           ref={composerRef}
