@@ -41,6 +41,7 @@ export function useMonacoColorizedLines(lines: string[], language: string): stri
     monaco.editor.setTheme(isDark ? 'vs-dark' : 'vs')
   }, [isDark])
 
+  // Why: colorize emits theme-specific token classes, so a theme switch must re-colorize.
   useEffect(() => {
     if (lines.length === 0) {
       setHtmlLines([])
@@ -65,7 +66,7 @@ export function useMonacoColorizedLines(lines: string[], language: string): stri
     return () => {
       cancelled = true
     }
-  }, [code, language, lines])
+  }, [code, language, lines, isDark])
 
   return htmlLines
 }
