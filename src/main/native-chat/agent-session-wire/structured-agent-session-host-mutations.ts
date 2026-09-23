@@ -27,10 +27,9 @@ import {
   admitAndRunAgentSessionMutation,
   type AgentSessionMutationRequest
 } from './structured-agent-session-mutation-admission'
-import {
-  prepareStructuredAgentSessionSend,
-  structuredAgentSessionSendBlock
-} from './structured-agent-session-send-preparation'
+import { structuredAgentSessionSendBlock } from './structured-agent-session-send-preparation'
+import { runStructuredAgentSessionSend } from './structured-agent-session-send-startup-wait'
+import type { StructuredAgentSessionStartupWatch } from './structured-agent-session-startup-watch'
 import {
   cancelPlan,
   promptPlan,
@@ -57,6 +56,8 @@ export type StructuredAgentSessionMutationContext = {
   /** Makes a closed session's journal readable again, inside the caller's serialize, for a send
    *  the ledger answers without an owner. */
   restoreReadable: (sessionId: string) => Promise<boolean>
+  /** Where a send waits, off the session's queue, for an owner that has not proven its start. */
+  startup: Pick<StructuredAgentSessionStartupWatch, 'awaitVerdict'>
   now: () => number
 }
 
@@ -95,18 +96,22 @@ export function sendStructuredAgentSessionTurn(
   }
 ): Promise<AgentSessionMutationResult<AgentSessionSendResult>> {
   const plan = sendPlan(params)
-  return mutate(
-    context,
-    caller,
-    params.envelope,
-    {
-      ...plan,
-      run: (ctx) => {
-        const blocked = structuredAgentSessionSendBlock(context.deps.store.getRecord(ctx.sessionId))
-        return blocked ? Promise.resolve(blocked) : plan.run(ctx)
-      }
-    },
-    (ledger, record) => prepareStructuredAgentSessionSend(context, params.envelope, ledger, record)
+  return runStructuredAgentSessionSend(context, params.envelope, (prepareSession) =>
+    mutate(
+      context,
+      caller,
+      params.envelope,
+      {
+        ...plan,
+        run: (ctx) => {
+          const blocked = structuredAgentSessionSendBlock(
+            context.deps.store.getRecord(ctx.sessionId)
+          )
+          return blocked ? Promise.resolve(blocked) : plan.run(ctx)
+        }
+      },
+      prepareSession
+    )
   )
 }
 

@@ -36,6 +36,8 @@ export type ScriptedClaudeChild = {
   }
   /** The CLI exits on its own: its root is gone, its tree unverifiable. */
   exit: (error: Error) => void
+  /** The CLI answers initialize now; only meaningful under `initHangs`. */
+  answerInit: () => void
 }
 
 export function createScriptedClaudeRuntime(sessionIds: readonly string[]) {
@@ -58,6 +60,7 @@ export function createScriptedClaudeRuntime(sessionIds: readonly string[]) {
     }
     const behavior = behaviors.get(sessionId) ?? {}
     let failInit = (_error: Error): void => {}
+    let answerInit = (): void => {}
     const answer = <T>(value: T, startup: boolean): Promise<T> =>
       behavior.stallsControlReads && !startup ? stall.then(() => value) : Promise.resolve(value)
     let settingsReads = 0
@@ -71,24 +74,32 @@ export function createScriptedClaudeRuntime(sessionIds: readonly string[]) {
         failInit(error)
         handlers.onExit?.(error)
       },
+      answerInit: () => answerInit(),
       connection: {
         pid: 5000 + children.length,
         closed: false,
         exitVerdict: { root: 'live', tree: 'unverifiable' },
         initializationResult: () => {
+          const initialized = { models: [{ value: 'sonnet', displayName: 'Sonnet' }] }
+          const announce = (): void =>
+            handlers.onMessage?.({
+              type: 'system',
+              subtype: 'init',
+              session_id: providerSessionId,
+              model: 'claude-sonnet-5',
+              apiKeySource: 'none'
+            })
           if (behavior.initHangs) {
-            return new Promise((_resolve, reject) => {
+            return new Promise((resolve, reject) => {
               failInit = reject
+              answerInit = () => {
+                announce()
+                resolve(initialized)
+              }
             })
           }
-          handlers.onMessage?.({
-            type: 'system',
-            subtype: 'init',
-            session_id: providerSessionId,
-            model: 'claude-sonnet-5',
-            apiKeySource: 'none'
-          })
-          return Promise.resolve({ models: [{ value: 'sonnet', displayName: 'Sonnet' }] })
+          announce()
+          return Promise.resolve(initialized)
         },
         getSettings: () => {
           child.calls.push('get_settings')

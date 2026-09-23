@@ -182,7 +182,8 @@ function attachContext(
       mintEventSink: () => eventSink,
       adoptEventSink: () => undefined,
       probeOwner: async () => ({ outcome: 'pid-absent' }),
-      discardEventSink: () => undefined
+      discardEventSink: () => undefined,
+      startup: { dropped: () => undefined }
     },
     sessions,
     subscribers: { reset: () => undefined, snapshot: () => undefined, publish: () => undefined },

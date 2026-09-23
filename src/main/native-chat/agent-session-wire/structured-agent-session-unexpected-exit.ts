@@ -1,4 +1,7 @@
-import type { StructuredAgentSessionEndedEvent } from './structured-agent-session-adapter'
+import type {
+  StructuredAgentSessionEndedEvent,
+  StructuredAgentSessionProviderChildPhase
+} from './structured-agent-session-adapter'
 import type { StructuredAgentSessionHostSession } from './structured-agent-session-host-types'
 import {
   releaseStoredStructuredAgentSessionOwnerAfterUnexpectedExit,
@@ -13,6 +16,7 @@ import {
   unfinishedStructuredAgentSessionWorkWasInterrupted
 } from './structured-agent-session-dead-generation-settlement'
 import type { StructuredAgentSessionTurnVerdict } from './structured-agent-session-stale-turn-verdict'
+import type { StructuredAgentSessionStartupWatch } from './structured-agent-session-startup-watch'
 
 type UnexpectedExitLifecycleEvent = StructuredAgentSessionEndedEvent & {
   cause: 'unexpected-exit'
@@ -30,6 +34,7 @@ export type StructuredAgentSessionUnexpectedExitSession = {
   hasProviderChild: boolean
   fence: number
   acquisitionGeneration: string | null
+  providerChildPhase?: StructuredAgentSessionProviderChildPhase
 }
 
 export type StructuredAgentSessionUnexpectedExitContext<
@@ -44,6 +49,8 @@ export type StructuredAgentSessionUnexpectedExitContext<
   serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
   now: () => number
   onBarrierError?: (sessionId: string, error: unknown) => void
+  /** Told the child exited, with its reason, for a send waiting to be admitted against it. */
+  startup?: Pick<StructuredAgentSessionStartupWatch, 'exited'>
 }
 
 export async function settleUnexpectedStructuredAgentSessionExit<
@@ -71,9 +78,14 @@ export async function settleUnexpectedStructuredAgentSessionExit<
     if (!record || record.lease.handoffStage !== null) {
       // The handoff coordinator owns an already-started transition.
       session.hasProviderChild = false
+      context.startup?.exited(unexpectedEvent.sessionId, unexpectedEvent, unexpectedEvent.reason)
       context.publishStatus?.(unexpectedEvent.sessionId)
       return null
     }
+    // The host's own phase decides, so a provider that omits the flag still gets a start that
+    // failed told as one: the row says so, and nothing resumes into the same failure.
+    const exitedDuringStartup =
+      unexpectedEvent.startupUnproven === true || session.providerChildPhase === 'starting'
 
     let settlementFailed = false
     const stableSettlementId = providerExitSettlementId(unexpectedEvent)
@@ -96,9 +108,10 @@ export async function settleUnexpectedStructuredAgentSessionExit<
         session,
         stableSettlementId,
         verdict: { state: 'interrupted', completedAt: observedAt },
+        exitedDuringStartup,
         // A failed start always says why: no response was running to carry the reason.
         showUnexpectedExitOutcome:
-          unexpectedEvent.startupUnproven === true ||
+          exitedDuringStartup ||
           unfinishedStructuredAgentSessionWorkWasInterrupted(
             unfinishedWork,
             session.journal,
@@ -131,6 +144,7 @@ export async function settleUnexpectedStructuredAgentSessionExit<
         context.onBarrierError?.(unexpectedEvent.sessionId, error)
       } finally {
         session.hasProviderChild = false
+        context.startup?.exited(unexpectedEvent.sessionId, unexpectedEvent, unexpectedEvent.reason)
         context.publishStatus?.(unexpectedEvent.sessionId)
         if (released) {
           session.fence = released.lease.runtimeFence
@@ -142,10 +156,7 @@ export async function settleUnexpectedStructuredAgentSessionExit<
       return null
     }
     // Resuming a start that failed would respawn into the same failure; the next send retries.
-    if (
-      unexpectedEvent.startupUnproven ||
-      !context.hasResumeCapableHolder(unexpectedEvent.sessionId)
-    ) {
+    if (exitedDuringStartup || !context.hasResumeCapableHolder(unexpectedEvent.sessionId)) {
       return null
     }
     return {
@@ -190,6 +201,7 @@ async function retryUnexpectedExitSettlement(input: {
   session: Pick<StructuredAgentSessionUnexpectedExitSession, 'journal' | 'fence'>
   stableSettlementId: string
   verdict: StructuredAgentSessionTurnVerdict
+  exitedDuringStartup: boolean
   showUnexpectedExitOutcome?: boolean
 }): Promise<boolean> {
   return settleStructuredAgentSessionDeadGeneration({
@@ -201,7 +213,7 @@ async function retryUnexpectedExitSettlement(input: {
     pendingSubmissionReason: 'provider_exited_before_acknowledgement',
     showUnexpectedExitOutcome: input.showUnexpectedExitOutcome,
     unexpectedExitReason: input.event.reason,
-    exitedDuringStartup: input.event.startupUnproven === true,
+    exitedDuringStartup: input.exitedDuringStartup,
     onError: input.context.onBarrierError
   })
 }

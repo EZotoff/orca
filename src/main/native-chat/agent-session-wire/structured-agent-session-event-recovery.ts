@@ -6,6 +6,7 @@ import type {
 import type { StructuredAgentSessionSinkBarrier } from './structured-agent-session-event-sink'
 import type { StructuredAgentSessionHolds } from './structured-agent-session-holds'
 import { settleStructuredAgentSessionProviderStarted } from './structured-agent-session-provider-started'
+import type { StructuredAgentSessionStartupWatch } from './structured-agent-session-startup-watch'
 import {
   isStructuredAgentSessionRecoveryTicketCurrent,
   settleUnexpectedStructuredAgentSessionExit
@@ -28,6 +29,8 @@ export class StructuredAgentSessionEventRecovery {
       /** The one restart every asker shares; the holds put an unheld child on the idle clock. */
       ensureProviderChild: StructuredAgentSessionHolds['ensureProviderChild']
       onBarrierError: (sessionId: string, error: unknown) => void
+      /** Answered by both settlements, for a send waiting on the child's start. */
+      startup: Pick<StructuredAgentSessionStartupWatch, 'proven' | 'exited'>
     }
   ) {}
 
