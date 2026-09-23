@@ -6,7 +6,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { WorktreeScanFailureKind } from '../../../../../../shared/worktree-scan-failure'
-import { localToolchainFailureKind, resolveRepoScanFailure } from './repo-scan-failure-kind'
+import { isLocalToolchainFailure, resolveRepoScanFailure } from '../../repo-scan-failure'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle
@@ -22,7 +22,7 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
   const [pending, setPending] = React.useState(false)
   const failure = resolveRepoScanFailure(repo, detected)
   // Why: machine-wide failures are explained once by the sidebar banner, not on every repo.
-  if (!failure || localToolchainFailureKind(failure)) {
+  if (!failure || isLocalToolchainFailure(failure)) {
     return null
   }
   const title = translate(
@@ -57,9 +57,6 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
       : [`Execution host: ${executionHostId}`]),
     `Failure: ${reason}`
   ].join('\n')
-  const copyText = async (value: string): Promise<void> => {
-    await window.api.ui.writeClipboardText(value)
-  }
   return (
     <TooltipProvider disableHoverableContent={false}>
       <Tooltip delayDuration={400}>
@@ -102,7 +99,7 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
               <button
                 type="button"
                 className="text-xs underline"
-                onClick={() => void copyText(diagnosticText)}
+                onClick={() => void window.api.ui.writeClipboardText(diagnosticText)}
               >
                 {translate(
                   'auto.components.sidebar.RepoScanUnavailableIndicator.copyDiagnostics',

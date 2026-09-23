@@ -5,24 +5,46 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import {
-  findLocalToolchainBlock,
-  type LocalToolchainFailureKind
-} from './worktree-list/rows/repo-scan-failure-kind'
+import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
+import { findLocalToolchainBlock, type LocalToolchainFailureKind } from './repo-scan-failure'
 
-const FIX_COMMANDS: Record<LocalToolchainFailureKind, string> = {
-  'xcode-license': 'sudo xcodebuild -license accept',
-  'developer-tools': 'xcode-select --install'
+const FIXES: Record<
+  LocalToolchainFailureKind,
+  { command: string; title: () => string; body: () => string }
+> = {
+  'xcode-license': {
+    command: 'sudo xcodebuild -license accept',
+    title: () =>
+      translate(
+        'auto.components.sidebar.LocalGitToolchainScanBanner.xcodeLicenseTitle',
+        'Accept the Xcode license to use Git'
+      ),
+    body: () =>
+      translate(
+        'auto.components.sidebar.LocalGitToolchainScanBanner.xcodeLicenseBody',
+        'macOS blocks Git until you accept it. Run this in Terminal, then switch back to Orca. It will check again automatically.'
+      )
+  },
+  'developer-tools': {
+    command: 'xcode-select --install',
+    title: () =>
+      translate(
+        'auto.components.sidebar.LocalGitToolchainScanBanner.developerToolsTitle',
+        "Install Apple's command line tools"
+      ),
+    body: () =>
+      translate(
+        'auto.components.sidebar.LocalGitToolchainScanBanner.developerToolsBody',
+        "Git needs Apple's developer tools. Run this in Terminal, then switch back to Orca. It will check again automatically."
+      )
+  }
 }
 
 /** One sidebar-level notice for local Git toolchain failures that block every local repo at once. */
 export function LocalGitToolchainScanBanner(): React.JSX.Element | null {
   const repos = useAppStore((s) => s.repos)
   const detectedByRepo = useAppStore((s) => s.detectedWorktreesByRepo)
-  const block = React.useMemo(
-    () => findLocalToolchainBlock(repos, detectedByRepo),
-    [repos, detectedByRepo]
-  )
+  const block = findLocalToolchainBlock(repos, detectedByRepo)
   const [pending, setPending] = React.useState(false)
 
   // Why: reads the store at call time so the focus listener below never needs re-subscribing.
@@ -35,7 +57,9 @@ export function LocalGitToolchainScanBanner(): React.JSX.Element | null {
     setPending(true)
     try {
       const scans = await Promise.all(
-        blocked.map((repo) => state.fetchWorktrees(repo.id, { executionHostId: 'local' }))
+        blocked.map((repo) =>
+          state.fetchWorktrees(repo.id, { executionHostId: LOCAL_EXECUTION_HOST_ID })
+        )
       )
       if (scans.every(Boolean)) {
         toast.success(
@@ -65,29 +89,7 @@ export function LocalGitToolchainScanBanner(): React.JSX.Element | null {
   if (!block) {
     return null
   }
-  const command = FIX_COMMANDS[block.kind]
-  const copy =
-    block.kind === 'xcode-license'
-      ? {
-          title: translate(
-            'auto.components.sidebar.LocalGitToolchainScanBanner.xcodeLicenseTitle',
-            'Accept the Xcode license to use Git'
-          ),
-          body: translate(
-            'auto.components.sidebar.LocalGitToolchainScanBanner.xcodeLicenseBody',
-            'macOS blocks Git until you accept it. Run this in Terminal, then switch back to Orca. It will check again automatically.'
-          )
-        }
-      : {
-          title: translate(
-            'auto.components.sidebar.LocalGitToolchainScanBanner.developerToolsTitle',
-            "Install Apple's command line tools"
-          ),
-          body: translate(
-            'auto.components.sidebar.LocalGitToolchainScanBanner.developerToolsBody',
-            "Git needs Apple's developer tools. Run this in Terminal, then switch back to Orca. It will check again automatically."
-          )
-        }
+  const fix = FIXES[block.kind]
   const affected =
     block.repos.length === 1
       ? translate(
@@ -110,10 +112,10 @@ export function LocalGitToolchainScanBanner(): React.JSX.Element | null {
       <div className="flex items-start gap-2">
         <TriangleAlert className="mt-px size-3.5 shrink-0 text-destructive" aria-hidden="true" />
         <div className="min-w-0 flex-1 space-y-1.5">
-          <p className="text-xs font-semibold leading-snug">{copy.title}</p>
-          <p className="text-xs leading-snug text-muted-foreground">{copy.body}</p>
+          <p className="text-xs font-semibold leading-snug">{fix.title()}</p>
+          <p className="text-xs leading-snug text-muted-foreground">{fix.body()}</p>
           <code className="block select-all break-words rounded bg-muted px-1.5 py-1 font-mono text-[11px] text-foreground">
-            {command}
+            {fix.command}
           </code>
           <p className="truncate text-[11px] text-muted-foreground">{affected}</p>
           <div className="flex items-center gap-1.5 pt-0.5">
@@ -123,7 +125,7 @@ export function LocalGitToolchainScanBanner(): React.JSX.Element | null {
               size="xs"
               onClick={() =>
                 void window.api.ui
-                  .writeClipboardText(command)
+                  .writeClipboardText(fix.command)
                   .then(() =>
                     toast.success(
                       translate(

@@ -16,11 +16,11 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const XCODE_REASON =
   'You have not agreed to the Xcode license agreements. Agreeing to the Xcode/iOS license requires admin privileges, please run “sudo xcodebuild -license” and then retry this command.'
 
-function makeRepo(id: string): Repo {
-  return { id, path: `/repos/${id}`, displayName: id, badgeColor: '#000', addedAt: 0 }
+function makeRepo(id: string, host: Partial<Repo> = {}): Repo {
+  return { id, path: `/repos/${id}`, displayName: id, badgeColor: '#000', addedAt: 0, ...host }
 }
 
-const repos = [makeRepo('web-app'), makeRepo('api-server')]
+let repos = [makeRepo('web-app'), makeRepo('api-server')]
 const initialState = useAppStore.getInitialState()
 const roots: Root[] = []
 const originalUserAgent = navigator.userAgent
@@ -63,6 +63,8 @@ describe('LocalGitToolchainScanBanner', () => {
       value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
       configurable: true
     })
+    repos = [makeRepo('web-app'), makeRepo('api-server')]
+    vi.mocked(toast.success).mockClear()
     useAppStore.setState(initialState, true)
   })
 
@@ -105,6 +107,34 @@ describe('LocalGitToolchainScanBanner', () => {
     expect(toast.success).toHaveBeenCalledWith('Git is working again. Worktrees refreshed.', {
       id: 'local-git-toolchain-restored'
     })
+  })
+
+  it('keeps the success toast back while any repo is still blocked', async () => {
+    useAppStore.setState({ repos, detectedWorktreesByRepo: blockedListings() })
+    const fetchWorktrees = vi
+      .spyOn(useAppStore.getState(), 'fetchWorktrees')
+      .mockImplementation(async (repoId: string) => repoId === 'web-app')
+    await render()
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+    })
+
+    expect(fetchWorktrees).toHaveBeenCalledTimes(2)
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('leaves SSH and remote-runtime repos to the per-repo marker', async () => {
+    repos = [
+      makeRepo('ssh-repo', { connectionId: 'conn-1' }),
+      makeRepo('runtime-repo', { executionHostId: 'runtime:env-1' })
+    ]
+    useAppStore.setState({ repos, detectedWorktreesByRepo: blockedListings() })
+
+    const container = await render()
+
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+    expect(container.querySelectorAll('button[aria-label^="Worktree scan failed"]')).toHaveLength(2)
   })
 
   it('renders nothing off macOS, leaving the per-repo marker', async () => {
