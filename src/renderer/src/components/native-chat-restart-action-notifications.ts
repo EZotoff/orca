@@ -54,11 +54,17 @@ export type RestartFailureActions = {
 }
 
 /** The chats an action did not carry on. No names here: the modal has the list, and the count is
- *  the same shape whether it is one chat or ten. */
-function announceNotContinued(sessionIds: readonly string[], actions: RestartFailureActions): void {
+ *  the same shape whether it is one chat or ten. Dismiss forgets only the chats the host listed as
+ *  failed — a chat that merely dropped out of the answer may still be a live offer. */
+function announceNotContinued(
+  sessionIds: readonly string[],
+  hostFailed: ReadonlySet<string>,
+  actions: RestartFailureActions
+): void {
   if (sessionIds.length === 0) {
     return
   }
+  const dismissable = sessionIds.filter((sessionId) => hostFailed.has(sessionId))
   toast(
     sessionIds.length === 1
       ? translate(
@@ -75,10 +81,14 @@ function announceNotContinued(sessionIds: readonly string[], actions: RestartFai
         label: translate('auto.components.NativeChatResumeOnRestartModal.show', 'Show'),
         onClick: actions.show
       },
-      cancel: {
-        label: translate('auto.components.NativeChatResumeOnRestartModal.dismiss', 'Dismiss'),
-        onClick: () => actions.dismiss(sessionIds)
-      }
+      ...(dismissable.length === 0
+        ? {}
+        : {
+            cancel: {
+              label: translate('auto.components.NativeChatResumeOnRestartModal.dismiss', 'Dismiss'),
+              onClick: () => actions.dismiss(dismissable)
+            }
+          })
     }
   )
 }
@@ -106,9 +116,11 @@ export function restartChatsNotContinued(
 export function announceRestartResults(
   requested: readonly string[],
   results: readonly RestartContinuationOutcome[],
+  /** The host's own failure list after the action; an older host sends none. */
+  hostFailed: readonly string[],
   actions: RestartFailureActions
 ): void {
   const notContinued = restartChatsNotContinued(requested, results)
   announceContinued(new Set(requested).size - notContinued.length)
-  announceNotContinued(notContinued, actions)
+  announceNotContinued(notContinued, new Set(hostFailed), actions)
 }

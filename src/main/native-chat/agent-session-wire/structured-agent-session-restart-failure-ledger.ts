@@ -3,6 +3,10 @@
 // The toast that reports a chat Orca could not carry on is gone in seconds and the reattach spends
 // the offer, so without this record nothing durable would point at the chat the user has to
 // continue by hand. The capsule holds the record; this decides what goes in and when it leaves.
+//
+// Whether a record is still current is derived, never cached: it is current only while the chat's
+// newest user message is the one it had when the failure was filed. The user's own send, from any
+// client, therefore retires it without a hook on the send path.
 
 import type {
   AgentSessionRecoveryCapsule,
@@ -10,28 +14,41 @@ import type {
   AgentSessionResumeFailureRecord
 } from '../../runtime/agent-session-recovery-capsule'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
-import type { AgentSessionResumeFailureOutcome } from '../../../shared/agent-session-resume-marker'
+import type {
+  AgentSessionResumeFailureOutcome,
+  AgentSessionResumeMarker
+} from '../../../shared/agent-session-resume-marker'
 import { normalizeOptionalField } from '../../../shared/agent-status-field-normalization'
 import { AGENT_MODEL_MAX_LENGTH } from '../../../shared/agent-status-types'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
 import { adapterSupportsRecord } from './structured-agent-session-provider-support'
+import {
+  liveStructuredAgentSessionLatestUserItemId,
+  type StructuredAgentSessionRestartJournalSource
+} from './structured-agent-session-restart-candidates'
 import type { StructuredAgentSessionContinuationOutcome } from './structured-agent-session-restart-continuation'
 import type {
   StructuredAgentSessionResumeCandidate,
   StructuredAgentSessionResumeFailure
 } from './structured-agent-session-restart-resume-set'
 import type { StructuredAgentSessionResumeOutcome } from './structured-agent-session-restart-resume-runner'
-import { STRUCTURED_AGENT_SESSION_RESTART_CONTINUATION_CALLER } from './structured-agent-session-restart-resume-wiring'
 
 type FailureCapsule = Pick<
   AgentSessionRecoveryCapsule,
-  'listFailed' | 'completeResume' | 'failResume' | 'rollbackResume' | 'dismiss' | 'clearAll'
+  | 'listFailed'
+  | 'completeResume'
+  | 'failResume'
+  | 'rollbackResume'
+  | 'dismiss'
+  | 'clearAll'
+  | 'forgetFailures'
 >
 
 export type StructuredAgentSessionRestartFailureLedger = {
-  /** The raw records, refreshing which sessions are known to have failed. */
+  /** The stored records, current or not. */
   read: () => Promise<AgentSessionResumeFailureRecord[]>
-  /** The records as rows a surface can show; sessions this host no longer holds are left out. */
+  /** The current records as rows a surface can show; sessions this host no longer holds are left
+   *  out, and records the chat has since superseded are dropped and pruned. */
   list: () => Promise<StructuredAgentSessionResumeFailure[]>
   /** Settles one operation's reservations: the agent carried on, or the failure is filed. Rows the
    *  operation still owns after that are reopened. */
@@ -40,6 +57,8 @@ export type StructuredAgentSessionRestartFailureLedger = {
     outcomes: readonly StructuredAgentSessionResumeOutcome[],
     action: {
       candidates: readonly StructuredAgentSessionResumeCandidate[]
+      /** The reserved markers, for a chat whose journal is not readable here at settlement. */
+      markers: ReadonlyMap<string, AgentSessionResumeMarker>
       /** How a reattached session's action ended; null when the agent carried on. Reattaching alone
        *  is not the whole action, so the runner's own outcome cannot decide this. */
       failureAfterResume: (sessionId: string) => AgentSessionResumeFailureOutcome | null
@@ -51,12 +70,6 @@ export type StructuredAgentSessionRestartFailureLedger = {
     sessionIds: readonly string[] | undefined,
     beforeClearAll: () => void
   ) => Promise<number>
-  /** The user's own send in that chat is the manual continuation a failure asked for. Bookkeeping
-   *  behind the send: reported, never awaited by it. */
-  releaseOnUserSend: (
-    caller: { callerKey: string },
-    params: { envelope: { sessionId: string } }
-  ) => void
 }
 
 /** Which continuation outcomes count as the agent not carrying on, and how each is filed. */
@@ -68,24 +81,18 @@ export function continuationFailureOutcome(
 
 export function createStructuredAgentSessionRestartFailureLedger(deps: {
   capsule?: FailureCapsule
+  sessions: ReadonlyMap<string, StructuredAgentSessionRestartJournalSource>
+  /** Makes a persisted chat's journal readable here, as listing an offer does. */
+  reveal: (sessionId: string) => Promise<void>
   getRecord: (sessionId: string) => AgentSessionRecord | null
   adapter: StructuredAgentSessionAdapter
   now: () => number
   /** The capsule's single mutation lane, shared with the offer's own operations. */
   enqueue: <T>(operation: () => Promise<T>) => Promise<T>
 }): StructuredAgentSessionRestartFailureLedger {
-  /** Session ids with a recorded failure, as of the last read or write. Lets a user send skip the
-   *  file entirely in the common case where nothing failed. */
-  const known = new Set<string>()
-
   const read = async (): Promise<AgentSessionResumeFailureRecord[]> => {
     try {
-      const failures = (await deps.capsule?.listFailed(deps.now())) ?? []
-      known.clear()
-      for (const failure of failures) {
-        known.add(failure.marker.sessionId)
-      }
-      return failures
+      return (await deps.capsule?.listFailed(deps.now())) ?? []
     } catch {
       // Recovery is advisory; a malformed capsule must not make ordinary chat actions unusable.
       console.warn('[structured-agent-session] reading recovery capsule failed')
@@ -93,31 +100,63 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
     }
   }
 
-  const list = async (): Promise<StructuredAgentSessionResumeFailure[]> =>
-    (await read()).flatMap((failure) => {
-      const record = deps.getRecord(failure.marker.sessionId)
-      if (!record || !adapterSupportsRecord(deps.adapter, record)) {
-        return []
+  const toRow = (
+    failure: AgentSessionResumeFailureRecord
+  ): StructuredAgentSessionResumeFailure[] => {
+    const record = deps.getRecord(failure.marker.sessionId)
+    if (!record || !adapterSupportsRecord(deps.adapter, record)) {
+      return []
+    }
+    const model = normalizeOptionalField(record.options?.model, AGENT_MODEL_MAX_LENGTH)
+    return [
+      {
+        sessionId: failure.marker.sessionId,
+        workspaceId: record.location.workspaceId,
+        agent: record.provider,
+        work: failure.marker.work,
+        trigger: failure.marker.trigger,
+        recordedAt: failure.marker.recordedAt,
+        latestPrompt: failure.latestPrompt,
+        executionHostId: record.location.executionHostId,
+        workspaceKind: record.location.workspaceKind,
+        ...(model === undefined ? {} : { model }),
+        failedAt: failure.failedAt,
+        outcome: failure.outcome,
+        reason: failure.reason
       }
-      const model = normalizeOptionalField(record.options?.model, AGENT_MODEL_MAX_LENGTH)
-      return [
-        {
-          sessionId: failure.marker.sessionId,
-          workspaceId: record.location.workspaceId,
-          agent: record.provider,
-          work: failure.marker.work,
-          trigger: failure.marker.trigger,
-          recordedAt: failure.marker.recordedAt,
-          latestPrompt: failure.latestPrompt,
-          executionHostId: record.location.executionHostId,
-          workspaceKind: record.location.workspaceKind,
-          ...(model === undefined ? {} : { model }),
-          failedAt: failure.failedAt,
-          outcome: failure.outcome,
-          reason: failure.reason
-        }
-      ]
-    })
+    ]
+  }
+
+  const list = async (): Promise<StructuredAgentSessionResumeFailure[]> => {
+    const current: AgentSessionResumeFailureRecord[] = []
+    const superseded: AgentSessionResumeFailureRecord[] = []
+    for (const failure of await read()) {
+      const sessionId = failure.marker.sessionId
+      if (!deps.sessions.has(sessionId)) {
+        await deps.reveal(sessionId)
+      }
+      const latest = liveStructuredAgentSessionLatestUserItemId(deps.sessions, sessionId)
+      // An unreadable journal decides nothing; the record stays until something that can decide.
+      if (latest !== undefined && latest !== failure.latestUserItemId) {
+        superseded.push(failure)
+      } else {
+        current.push(failure)
+      }
+    }
+    const capsule = deps.capsule
+    if (capsule && superseded.length > 0) {
+      const gone = superseded.map((failure) => ({
+        sessionId: failure.marker.sessionId,
+        failedAt: failure.failedAt
+      }))
+      void deps
+        .enqueue(() => capsule.forgetFailures(gone, deps.now()))
+        .catch(() => {
+          console.warn('[structured-agent-session] pruning superseded restart failures failed')
+        })
+    }
+    return current.flatMap(toRow)
+  }
 
   const settle: StructuredAgentSessionRestartFailureLedger['settle'] = async (
     operationId,
@@ -140,6 +179,8 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
         completed.push(outcome.sessionId)
         continue
       }
+      // Read after the action, so the continuation's own message is part of the filed state.
+      const latest = liveStructuredAgentSessionLatestUserItemId(deps.sessions, outcome.sessionId)
       failures.push({
         sessionId: outcome.sessionId,
         failedAt: deps.now(),
@@ -147,7 +188,11 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
         reason: resumed
           ? action.failureReason(outcome.sessionId)
           : (outcome.reason ?? 'agent_session_resume_refused'),
-        latestPrompt: promptBySession.get(outcome.sessionId) ?? ''
+        latestPrompt: promptBySession.get(outcome.sessionId) ?? '',
+        latestUserItemId:
+          latest !== undefined
+            ? latest
+            : (action.markers.get(outcome.sessionId)?.latestUserItemId ?? null)
       })
     }
     await deps
@@ -162,9 +207,6 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
       .catch(() => {
         console.warn('[structured-agent-session] restart failure record failed')
       })
-    for (const failure of failures) {
-      known.add(failure.sessionId)
-    }
     // This only reopens rows still owned by this operation. Rows removed by completeResume stay
     // removed, even when the write of a later bookkeeping step fails.
     await deps
@@ -181,29 +223,10 @@ export function createStructuredAgentSessionRestartFailureLedger(deps: {
     dismiss: (sessionIds, beforeClearAll) =>
       deps.enqueue(async () => {
         if (sessionIds !== undefined) {
-          for (const sessionId of sessionIds) {
-            known.delete(sessionId)
-          }
           return (await deps.capsule?.dismiss(sessionIds, deps.now())) ?? 0
         }
         beforeClearAll()
-        known.clear()
         return (await deps.capsule?.clearAll(deps.now())) ?? 0
-      }),
-    releaseOnUserSend: (caller, params) => {
-      const sessionId = params.envelope.sessionId
-      if (
-        caller.callerKey === STRUCTURED_AGENT_SESSION_RESTART_CONTINUATION_CALLER ||
-        !known.has(sessionId)
-      ) {
-        return
-      }
-      known.delete(sessionId)
-      void deps
-        .enqueue(() => deps.capsule?.dismiss([sessionId], deps.now()) ?? Promise.resolve(0))
-        .catch(() => {
-          console.warn('[structured-agent-session] restart failure release failed')
-        })
-    }
+      })
   }
 }

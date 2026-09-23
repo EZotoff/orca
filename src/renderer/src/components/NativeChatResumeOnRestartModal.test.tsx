@@ -331,14 +331,13 @@ it('reports refused and newly ineligible chats on an opted-in launch', async () 
         }
   )
   await mount(<NativeChatResumeOnRestartModal />)
-  // One count, no names: the modal has the list, and the toast can open it or forget them.
+  // One count, no names: the modal has the list. The host listed no failure, so there is nothing
+  // the toast may forget — a chat that only dropped out of the answer is still an offer.
   expect(toast).toHaveBeenCalledWith(
     '2 chats couldn’t be resumed',
-    expect.objectContaining({
-      action: expect.objectContaining({ label: 'Show' }),
-      cancel: expect.objectContaining({ label: 'Dismiss' })
-    })
+    expect.objectContaining({ action: expect.objectContaining({ label: 'Show' }) })
   )
+  expect(vi.mocked(toast).mock.calls.at(-1)?.[1]).not.toHaveProperty('cancel')
 })
 
 it('dispatches the selected action while a future preference save is still pending', async () => {
@@ -445,12 +444,16 @@ it('lets the failure notice open the list or forget the chats it counted', async
     method === 'agentSession.restartResumable'
       ? { sessions: offered }
       : method === 'agentSession.restartContinue'
-        ? { continued: [{ sessionId: 'a', outcome: 'refused' }], sessions: [offered[1]!] }
+        ? // `b` was requested too but dropped out of the answer without the host failing it.
+          {
+            continued: [{ sessionId: 'a', outcome: 'refused' }],
+            sessions: [offered[1]!],
+            failed: [failure('a')]
+          }
         : { dismissed: 1, sessions: [offered[1]!], failed: [] }
   )
   await mount(<NativeChatResumeOnRestartModal />)
-  await act(async () => checkbox(1).click())
-  await act(async () => button('Resume 1 chat').click())
+  await act(async () => button('Resume 2 chats').click())
   const options = vi.mocked(toast).mock.calls.at(-1)?.[1]
   consumeNativeChatResumeOnRestartDialogRequest()
   await act(async () => press(options?.action))

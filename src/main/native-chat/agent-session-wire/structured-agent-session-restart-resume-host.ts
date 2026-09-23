@@ -19,8 +19,7 @@ import type { StructuredAgentSessionAdapter } from './structured-agent-session-a
 import { createStructuredAgentSessionRestartCandidateReader } from './structured-agent-session-restart-candidates'
 import {
   continuationFailureOutcome,
-  createStructuredAgentSessionRestartFailureLedger,
-  type StructuredAgentSessionRestartFailureLedger
+  createStructuredAgentSessionRestartFailureLedger
 } from './structured-agent-session-restart-failure-ledger'
 import { createStructuredAgentSessionRestartOperationQueue } from './structured-agent-session-restart-operation-queue'
 import type {
@@ -81,7 +80,6 @@ export type StructuredAgentSessionRestartResume = {
   }>
   /** Named sessions forget their offer or failure; unnamed, every durable record goes. */
   dismiss: (sessionIds?: readonly string[]) => Promise<number>
-  releaseFailureOnUserSend: StructuredAgentSessionRestartFailureLedger['releaseOnUserSend']
 }
 
 export function createStructuredAgentSessionRestartResume(
@@ -113,6 +111,10 @@ export function createStructuredAgentSessionRestartResume(
   })
   const failures = createStructuredAgentSessionRestartFailureLedger({
     ...(deps.recoveryCapsule ? { capsule: deps.recoveryCapsule } : {}),
+    sessions,
+    reveal: async (sessionId) => {
+      await surfaces.revealSession(sessionId).catch(() => null)
+    },
     getRecord: deps.store.getRecord,
     adapter: deps.adapter,
     now: surfaces.now,
@@ -166,7 +168,7 @@ export function createStructuredAgentSessionRestartResume(
     sessionIds: readonly string[] | undefined,
     owner: string,
     afterAcquire?: (marker: AgentSessionResumeMarker) => Promise<void>,
-    settlement: Omit<Parameters<typeof failures.settle>[2], 'candidates'> = {
+    settlement: Omit<Parameters<typeof failures.settle>[2], 'candidates' | 'markers'> = {
       failureAfterResume: () => null,
       failureReason: () => 'agent_session_resume_refused'
     }
@@ -231,7 +233,11 @@ export function createStructuredAgentSessionRestartResume(
       }
       throw error
     }
-    await failures.settle(operationId, outcomes, { candidates, ...settlement })
+    await failures.settle(operationId, outcomes, {
+      candidates,
+      markers: markersBySession,
+      ...settlement
+    })
     return outcomes
   }
 
@@ -316,7 +322,6 @@ export function createStructuredAgentSessionRestartResume(
     // Do not let a teardown witness already captured in this host republish after explicit
     // dismissal. A later capture is a new interruption and may create a fresh offer normally.
     dismiss: (sessionIds) => failures.dismiss(sessionIds, witnesses.clear),
-    releaseFailureOnUserSend: failures.releaseOnUserSend,
     resume: (sessionIds, owner) => run(sessionIds, owner),
     continueAfterRestart
   }

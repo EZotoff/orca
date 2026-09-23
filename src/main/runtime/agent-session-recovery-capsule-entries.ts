@@ -1,8 +1,8 @@
-// The shape of the recovery capsule on disk, and how a stored set of entries is read back.
+// The shape of the recovery capsule on disk, and how a stored set of records is read back.
 //
-// Split from the capsule so the file format — the three entry states, their fields, the legacy v1
-// layout — can be read on its own. Every value parsed here re-enters from a file this process did
-// not necessarily write.
+// Split from the capsule so the file format — offer entries, failure records, the legacy v1 layout
+// — can be read on its own. Every value parsed here re-enters from a file this process did not
+// necessarily write, including one written by an older or newer build.
 
 import { z } from 'zod'
 import {
@@ -18,25 +18,32 @@ export const MAX_FAILURE_FIELD_LENGTH = 512
 
 const legacyCapsuleSchema = z.object({ version: z.literal(1), markers: z.array(z.unknown()) })
 const entrySchema = z.object({
-  state: z.enum(['pending', 'in-progress', 'failed']),
+  state: z.enum(['pending', 'in-progress']),
   operationId: z.string().min(1).optional(),
   startedAt: z.number().int().nonnegative().optional(),
-  failedAt: z.number().int().nonnegative().optional(),
-  outcome: z.enum(AGENT_SESSION_RESUME_FAILURE_OUTCOMES).optional(),
-  reason: z.string().max(MAX_FAILURE_FIELD_LENGTH).optional(),
-  latestPrompt: z.string().max(MAX_FAILURE_FIELD_LENGTH).optional(),
   marker: z.unknown(),
   replacement: z.unknown().optional()
 })
+const failureSchema = z.object({
+  marker: z.unknown(),
+  failedAt: z.number().int().nonnegative(),
+  outcome: z.enum(AGENT_SESSION_RESUME_FAILURE_OUTCOMES),
+  reason: z.string().max(MAX_FAILURE_FIELD_LENGTH),
+  latestPrompt: z.string().max(MAX_FAILURE_FIELD_LENGTH),
+  latestUserItemId: z.string().max(MAX_FAILURE_FIELD_LENGTH).nullable()
+})
+// Failures sit under their own optional key rather than as a third entry state: an older build's
+// entry parser rejects an unknown state and would lose every offer, but it ignores an unknown key.
 const capsuleSchema = z.object({
   version: z.literal(2),
   entries: z.array(z.unknown()),
-  dismissedAt: z.number().int().nonnegative().optional()
+  dismissedAt: z.number().int().nonnegative().optional(),
+  failed: z.array(z.unknown()).optional()
 })
 
-/** What an acted-on offer left behind when the agent did not carry on. Kept so the status bar can
- *  keep pointing at the chat after the offer itself is spent; dies with the marker's TTL, an
- *  explicit dismissal, a successful retry, or the user's own send. */
+/** What an acted-on offer left behind when the agent did not carry on. Current only while nothing
+ *  newer happened in that chat; also dies with the marker's TTL, a dismissal, a successful retry,
+ *  or a newer teardown of the same chat. */
 export type AgentSessionResumeFailureRecord = {
   marker: AgentSessionResumeMarker
   failedAt: number
@@ -44,24 +51,26 @@ export type AgentSessionResumeFailureRecord = {
   reason: string
   /** The prompt the offer quoted, snapshotted because the session may no longer be readable. */
   latestPrompt: string
+  /** The chat's newest user message when this was filed, as the marker records it at teardown. A
+   *  different newest message means the user has since acted in that chat. */
+  latestUserItemId: string | null
 }
 
 export type AgentSessionResumeFailureInput = Omit<AgentSessionResumeFailureRecord, 'marker'> & {
   sessionId: string
 }
 
-export type RecoveryEntry =
-  | {
-      state: 'pending' | 'in-progress'
-      operationId?: string
-      startedAt?: number
-      marker: AgentSessionResumeMarker
-      replacement?: AgentSessionResumeMarker
-    }
-  | ({ state: 'failed'; replacement?: AgentSessionResumeMarker } & AgentSessionResumeFailureRecord)
+export type RecoveryEntry = {
+  state: 'pending' | 'in-progress'
+  operationId?: string
+  startedAt?: number
+  marker: AgentSessionResumeMarker
+  replacement?: AgentSessionResumeMarker
+}
 
 export type RecoveryCapsuleState = {
   entries: RecoveryEntry[]
+  failed: AgentSessionResumeFailureRecord[]
   dismissedAt?: number
 }
 
@@ -73,6 +82,28 @@ function parseMarker(value: unknown): AgentSessionResumeMarker {
   return marker
 }
 
+function parseEntry(value: unknown): RecoveryEntry {
+  const parsed = entrySchema.parse(value)
+  const marker = parseMarker(parsed.marker)
+  const replacement = parsed.replacement === undefined ? undefined : parseMarker(parsed.replacement)
+  if (replacement && replacement.sessionId !== marker.sessionId) {
+    throw new Error('agent_session_recovery_capsule_invalid')
+  }
+  if (parsed.state === 'pending') {
+    return { state: 'pending', marker, ...(replacement ? { replacement } : {}) }
+  }
+  if (parsed.operationId === undefined || parsed.startedAt === undefined) {
+    throw new Error('agent_session_recovery_capsule_invalid')
+  }
+  return {
+    state: 'in-progress',
+    operationId: parsed.operationId,
+    startedAt: parsed.startedAt,
+    marker,
+    ...(replacement ? { replacement } : {})
+  }
+}
+
 export function parseState(raw: string): RecoveryCapsuleState {
   const value: unknown = JSON.parse(raw)
   const legacy = legacyCapsuleSchema.safeParse(value)
@@ -81,59 +112,31 @@ export function parseState(raw: string): RecoveryCapsuleState {
       entries: legacy.data.markers.map((marker) => ({
         state: 'pending',
         marker: parseMarker(marker)
-      }))
+      })),
+      failed: []
     }
   }
   const capsule = capsuleSchema.parse(value)
-  const entries = capsule.entries.map((entry) => {
-    const parsed = entrySchema.parse(entry)
-    const marker = parseMarker(parsed.marker)
-    const replacement =
-      parsed.replacement === undefined ? undefined : parseMarker(parsed.replacement)
-    if (replacement && replacement.sessionId !== marker.sessionId) {
-      throw new Error('agent_session_recovery_capsule_invalid')
-    }
-    if (parsed.state === 'pending') {
-      return { state: 'pending' as const, marker, ...(replacement ? { replacement } : {}) }
-    }
-    if (parsed.state === 'failed') {
-      if (
-        parsed.failedAt === undefined ||
-        parsed.outcome === undefined ||
-        parsed.reason === undefined
-      ) {
-        throw new Error('agent_session_recovery_capsule_invalid')
-      }
-      return {
-        state: 'failed' as const,
-        marker,
-        failedAt: parsed.failedAt,
-        outcome: parsed.outcome,
-        reason: parsed.reason,
-        latestPrompt: parsed.latestPrompt ?? '',
-        ...(replacement ? { replacement } : {})
-      }
-    }
-    if (parsed.operationId === undefined || parsed.startedAt === undefined) {
-      throw new Error('agent_session_recovery_capsule_invalid')
-    }
-    return {
-      state: 'in-progress' as const,
-      operationId: parsed.operationId,
-      startedAt: parsed.startedAt,
-      marker,
-      ...(replacement ? { replacement } : {})
-    }
-  })
   return {
-    entries,
+    entries: capsule.entries.map(parseEntry),
+    failed: (capsule.failed ?? []).map((failure) => {
+      const parsed = failureSchema.parse(failure)
+      return { ...parsed, marker: parseMarker(parsed.marker) }
+    }),
     ...(capsule.dismissedAt === undefined ? {} : { dismissedAt: capsule.dismissedAt })
   }
 }
 
-export function normalizeEntries(entries: readonly RecoveryEntry[], now: number): RecoveryEntry[] {
+function sameWitness(left: AgentSessionResumeMarker, right: AgentSessionResumeMarker): boolean {
+  return left.teardownId === right.teardownId && left.recordedAt === right.recordedAt
+}
+
+export function normalizeState(
+  state: RecoveryCapsuleState,
+  now: number
+): Pick<RecoveryCapsuleState, 'entries' | 'failed'> {
   const bySession = new Map<string, RecoveryEntry>()
-  for (const entry of entries) {
+  for (const entry of state.entries) {
     const replacement =
       entry.replacement && !isExpiredAgentSessionResumeMarker(entry.replacement, now)
         ? entry.replacement
@@ -148,19 +151,37 @@ export function normalizeEntries(entries: readonly RecoveryEntry[], now: number)
       entry.state === 'in-progress' &&
       entry.startedAt !== undefined &&
       now - entry.startedAt > RESUME_ACTION_LEASE_TTL_MS
-    // A newer teardown witness supersedes a pending offer AND a recorded failure: the chat was
-    // working again, so the old verdict no longer describes it.
     const normalized: RecoveryEntry =
       entry.state === 'in-progress' && reclaimed
         ? { state: 'pending', marker: replacement ?? entry.marker }
-        : (entry.state === 'pending' || entry.state === 'failed') && replacement
+        : entry.state === 'pending' && replacement
           ? { state: 'pending', marker: replacement }
           : replacement
             ? { ...entry, replacement }
             : entry
     bySession.set(normalized.marker.sessionId, normalized)
   }
-  return [...bySession.values()]
+  const failed: AgentSessionResumeFailureRecord[] = []
+  for (const failure of state.failed) {
+    if (isExpiredAgentSessionResumeMarker(failure.marker, now)) {
+      continue
+    }
+    if (failed.some((kept) => kept.marker.sessionId === failure.marker.sessionId)) {
+      throw new Error('agent_session_recovery_capsule_duplicate_session')
+    }
+    const entry = bySession.get(failure.marker.sessionId)
+    if (entry?.state === 'pending') {
+      if (!sameWitness(entry.marker, failure.marker)) {
+        // A newer teardown of the same chat: it was working again, so the old verdict is stale.
+        continue
+      }
+      // A retry of this failure that rolled back or whose lease lapsed. It stays a failure, never a
+      // pending offer that an unselective "resume all" would silently re-run.
+      bySession.delete(failure.marker.sessionId)
+    }
+    failed.push(failure)
+  }
+  return { entries: [...bySession.values()], failed }
 }
 
 export function shouldReplaceMarker(

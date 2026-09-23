@@ -1,7 +1,12 @@
 import { expect, it, vi } from 'vitest'
 import { marker, SESSION } from './structured-agent-session-restart-resume-test-harness'
 import {
+  AGENT_SESSION_RESTART_CONTINUATION_REFUSED_NOTE,
+  AGENT_SESSION_RESTART_CONTINUATION_UNCONFIRMED_NOTE
+} from '../../../shared/agent-session-restart-continuation'
+import {
   continueStructuredAgentSessionAfterRestart,
+  RestartContinuationSupersededError,
   type StructuredAgentSessionContinuationDeps
 } from './structured-agent-session-restart-continuation'
 
@@ -38,21 +43,34 @@ it('reports an accepted continuation and records its note', async () => {
   expect(deps.note).toHaveBeenCalledOnce()
 })
 
+const UNCONFIRMED = [SESSION, AGENT_SESSION_RESTART_CONTINUATION_UNCONFIRMED_NOTE, 'warning']
+const REFUSED = [SESSION, AGENT_SESSION_RESTART_CONTINUATION_REFUSED_NOTE, 'error']
+
 it.each([
-  ['pending', { sessionId: SESSION, outcome: 'pending' }],
-  ['unknown', { sessionId: SESSION, outcome: 'unknown' }],
-  ['rejected', { sessionId: SESSION, outcome: 'refused', reason: 'provider_refused' }]
+  ['pending', { sessionId: SESSION, outcome: 'pending' }, UNCONFIRMED],
+  ['unknown', { sessionId: SESSION, outcome: 'unknown' }, UNCONFIRMED],
+  ['rejected', { sessionId: SESSION, outcome: 'refused', reason: 'provider_refused' }, REFUSED]
 ] as const)(
-  'preserves a %s settlement without recording a success note',
-  async (settled, expected) => {
+  'preserves a %s settlement and notes it in the chat instead of the success note',
+  async (settled, expected, note) => {
     const deps = dependencies(settled)
 
     await expect(
       continueStructuredAgentSessionAfterRestart(deps, SESSION, marker())
     ).resolves.toEqual(expected)
-    expect(deps.note).not.toHaveBeenCalled()
+    expect(deps.note).toHaveBeenCalledExactlyOnceWith(...note)
   }
 )
+
+it('notes a superseded continuation in the chat and still reports the refusal', async () => {
+  const deps = dependencies('accepted')
+  deps.send.mockRejectedValue(new RestartContinuationSupersededError())
+
+  await expect(
+    continueStructuredAgentSessionAfterRestart(deps, SESSION, marker())
+  ).rejects.toBeInstanceOf(RestartContinuationSupersededError)
+  expect(deps.note).toHaveBeenCalledExactlyOnceWith(...REFUSED)
+})
 
 it('reports a send refusal without waiting for settlement', async () => {
   const deps = dependencies('accepted')
@@ -66,7 +84,7 @@ it('reports a send refusal without waiting for settlement', async () => {
     reason: 'agent_session_conflict'
   })
   expect(deps.awaitSettlement).not.toHaveBeenCalled()
-  expect(deps.note).not.toHaveBeenCalled()
+  expect(deps.note).toHaveBeenCalledExactlyOnceWith(...REFUSED)
 })
 
 it('reports an unattached chat without sending', async () => {

@@ -147,9 +147,15 @@ export async function continueNativeChatRestartOffer(
         continued: RestartContinuationOutcome[]
       }
     >(LOCAL, 'agentSession.restartContinue', sessionIds ? { sessionIds } : {})
-    announceRestartResults(reported, result.continued, failureToastActions)
+    const failed = failedFrom(result)
+    announceRestartResults(
+      reported,
+      result.continued,
+      failed.map((failure) => failure.sessionId),
+      failureToastActions
+    )
     if (Array.isArray(result.sessions)) {
-      publish({ candidates: result.sessions, failed: failedFrom(result), listedAt: Date.now() })
+      publish({ candidates: result.sessions, failed, listedAt: Date.now() })
     } else {
       await refreshNativeChatRestartOffer()
     }
