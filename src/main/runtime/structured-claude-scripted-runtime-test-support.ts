@@ -25,6 +25,8 @@ export type ScriptedClaudeBehavior = {
   stallsControlReads?: boolean
   /** The spawn itself waits for `releaseStalls`, holding its acquisition open. */
   spawnHangs?: boolean
+  /** The CLI exits with this diagnostic before its spawn returns, or while its start time is read. */
+  exitsDuringSpawn?: { diagnostic: string; at: 'spawn' | 'start-time-read' }
 }
 
 export type ScriptedClaudeChild = {
@@ -118,7 +120,24 @@ export function createScriptedClaudeRuntime(sessionIds: readonly string[]) {
       }
     }
     children.push(child)
+    if (behavior.exitsDuringSpawn?.at === 'spawn') {
+      exitAtSpawn(child, behavior.exitsDuringSpawn.diagnostic)
+    }
     return child.connection
+  }
+  const exitAtSpawn = (child: ScriptedClaudeChild, diagnostic: string): void => {
+    child.connection.closed = true
+    child.exit(new Error(diagnostic))
+  }
+  /** A pid whose process is gone has no start time to read. */
+  const readProcessStartTime = async (pid: number): Promise<number | null> => {
+    const child = children.find((entry) => entry.connection.pid === pid)
+    const exits = child ? behaviors.get(child.sessionId)?.exitsDuringSpawn : undefined
+    if (child && exits?.at === 'start-time-read' && !child.connection.closed) {
+      exitAtSpawn(child, exits.diagnostic)
+      return pid * 10
+    }
+    return child?.connection.exitVerdict.root === 'exited' ? null : pid * 10
   }
 
   return {
@@ -147,7 +166,7 @@ export function createScriptedClaudeRuntime(sessionIds: readonly string[]) {
         resolveClaudeCommand: () => '/usr/local/bin/claude',
         resolveClaudeAuthPolicy: () => ({ stripAuthEnv: false }),
         openClaudeConnection: openConnection,
-        readProcessStartTime: async (pid: number) => pid * 10
+        readProcessStartTime
       })
     },
     attachParams: (sessionId: string, expectedRuntimeFence: number | null) =>
