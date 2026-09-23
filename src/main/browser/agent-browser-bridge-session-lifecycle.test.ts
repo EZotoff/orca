@@ -374,6 +374,38 @@ describe('AgentBrowserBridge', () => {
     expect(lastSnapshotArgs).toContain('--cdp')
   })
 
+  it('rejects commands queued behind a running command when the page swaps guests', async () => {
+    const tabs = new Map([['tab-1', 100]])
+    const b = new AgentBrowserBridge(mockBrowserManager(tabs))
+    b.setActiveTab(100)
+    webContentsFromIdMock.mockImplementation((id: number) =>
+      id === 100 || id === 200 ? mockWebContents(id) : null
+    )
+
+    let finishSnapshot: (() => void) | null = null
+    execFileMock.mockImplementation(
+      (_bin: string, args: string[], _opts: unknown, cb: ExecFileCallback) => {
+        if (args.includes('snapshot')) {
+          finishSnapshot = () =>
+            cb(null, JSON.stringify({ success: true, data: { snapshot: 'x' } }), '')
+          return { kill: vi.fn(() => finishSnapshot?.()) }
+        }
+        cb(null, JSON.stringify({ success: true, data: null }), '')
+        return { kill: vi.fn() }
+      }
+    )
+
+    const snapshot = b.snapshot(undefined, 'tab-1')
+    await vi.waitFor(() => expect(finishSnapshot).not.toBeNull())
+    const click = b.mouseClick(10, 20, 'left', undefined, 'tab-1')
+
+    tabs.set('tab-1', 200)
+    await b.onProcessSwap('tab-1', 200, 100)
+
+    await expect(click).rejects.toMatchObject({ code: 'browser_tab_closed' })
+    await snapshot.catch(() => {})
+  })
+
   it('does not replay stale intercept routes after process swap when the first command disables routing', async () => {
     const tabs = new Map([['tab-1', 100]])
     const mgr = mockBrowserManager(tabs)

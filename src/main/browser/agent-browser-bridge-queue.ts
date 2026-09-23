@@ -59,13 +59,12 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
     options: EnqueueTargetedCommandOptions = {}
   ): Promise<T> {
     this.assertCommandAdmission()
-    const target = this.resolveCommandTarget(worktreeId, browserPageId, options.requireScopedTarget)
-    const sessionName = `${ORCA_TAB_SESSION_PREFIX}${target.browserPageId}`
-
-    if (options.ensureSession !== false) {
-      await this.ensureSession(sessionName, target.browserPageId, target.webContentsId)
-    }
-    this.assertCommandAdmission()
+    const { browserPageId: pageId } = this.resolveCommandTarget(
+      worktreeId,
+      browserPageId,
+      options.requireScopedTarget
+    )
+    const sessionName = `${ORCA_TAB_SESSION_PREFIX}${pageId}`
 
     return new Promise<T>((resolve, reject) => {
       let queue = this.commandQueues.get(sessionName)
@@ -74,12 +73,28 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
         this.commandQueues.set(sessionName, queue)
       }
       queue.push({
-        execute: () => execute(sessionName, target),
+        execute: () => this.executeQueuedCommand(worktreeId, pageId, execute, options),
         resolve: resolve as (value: unknown) => void,
         reject
       })
       this.processQueue(sessionName)
     })
+  }
+
+  protected async executeQueuedCommand<T>(
+    worktreeId: string | undefined,
+    browserPageId: string,
+    execute: (sessionName: string, target: ResolvedBrowserCommandTarget) => Promise<T>,
+    options: EnqueueTargetedCommandOptions
+  ): Promise<T> {
+    this.assertCommandAdmission()
+    const sessionName = `${ORCA_TAB_SESSION_PREFIX}${browserPageId}`
+    // Why: the page's guest can change while queued; bind to the one current at execution.
+    const target = this.resolveCommandTarget(worktreeId, browserPageId)
+    if (options.ensureSession !== false) {
+      await this.ensureSession(sessionName, browserPageId, target.webContentsId)
+    }
+    return execute(sessionName, target)
   }
 
   protected async processQueue(sessionName: string): Promise<void> {
