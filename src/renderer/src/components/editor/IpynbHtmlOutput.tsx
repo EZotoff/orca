@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import DOMPurify from 'dompurify'
 import { translate } from '@/i18n/i18n'
 import { useDocumentDarkTheme } from './use-document-dark-theme'
 
-// Why: the frame shares our origin only so we can measure it; with no allow-scripts, a
-// no-network CSP, and links aimed at blocked popups, output markup stays inert.
+// Why: an opaque-origin, script-free frame with a no-network CSP keeps output markup inert;
+// its links aim at popups the sandbox blocks.
 const OUTPUT_DOCUMENT_HEAD = `<!doctype html><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
 <base target="_blank">
@@ -21,7 +21,6 @@ const OUTPUT_DOCUMENT_HEAD = `<!doctype html><meta charset="utf-8">
 
 export function IpynbHtmlOutput({ html }: { html: string }): React.JSX.Element {
   const colorScheme = useDocumentDarkTheme() ? 'dark' : 'light'
-  const [height, setHeight] = useState<number>()
   const srcDoc = useMemo(
     () =>
       `${OUTPUT_DOCUMENT_HEAD}<meta name="color-scheme" content="${colorScheme}">${DOMPurify.sanitize(
@@ -35,15 +34,14 @@ export function IpynbHtmlOutput({ html }: { html: string }): React.JSX.Element {
   return (
     <iframe
       title={translate('auto.components.editor.IpynbViewer.66a3f7d330', 'Notebook HTML output')}
-      sandbox="allow-same-origin"
+      // SECURITY: never add allow-same-origin or allow-scripts; notebook HTML is untrusted.
+      sandbox=""
       referrerPolicy="no-referrer"
       srcDoc={srcDoc}
-      className="block w-full border-0"
+      // Fits a pandas head() or describe() table; larger output scrolls inside the frame.
+      className="block h-72 w-full border-0"
       // Why: a color-scheme mismatch with the frame document paints an opaque canvas.
-      style={{ height, colorScheme }}
-      onLoad={(event) =>
-        setHeight(event.currentTarget.contentDocument?.documentElement.scrollHeight)
-      }
+      style={{ colorScheme }}
     />
   )
 }
