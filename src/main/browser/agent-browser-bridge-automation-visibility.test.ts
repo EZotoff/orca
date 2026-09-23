@@ -181,6 +181,62 @@ describe('AgentBrowserBridge', () => {
     const createdProxyIds = CdpWsProxyMock.instances.map(
       (instance) => (instance as { _wc?: { id?: number } })._wc?.id
     )
+    // Why: the session is created when the command runs, after the lease, so the old guest never gets one.
+    expect(createdProxyIds).toEqual([200])
+  })
+
+  it('runs commands queued behind a leased command against the re-registered page', async () => {
+    const tabs = new Map([['tab-1', 100]])
+    const wc100 = mockWebContents(100)
+    const wc200 = {
+      ...mockWebContents(200, 'https://example.com/reloaded', 'Reloaded'),
+      printToPDF: vi.fn(async () => Buffer.from('pdf'))
+    }
+    wc100.debugger.sendCommand.mockResolvedValue({})
+    wc200.debugger.sendCommand.mockResolvedValue({})
+    webContentsFromIdMock.mockImplementation((id: number) =>
+      id === 100 ? wc100 : id === 200 ? wc200 : null
+    )
+
+    let releaseLease: (() => void) | null = null
+    const acquireAutomationVisibility = vi.fn(
+      () =>
+        new Promise<() => void>((resolve) => {
+          releaseLease = () => {
+            tabs.set('tab-1', 200)
+            resolve(() => {})
+          }
+        })
+    )
+    const b = new AgentBrowserBridge(
+      mockBrowserManager(tabs, undefined, { acquireAutomationVisibility })
+    )
+    b.setActiveTab(100)
+
+    succeedWith({ snapshot: 'before' })
+    await b.snapshot()
+
+    const pdf = b.pdf(undefined, 'tab-1')
+    await vi.waitFor(() => expect(releaseLease).not.toBeNull())
+    const click = b.mouseClick(10, 20, 'left', undefined, 'tab-1')
+    succeedWith({ snapshot: 'after' })
+    const snapshot = b.snapshot(undefined, 'tab-1')
+    releaseLease!()
+
+    await pdf
+    await click
+    await expect(snapshot).resolves.toEqual({ browserPageId: 'tab-1', snapshot: 'after' })
+    expect(wc100.debugger.sendCommand).not.toHaveBeenCalledWith(
+      'Input.dispatchMouseEvent',
+      expect.anything()
+    )
+    expect(wc200.debugger.sendCommand).toHaveBeenCalledWith(
+      'Input.dispatchMouseEvent',
+      expect.anything()
+    )
+    const createdProxyIds = CdpWsProxyMock.instances.map(
+      (instance) => (instance as { _wc?: { id?: number } })._wc?.id
+    )
     expect(createdProxyIds).toEqual([100, 200])
   })
 

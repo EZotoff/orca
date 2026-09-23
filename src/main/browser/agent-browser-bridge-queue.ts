@@ -59,13 +59,13 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
     options: EnqueueTargetedCommandOptions = {}
   ): Promise<T> {
     this.assertCommandAdmission()
-    const target = this.resolveCommandTarget(worktreeId, browserPageId, options.requireScopedTarget)
-    const sessionName = `${ORCA_TAB_SESSION_PREFIX}${target.browserPageId}`
-
-    if (options.ensureSession !== false) {
-      await this.ensureSession(sessionName, target.browserPageId, target.webContentsId)
-    }
-    this.assertCommandAdmission()
+    // Why: pick only the page here; its guest webContents can be re-registered while the command waits in the queue.
+    const pageId = this.resolveCommandTarget(
+      worktreeId,
+      browserPageId,
+      options.requireScopedTarget
+    ).browserPageId
+    const sessionName = `${ORCA_TAB_SESSION_PREFIX}${pageId}`
 
     return new Promise<T>((resolve, reject) => {
       let queue = this.commandQueues.get(sessionName)
@@ -74,14 +74,7 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
         this.commandQueues.set(sessionName, queue)
       }
       queue.push({
-        execute: (() =>
-          this.executeWithVisibleTarget(
-            sessionName,
-            worktreeId,
-            target,
-            execute,
-            options
-          )) as () => Promise<unknown>,
+        execute: () => this.executeQueuedCommand(sessionName, worktreeId, pageId, execute, options),
         resolve: resolve as (value: unknown) => void,
         reject
       })
@@ -89,56 +82,57 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
     })
   }
 
-  protected async executeWithVisibleTarget<T>(
+  protected async executeQueuedCommand<T>(
     sessionName: string,
     worktreeId: string | undefined,
-    target: ResolvedBrowserCommandTarget,
+    browserPageId: string,
     execute: (sessionName: string, target: ResolvedBrowserCommandTarget) => Promise<T>,
     options: EnqueueTargetedCommandOptions
   ): Promise<T> {
-    if (!options.needsPaint) {
-      return execute(sessionName, target)
-    }
-
+    this.assertCommandAdmission()
     // Why: inactive panes are display:none; the automation lease makes only this target paintable without selecting it.
-    const restore = await this.browserManager.acquireAutomationVisibility(target.webContentsId)
+    const restore = options.needsPaint
+      ? await this.browserManager.acquireAutomationVisibility(
+          this.resolveCommandTarget(worktreeId, browserPageId).webContentsId
+        )
+      : undefined
     try {
-      const visibleTarget = await this.refreshTargetAfterAutomationVisibility(
+      // Why: resolve after the lease, since making a parked webview paintable can re-register the page.
+      return await execute(
         sessionName,
-        worktreeId,
-        target
+        await this.resolveSessionTarget(sessionName, worktreeId, browserPageId, options)
       )
-      return await execute(sessionName, visibleTarget)
     } finally {
-      restore()
+      restore?.()
     }
   }
 
-  protected async refreshTargetAfterAutomationVisibility(
+  protected async resolveSessionTarget(
     sessionName: string,
     worktreeId: string | undefined,
-    target: ResolvedBrowserCommandTarget
+    browserPageId: string,
+    options: EnqueueTargetedCommandOptions
   ): Promise<ResolvedBrowserCommandTarget> {
-    const visibleTarget = this.resolveCommandTarget(worktreeId, target.browserPageId)
-    if (visibleTarget.webContentsId === target.webContentsId) {
-      return visibleTarget
+    const target = this.resolveCommandTarget(worktreeId, browserPageId)
+    if (options.ensureSession === false) {
+      return target
+    }
+    const boundWebContentsId = this.sessions.get(sessionName)?.webContentsId
+    if (boundWebContentsId === undefined || boundWebContentsId === target.webContentsId) {
+      await this.ensureSession(sessionName, target.browserPageId, target.webContentsId)
+      return target
     }
 
-    if (this.activeWebContentsId === target.webContentsId) {
-      this.activeWebContentsId = visibleTarget.webContentsId
+    if (this.activeWebContentsId === boundWebContentsId) {
+      this.activeWebContentsId = target.webContentsId
     }
-    if (worktreeId && this.activeWebContentsPerWorktree.get(worktreeId) === target.webContentsId) {
-      this.activeWebContentsPerWorktree.set(worktreeId, visibleTarget.webContentsId)
+    if (worktreeId && this.activeWebContentsPerWorktree.get(worktreeId) === boundWebContentsId) {
+      this.activeWebContentsPerWorktree.set(worktreeId, target.webContentsId)
     }
 
-    // Why: making a parked webview paintable can re-register the page with a new guest webContents; tear down the stale session.
-    await this.restartSessionForTarget(
-      sessionName,
-      visibleTarget.browserPageId,
-      visibleTarget.webContentsId
-    )
-
-    return visibleTarget
+    // Why: the page was re-registered with a new guest webContents; the session still drives the old one.
+    await this.restartSessionForTarget(sessionName, target.browserPageId, target.webContentsId)
+    return target
   }
 
   protected async processQueue(sessionName: string): Promise<void> {
