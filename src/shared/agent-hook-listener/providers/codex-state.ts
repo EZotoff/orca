@@ -61,6 +61,17 @@ export function setCodexMainAgentTurnState(
   return record
 }
 
+/** A root Stop that lands on an already finished turn (late, after an inferred cancel) restates
+ *  that turn, so it keeps the recorded verdict; only a new turn clears it. */
+export function codexOutcomeRestatedByStop(
+  previous: CodexLeadTurnState | undefined,
+  nextState: CodexLeadTurnState['state']
+): Pick<CodexLeadTurnState, 'outcome'> {
+  return nextState === 'done' && previous?.state === 'done' && previous.outcome
+    ? { outcome: previous.outcome }
+    : {}
+}
+
 /** The `mainAgent` fact a Codex row publishes. Its combined `state` still comes from
  *  `codexRosterEffectiveState`, whose waiting-child rule the shared fold cannot express yet;
  *  moving that combine onto the fold is a separate slice with its own story table. */
@@ -182,6 +193,7 @@ export function reconcileRemoteCodexState(
       const previousLead = state.codexLeadStateByPaneKey.get(paneKey)
       setCodexMainAgentTurnState(state, paneKey, {
         state: leadState,
+        ...codexOutcomeRestatedByStop(previousLead, leadState),
         model: payload.model ?? previousLead?.model
       })
     }

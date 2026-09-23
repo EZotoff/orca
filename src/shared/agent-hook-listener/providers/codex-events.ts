@@ -23,6 +23,7 @@ import { extractToolFields, isNewTurnEvent } from '../provider-event-routing'
 import { readString } from '../tool-input-preview'
 import {
   codexMainAgentStatusForPayload,
+  codexOutcomeRestatedByStop,
   getOrCreateCodexSubagentRoster,
   getOrCreateCodexSubagentTranscriptState,
   hasCodexTranscriptSubagents,
@@ -229,6 +230,7 @@ export function normalizeCodexEvent(
   const previousLead = state.codexLeadStateByPaneKey.get(paneKey)
   setCodexMainAgentTurnState(state, paneKey, {
     state: ownedState,
+    ...codexOutcomeRestatedByStop(previousLead, ownedState),
     model:
       normalizeOptionalField(hookPayload['model'], AGENT_MODEL_MAX_LENGTH) ??
       (eventName === 'SessionStart' ? undefined : previousLead?.model)

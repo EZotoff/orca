@@ -217,9 +217,16 @@ export function normalizeGrokEvent(
         : null
   })
   const stateName = resolution.stateName
+  const previousMainAgent = state.grokMainAgentStatusByPaneKey.get(paneKey)
+  // Why: an idle prompt or session end restates the same finished turn, so its verdict stands.
+  const mainAgentOutcome =
+    outcome ??
+    (!isTurnEnd && leadState === 'done' && previousMainAgent?.state === 'done'
+      ? previousMainAgent.outcome
+      : undefined)
   const mainAgent = continueMainAgentStatus(
-    state.grokMainAgentStatusByPaneKey.get(paneKey),
-    { state: leadState, outcome },
+    previousMainAgent,
+    { state: leadState, outcome: mainAgentOutcome },
     Date.now()
   )
   state.grokMainAgentStatusByPaneKey.set(paneKey, mainAgent)
