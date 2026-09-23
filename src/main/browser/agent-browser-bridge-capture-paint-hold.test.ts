@@ -116,55 +116,50 @@ describe('AgentBrowserBridge', () => {
   })
 
   it('captures full-page screenshots directly through CDP using CSS layout bounds', async () => {
-    vi.useFakeTimers()
-    try {
-      const wc = mockWebContents(100)
-      wc.debugger.sendCommand.mockImplementation((method: string) => {
-        if (method === 'Page.getLayoutMetrics') {
-          return Promise.resolve({
-            cssContentSize: { width: 600.2, height: 900.4 },
-            contentSize: { width: 1200.4, height: 1800.8 }
-          })
-        }
-        if (method === 'Page.captureScreenshot') {
-          return Promise.resolve({ data: 'full-cdp-shot' })
-        }
-        return Promise.resolve({})
-      })
-      webContentsFromIdMock.mockReturnValue(wc)
+    const wc = mockWebContents(100)
+    wc.debugger.sendCommand.mockImplementation((method: string) => {
+      if (method === 'Page.getLayoutMetrics') {
+        return Promise.resolve({
+          cssContentSize: { width: 600.2, height: 900.4 },
+          contentSize: { width: 1200.4, height: 1800.8 }
+        })
+      }
+      if (method === 'Page.captureScreenshot') {
+        return Promise.resolve({ data: 'full-cdp-shot' })
+      }
+      return Promise.resolve({})
+    })
+    webContentsFromIdMock.mockReturnValue(wc)
 
-      execFileMock.mockImplementation(
-        (_bin: string, _args: string[], _opts: unknown, cb: ExecFileCallback) => {
-          cb(null, JSON.stringify({ success: true, data: null }), '')
-        }
-      )
+    execFileMock.mockImplementation(
+      (_bin: string, _args: string[], _opts: unknown, cb: ExecFileCallback) => {
+        cb(null, JSON.stringify({ success: true, data: null }), '')
+      }
+    )
 
-      const release = vi.fn()
-      const holdPaintForCapture = vi.fn(() => release)
-      const b = new AgentBrowserBridge(
-        mockBrowserManager(undefined, undefined, { holdPaintForCapture })
-      )
-      b.setActiveTab(100)
+    const release = vi.fn()
+    const holdPaintForCapture = vi.fn(() => release)
+    const b = new AgentBrowserBridge(
+      mockBrowserManager(undefined, undefined, { holdPaintForCapture })
+    )
+    b.setActiveTab(100)
 
-      await expect(b.fullPageScreenshot('png')).resolves.toEqual({
-        data: 'full-cdp-shot',
-        format: 'png'
-      })
+    await expect(b.fullPageScreenshot('png')).resolves.toEqual({
+      data: 'full-cdp-shot',
+      format: 'png'
+    })
 
-      expect(wc.debugger.sendCommand).toHaveBeenNthCalledWith(1, 'Page.getLayoutMetrics', {})
-      expect(wc.debugger.sendCommand).toHaveBeenNthCalledWith(2, 'Page.captureScreenshot', {
-        format: 'png',
-        captureBeyondViewport: true,
-        clip: { x: 0, y: 0, width: 601, height: 901, scale: 1 }
-      })
-      expect(holdPaintForCapture).toHaveBeenCalledWith(100)
-      expect(release).toHaveBeenCalledTimes(1)
-      const screenshotCall = execFileMock.mock.calls.find((call: unknown[]) =>
-        (call[1] as string[]).includes('screenshot')
-      )
-      expect(screenshotCall).toBeUndefined()
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(wc.debugger.sendCommand).toHaveBeenNthCalledWith(1, 'Page.getLayoutMetrics', {})
+    expect(wc.debugger.sendCommand).toHaveBeenNthCalledWith(2, 'Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: true,
+      clip: { x: 0, y: 0, width: 601, height: 901, scale: 1 }
+    })
+    expect(holdPaintForCapture).toHaveBeenCalledWith(100)
+    expect(release).toHaveBeenCalledTimes(1)
+    const screenshotCall = execFileMock.mock.calls.find((call: unknown[]) =>
+      (call[1] as string[]).includes('screenshot')
+    )
+    expect(screenshotCall).toBeUndefined()
   })
 })

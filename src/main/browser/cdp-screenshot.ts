@@ -4,10 +4,10 @@ import type { WebContents } from 'electron'
 export type CapturePaintHold = () => () => void
 
 const SCREENSHOT_TIMEOUT_MS = 8000
-const FIRST_RETRY_DELAY_MS = 250
+// Why: offsets from the capture start; the last leaves a full-page capture (~0.5 s on a tall page) time before the deadline.
+const CAPTURE_ATTEMPT_OFFSETS_MS = [0, 250, 750, 1750, 3750]
 const FALLBACK_CAPTURE_TIMEOUT_MS = 1000
-const SCREENSHOT_TIMEOUT_MESSAGE =
-  'Screenshot timed out — the browser tab may not be visible or the window may not have focus.'
+const SCREENSHOT_TIMEOUT_MESSAGE = 'Screenshot timed out — the browser page did not draw a frame.'
 
 function applyFallbackClip(
   image: Electron.NativeImage,
@@ -128,34 +128,26 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 // Why: a request made before the held page is drawn never resolves, and an offscreen drawn page can
-// skip one, so re-ask with backoff until a frame arrives. Earlier requests stay live so a slow
-// full-page capture can still win.
+// skip one, so re-ask until a frame arrives. Earlier requests stay live so a slow full-page capture
+// can still win. Resolves null when no frame arrives by the deadline; a CDP error is an answer.
 function captureUntilDrawn(
   webContents: WebContents,
   params: Record<string, unknown>
-): Promise<{ data: string }> {
+): Promise<{ data: string } | null> {
   return new Promise((resolve, reject) => {
     let settled = false
-    let lastError: string | null = null
-    let retryTimer: NodeJS.Timeout | null = null
     const finish = (settle: () => void): void => {
       if (settled) {
         return
       }
       settled = true
       clearTimeout(deadline)
-      if (retryTimer) {
-        clearTimeout(retryTimer)
-      }
+      attempts.forEach(clearTimeout)
       settle()
     }
-    const deadline = setTimeout(
-      () => finish(() => reject(new Error(lastError ?? SCREENSHOT_TIMEOUT_MESSAGE))),
-      SCREENSHOT_TIMEOUT_MS
-    )
-    const attempt = (nextDelayMs: number): void => {
+    const attempt = (): void => {
       if (webContents.isDestroyed() || !webContents.debugger.isAttached()) {
-        finish(() => reject(new Error(lastError ?? 'WebContents destroyed')))
+        finish(() => reject(new Error('WebContents destroyed')))
         return
       }
       try {
@@ -174,13 +166,12 @@ function captureUntilDrawn(
             finish(() => resolve({ data }))
           }
         },
-        (error: unknown) => {
-          lastError = error instanceof Error ? error.message : String(error)
-        }
+        (error: unknown) =>
+          finish(() => reject(error instanceof Error ? error : new Error(String(error))))
       )
-      retryTimer = setTimeout(() => attempt(nextDelayMs * 2), nextDelayMs)
     }
-    attempt(FIRST_RETRY_DELAY_MS)
+    const deadline = setTimeout(() => finish(() => resolve(null)), SCREENSHOT_TIMEOUT_MS)
+    const attempts = CAPTURE_ATTEMPT_OFFSETS_MS.map((offsetMs) => setTimeout(attempt, offsetMs))
   })
 }
 
@@ -206,23 +197,22 @@ export async function captureFullPageScreenshot(
     if (!clip) {
       throw new Error('Unable to determine full-page screenshot bounds')
     }
-    const { data } = await captureUntilDrawn(webContents, {
+    const frame = await captureUntilDrawn(webContents, {
       format,
       captureBeyondViewport: true,
       clip
     })
-    return { data, format }
+    if (!frame) {
+      throw new Error(SCREENSHOT_TIMEOUT_MESSAGE)
+    }
+    return { data: frame.data, format }
   } finally {
     release()
   }
 }
 
-// Why: Electron's capturePage() is unreliable on webview guests — the compositor
-// may not produce frames when the webview panel is inactive, unfocused, or in a
-// split-pane layout. Instead, use the debugger's Page.captureScreenshot which
-// renders server-side in the Blink compositor and doesn't depend on OS-level
-// window focus or display state. Bounded so agent-browser doesn't hang on its
-// 30s CDP timeout if the debugger stalls.
+// Why: Page.captureScreenshot honours clip and beyond-viewport params that capturePage() can't.
+// Bounded so agent-browser doesn't hang on its 30s CDP timeout if the debugger stalls.
 export async function captureScreenshot(
   webContents: WebContents,
   params: Record<string, unknown> | undefined,
@@ -254,9 +244,11 @@ export async function captureScreenshot(
 
   const release = holdPaint()
   try {
-    return await captureUntilDrawn(webContents, screenshotParams)
-  } catch (error) {
-    // Why: capturePage is only a best-effort fallback; if it also stalls or is empty, keep CDP's error.
+    const frame = await captureUntilDrawn(webContents, screenshotParams)
+    if (frame) {
+      return frame
+    }
+    // Why: capturePage is only a best-effort fallback for a page that never answered.
     const fallback = await withTimeout(
       Promise.resolve().then(() => webContents.capturePage()),
       FALLBACK_CAPTURE_TIMEOUT_MS
@@ -266,7 +258,7 @@ export async function captureScreenshot(
     if (fallback) {
       return fallback
     }
-    throw error
+    throw new Error(SCREENSHOT_TIMEOUT_MESSAGE)
   } finally {
     release()
   }

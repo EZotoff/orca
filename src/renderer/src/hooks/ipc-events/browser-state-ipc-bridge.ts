@@ -86,7 +86,14 @@ export function registerBrowserStateIpcBridge(
     }
   )
   if (unsubscribeCapturePaintHold) {
-    unsubs.push(unsubscribeCapturePaintHold)
+    unsubs.push(() => {
+      unsubscribeCapturePaintHold()
+      // Why: the release for a live hold can no longer arrive, so it must not leave the page drawn.
+      for (const token of capturePaintHoldTokens.values()) {
+        releaseBrowserAutomationVisibility(token)
+      }
+      capturePaintHoldTokens.clear()
+    })
   }
   unsubs.push(
     window.api.browser.onPaneFocus(({ worktreeId, browserPageId }) => {

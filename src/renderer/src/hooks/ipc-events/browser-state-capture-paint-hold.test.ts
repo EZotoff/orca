@@ -18,7 +18,7 @@ import { registerBrowserStateIpcBridge } from './browser-state-ipc-bridge'
 
 type CapturePaintHoldEvent = { browserPageId: string; held: boolean }
 
-function captureHoldHandler(): (event: CapturePaintHoldEvent) => void {
+function captureHoldHandler(unsubs: (() => void)[] = []): (event: CapturePaintHoldEvent) => void {
   let handler: ((event: CapturePaintHoldEvent) => void) | null = null
   const subscribe = vi.fn(() => () => {})
   vi.stubGlobal('window', {
@@ -38,7 +38,7 @@ function captureHoldHandler(): (event: CapturePaintHoldEvent) => void {
     }
   })
 
-  registerBrowserStateIpcBridge([], () => false)
+  registerBrowserStateIpcBridge(unsubs, () => false)
   if (!handler) {
     throw new Error('Expected the bridge to subscribe to browser:capturePaintHold')
   }
@@ -62,5 +62,18 @@ describe('capture paint holds from main', () => {
 
     onHold({ browserPageId: 'page-1', held: false })
     expect(isBrowserAutomationVisible('page-1')).toBe(false)
+  })
+
+  it('releases a live hold when the bridge is disposed', () => {
+    const unsubs: (() => void)[] = []
+    const onHold = captureHoldHandler(unsubs)
+
+    onHold({ browserPageId: 'page-2', held: true })
+    expect(isBrowserAutomationVisible('page-2')).toBe(true)
+
+    for (const unsubscribe of unsubs) {
+      unsubscribe()
+    }
+    expect(isBrowserAutomationVisible('page-2')).toBe(false)
   })
 })

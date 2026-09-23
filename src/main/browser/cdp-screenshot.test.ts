@@ -18,8 +18,7 @@ function createMockWebContents() {
 }
 
 const noHold = (): (() => void) => () => {}
-const TIMEOUT_MESSAGE =
-  'Screenshot timed out — the browser tab may not be visible or the window may not have focus.'
+const TIMEOUT_MESSAGE = 'Screenshot timed out — the browser page did not draw a frame.'
 
 describe('captureScreenshot', () => {
   afterEach(() => {
@@ -115,17 +114,31 @@ describe('captureScreenshot', () => {
 
     await vi.advanceTimersByTimeAsync(60_000)
     expect(webContents.debugger.sendCommand).toHaveBeenCalledTimes(attempts)
-    expect(attempts).toBeLessThanOrEqual(6)
+    expect(attempts).toBe(5)
+  })
+
+  it('fails at once on a CDP error, without retrying or falling back', async () => {
+    vi.useFakeTimers()
+    const webContents = createMockWebContents()
+    webContents.debugger.sendCommand.mockRejectedValue(new Error('Target closed'))
+
+    const capture = captureScreenshot(webContents.guest, { format: 'png' }, noHold)
+    const settled = expect(capture).rejects.toThrow('Target closed')
+    await vi.advanceTimersByTimeAsync(0)
+    await settled
+
+    await vi.advanceTimersByTimeAsync(8000)
+    expect(webContents.debugger.sendCommand).toHaveBeenCalledTimes(1)
+    expect(webContents.capturePage).not.toHaveBeenCalled()
   })
 
   it('stops retrying once the guest is destroyed', async () => {
     vi.useFakeTimers()
     const webContents = createMockWebContents()
-    webContents.debugger.sendCommand.mockRejectedValue(new Error('Target closed'))
-    webContents.capturePage.mockRejectedValue(new Error('destroyed'))
+    webContents.debugger.sendCommand.mockImplementation(() => new Promise(() => {}))
 
     const capture = captureScreenshot(webContents.guest, { format: 'png' }, noHold)
-    const settled = expect(capture).rejects.toThrow('Target closed')
+    const settled = expect(capture).rejects.toThrow('WebContents destroyed')
     await vi.advanceTimersByTimeAsync(0)
     webContents.isDestroyed.mockReturnValue(true)
     await vi.advanceTimersByTimeAsync(250)
