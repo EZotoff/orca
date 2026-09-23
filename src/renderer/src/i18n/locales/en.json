@@ -6378,7 +6378,6 @@
           "xcodeLicense": "Apple developer tools require license acceptance before Git can run.",
           "developerTools": "Apple command-line developer tools are missing or unavailable.",
           "architectureMismatch": "A Git-related executable could not run because its CPU architecture is incompatible with this execution host. Install Git and related tools for the host architecture.",
-          "copyCommand": "Copy command",
           "copyDiagnostics": "Copy diagnostics"
         },
         "LocalGitToolchainScanBanner": {
@@ -6391,10 +6390,7 @@
           "copyCommand": "Copy command",
           "copied": "Command copied",
           "retry": "Retry now",
-          "retrying": "Retrying…",
-          "restoredOne": "Worktree scan restored for {{value0}}",
-          "restoredMany": "Worktree scan restored for {{value0}} projects",
-          "stillBlocked": "Git is still blocked. Finish the command in Terminal and try again."
+          "restored": "Git is working again. Worktrees refreshed."
         }
       },
       "shared": {

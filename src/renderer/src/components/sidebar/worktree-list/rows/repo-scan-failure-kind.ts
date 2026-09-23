@@ -17,10 +17,9 @@ export type RepoScanFailure = {
 }
 
 // Why: these break Git for every local repo at once, so the sidebar banner owns them, not per-repo marks.
-const MACHINE_WIDE_LOCAL_MAC_FAILURE_KINDS: ReadonlySet<WorktreeScanFailureKind> = new Set([
-  'xcode-license',
-  'developer-tools'
-])
+const LOCAL_TOOLCHAIN_FAILURE_KINDS = ['xcode-license', 'developer-tools'] as const
+
+export type LocalToolchainFailureKind = (typeof LOCAL_TOOLCHAIN_FAILURE_KINDS)[number]
 
 export function resolveRepoScanFailure(
   repo: Repo,
@@ -38,6 +37,24 @@ export function resolveRepoScanFailure(
   return { kind, reason: detected.unavailableReason, executionHostId, isLocalMac }
 }
 
-export function isMachineWideLocalScanFailure(failure: RepoScanFailure): boolean {
-  return failure.isLocalMac && MACHINE_WIDE_LOCAL_MAC_FAILURE_KINDS.has(failure.kind)
+export function localToolchainFailureKind(
+  failure: RepoScanFailure | null
+): LocalToolchainFailureKind | null {
+  if (!failure?.isLocalMac) {
+    return null
+  }
+  return LOCAL_TOOLCHAIN_FAILURE_KINDS.find((kind) => kind === failure.kind) ?? null
+}
+
+export function findLocalToolchainBlock(
+  repos: readonly Repo[],
+  detectedByRepo: Record<string, DetectedWorktreeListResult | undefined>
+): { kind: LocalToolchainFailureKind; repos: Repo[] } | null {
+  const blocked = repos.flatMap((repo) => {
+    const kind = localToolchainFailureKind(resolveRepoScanFailure(repo, detectedByRepo[repo.id]))
+    return kind ? [{ repo, kind }] : []
+  })
+  return blocked.length > 0
+    ? { kind: blocked[0].kind, repos: blocked.map(({ repo }) => repo) }
+    : null
 }

@@ -6,20 +6,11 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { WorktreeScanFailureKind } from '../../../../../../shared/worktree-scan-failure'
-import { isMachineWideLocalScanFailure, resolveRepoScanFailure } from './repo-scan-failure-kind'
+import { localToolchainFailureKind, resolveRepoScanFailure } from './repo-scan-failure-kind'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle
 } from './header-event-guards'
-
-const WORKTREE_SCAN_FIX_COMMANDS = {
-  'xcode-license': 'sudo xcodebuild -license',
-  'developer-tools': 'xcode-select --install'
-} as const satisfies Partial<Record<WorktreeScanFailureKind, string>>
-
-function fixCommandForFailureKind(kind: WorktreeScanFailureKind): string | undefined {
-  return WORKTREE_SCAN_FIX_COMMANDS[kind]
-}
 
 /**
  * Marks a repo whose worktree scan failed, so its rows are retained but cannot be trusted.
@@ -31,7 +22,7 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
   const [pending, setPending] = React.useState(false)
   const failure = resolveRepoScanFailure(repo, detected)
   // Why: machine-wide failures are explained once by the sidebar banner, not on every repo.
-  if (!failure || isMachineWideLocalScanFailure(failure)) {
+  if (!failure || localToolchainFailureKind(failure)) {
     return null
   }
   const title = translate(
@@ -59,7 +50,6 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
     )
   }
   const failureMessage = failureMessageByKind[failureKind] ?? reason
-  const fixCommand = isLocalMac ? fixCommandForFailureKind(failureKind) : undefined
   const diagnosticText = [
     `Repository: ${repo.displayName}`,
     ...(isLocalMac
@@ -102,13 +92,6 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
           <div className="space-y-1">
             <div className="font-medium">{title}</div>
             <div className="break-words text-muted-foreground">{failureMessage}</div>
-            {fixCommand ? (
-              <div>
-                <div className="break-words font-mono text-xs text-muted-foreground">
-                  {fixCommand}
-                </div>
-              </div>
-            ) : null}
             <div className="text-muted-foreground">
               {translate(
                 'auto.components.sidebar.RepoScanUnavailableIndicator.retained',
@@ -116,18 +99,6 @@ export function RepoScanUnavailableIndicator({ repo }: { repo: Repo }): React.JS
               )}
             </div>
             <div className="flex items-center justify-start gap-3 border-t border-border/60 pt-1">
-              {fixCommand ? (
-                <button
-                  type="button"
-                  className="text-xs underline"
-                  onClick={() => void copyText(fixCommand)}
-                >
-                  {translate(
-                    'auto.components.sidebar.RepoScanUnavailableIndicator.copyCommand',
-                    'Copy command'
-                  )}
-                </button>
-              ) : null}
               <button
                 type="button"
                 className="text-xs underline"

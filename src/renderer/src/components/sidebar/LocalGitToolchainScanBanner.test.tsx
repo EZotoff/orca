@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../../../shared/repo-types'
+import { toast } from 'sonner'
 import { makeDetectedResult } from '@/store/slices/worktrees-detected-listing-fixtures'
 import { LocalGitToolchainScanBanner } from './LocalGitToolchainScanBanner'
 import { RepoScanUnavailableIndicator } from './worktree-list/rows/RepoScanUnavailableIndicator'
@@ -88,7 +89,7 @@ describe('LocalGitToolchainScanBanner', () => {
     expect(container.querySelector('button[aria-label^="Worktree scan failed"]')).toBeNull()
   })
 
-  it('rescans every blocked repo when the window regains focus', async () => {
+  it('rescans every blocked repo when the window regains focus and confirms recovery', async () => {
     useAppStore.setState({ repos, detectedWorktreesByRepo: blockedListings() })
     const fetchWorktrees = vi
       .spyOn(useAppStore.getState(), 'fetchWorktrees')
@@ -101,6 +102,9 @@ describe('LocalGitToolchainScanBanner', () => {
 
     expect(fetchWorktrees).toHaveBeenCalledWith('web-app', { executionHostId: 'local' })
     expect(fetchWorktrees).toHaveBeenCalledWith('api-server', { executionHostId: 'local' })
+    expect(toast.success).toHaveBeenCalledWith('Git is working again. Worktrees refreshed.', {
+      id: 'local-git-toolchain-restored'
+    })
   })
 
   it('renders nothing off macOS, leaving the per-repo marker', async () => {
