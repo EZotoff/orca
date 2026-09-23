@@ -74,71 +74,12 @@ export abstract class AgentBrowserBridgeQueue extends AgentBrowserBridgeShutdown
         this.commandQueues.set(sessionName, queue)
       }
       queue.push({
-        execute: (() =>
-          this.executeWithVisibleTarget(
-            sessionName,
-            worktreeId,
-            target,
-            execute,
-            options
-          )) as () => Promise<unknown>,
+        execute: () => execute(sessionName, target),
         resolve: resolve as (value: unknown) => void,
         reject
       })
       this.processQueue(sessionName)
     })
-  }
-
-  protected async executeWithVisibleTarget<T>(
-    sessionName: string,
-    worktreeId: string | undefined,
-    target: ResolvedBrowserCommandTarget,
-    execute: (sessionName: string, target: ResolvedBrowserCommandTarget) => Promise<T>,
-    options: EnqueueTargetedCommandOptions
-  ): Promise<T> {
-    if (!options.needsPaint) {
-      return execute(sessionName, target)
-    }
-
-    // Why: inactive panes are display:none; the automation lease makes only this target paintable without selecting it.
-    const restore = await this.browserManager.acquireAutomationVisibility(target.webContentsId)
-    try {
-      const visibleTarget = await this.refreshTargetAfterAutomationVisibility(
-        sessionName,
-        worktreeId,
-        target
-      )
-      return await execute(sessionName, visibleTarget)
-    } finally {
-      restore()
-    }
-  }
-
-  protected async refreshTargetAfterAutomationVisibility(
-    sessionName: string,
-    worktreeId: string | undefined,
-    target: ResolvedBrowserCommandTarget
-  ): Promise<ResolvedBrowserCommandTarget> {
-    const visibleTarget = this.resolveCommandTarget(worktreeId, target.browserPageId)
-    if (visibleTarget.webContentsId === target.webContentsId) {
-      return visibleTarget
-    }
-
-    if (this.activeWebContentsId === target.webContentsId) {
-      this.activeWebContentsId = visibleTarget.webContentsId
-    }
-    if (worktreeId && this.activeWebContentsPerWorktree.get(worktreeId) === target.webContentsId) {
-      this.activeWebContentsPerWorktree.set(worktreeId, visibleTarget.webContentsId)
-    }
-
-    // Why: making a parked webview paintable can re-register the page with a new guest webContents; tear down the stale session.
-    await this.restartSessionForTarget(
-      sessionName,
-      visibleTarget.browserPageId,
-      visibleTarget.webContentsId
-    )
-
-    return visibleTarget
   }
 
   protected async processQueue(sessionName: string): Promise<void> {

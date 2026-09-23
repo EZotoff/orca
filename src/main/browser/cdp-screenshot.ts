@@ -1,6 +1,10 @@
 import type { WebContents } from 'electron'
 
+/** Draws a hidden guest for the duration of a capture; returns its release. */
+export type CapturePaintHold = () => () => void
+
 const SCREENSHOT_TIMEOUT_MS = 8000
+const FIRST_RETRY_DELAY_MS = 250
 const FALLBACK_CAPTURE_TIMEOUT_MS = 1000
 const SCREENSHOT_TIMEOUT_MESSAGE =
   'Screenshot timed out — the browser tab may not be visible or the window may not have focus.'
@@ -109,88 +113,126 @@ function getLayoutClip(metrics: {
   }
 }
 
-async function sendCommandWithTimeout<T>(
-  webContents: WebContents,
-  method: string,
-  params: Record<string, unknown> | undefined,
-  timeoutMessage: string
-): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timer: NodeJS.Timeout | null = null
-  try {
-    return await Promise.race([
-      webContents.debugger.sendCommand(method, params ?? {}) as Promise<T>,
-      new Promise<T>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(timeoutMessage)), SCREENSHOT_TIMEOUT_MS)
-      })
-    ])
-  } finally {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(SCREENSHOT_TIMEOUT_MESSAGE)), timeoutMs)
+    })
+  ]).finally(() => {
     if (timer) {
       clearTimeout(timer)
     }
-  }
+  })
+}
+
+// Why: a request made before the held page is drawn never resolves, and an offscreen drawn page can
+// skip one, so re-ask with backoff until a frame arrives. Earlier requests stay live so a slow
+// full-page capture can still win.
+function captureUntilDrawn(
+  webContents: WebContents,
+  params: Record<string, unknown>
+): Promise<{ data: string }> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    let lastError: string | null = null
+    let retryTimer: NodeJS.Timeout | null = null
+    const finish = (settle: () => void): void => {
+      if (settled) {
+        return
+      }
+      settled = true
+      clearTimeout(deadline)
+      if (retryTimer) {
+        clearTimeout(retryTimer)
+      }
+      settle()
+    }
+    const deadline = setTimeout(
+      () => finish(() => reject(new Error(lastError ?? SCREENSHOT_TIMEOUT_MESSAGE))),
+      SCREENSHOT_TIMEOUT_MS
+    )
+    const attempt = (nextDelayMs: number): void => {
+      if (webContents.isDestroyed() || !webContents.debugger.isAttached()) {
+        finish(() => reject(new Error(lastError ?? 'WebContents destroyed')))
+        return
+      }
+      try {
+        webContents.invalidate()
+      } catch {
+        // Some guest teardown paths reject repaint requests. Fall through to CDP.
+      }
+      const request: Promise<{ data?: string } | undefined> = webContents.debugger.sendCommand(
+        'Page.captureScreenshot',
+        params
+      )
+      request.then(
+        (result) => {
+          const data = result?.data
+          if (data) {
+            finish(() => resolve({ data }))
+          }
+        },
+        (error: unknown) => {
+          lastError = error instanceof Error ? error.message : String(error)
+        }
+      )
+      retryTimer = setTimeout(() => attempt(nextDelayMs * 2), nextDelayMs)
+    }
+    attempt(FIRST_RETRY_DELAY_MS)
+  })
 }
 
 export async function captureFullPageScreenshot(
   webContents: WebContents,
-  format: 'png' | 'jpeg' = 'png'
+  format: 'png' | 'jpeg',
+  holdPaint: CapturePaintHold
 ): Promise<{ data: string; format: 'png' | 'jpeg' }> {
   if (webContents.isDestroyed()) {
     throw new Error('WebContents destroyed')
   }
-  const dbg = webContents.debugger
-  if (!dbg.isAttached()) {
+  if (!webContents.debugger.isAttached()) {
     throw new Error('Debugger not attached')
   }
 
+  const release = holdPaint()
   try {
-    webContents.invalidate()
-  } catch {
-    // Some guest teardown paths reject repaint requests. Fall through to CDP.
-  }
-
-  const metrics = await sendCommandWithTimeout<{
-    cssContentSize?: { width?: number; height?: number }
-    contentSize?: { width?: number; height?: number }
-  }>(webContents, 'Page.getLayoutMetrics', undefined, SCREENSHOT_TIMEOUT_MESSAGE)
-  const clip = getLayoutClip(metrics)
-  if (!clip) {
-    throw new Error('Unable to determine full-page screenshot bounds')
-  }
-
-  const { data } = await sendCommandWithTimeout<{ data: string }>(
-    webContents,
-    'Page.captureScreenshot',
-    {
+    // Why: layout works on an undrawn page, so only the pixel capture waits for a frame.
+    const layoutMetrics: Promise<Parameters<typeof getLayoutClip>[0]> =
+      webContents.debugger.sendCommand('Page.getLayoutMetrics', {})
+    const metrics = await withTimeout(layoutMetrics, SCREENSHOT_TIMEOUT_MS)
+    const clip = getLayoutClip(metrics)
+    if (!clip) {
+      throw new Error('Unable to determine full-page screenshot bounds')
+    }
+    const { data } = await captureUntilDrawn(webContents, {
       format,
       captureBeyondViewport: true,
       clip
-    },
-    SCREENSHOT_TIMEOUT_MESSAGE
-  )
-
-  return { data, format }
+    })
+    return { data, format }
+  } finally {
+    release()
+  }
 }
 
 // Why: Electron's capturePage() is unreliable on webview guests — the compositor
 // may not produce frames when the webview panel is inactive, unfocused, or in a
 // split-pane layout. Instead, use the debugger's Page.captureScreenshot which
 // renders server-side in the Blink compositor and doesn't depend on OS-level
-// window focus or display state. Guard with a timeout so agent-browser doesn't
-// hang on its 30s CDP timeout if the debugger stalls.
-export function captureScreenshot(
+// window focus or display state. Bounded so agent-browser doesn't hang on its
+// 30s CDP timeout if the debugger stalls.
+export async function captureScreenshot(
   webContents: WebContents,
   params: Record<string, unknown> | undefined,
-  onResult: (result: unknown) => void,
-  onError: (message: string) => void
-): void {
+  holdPaint: CapturePaintHold
+): Promise<{ data: string }> {
   if (webContents.isDestroyed()) {
-    onError('WebContents destroyed')
-    return
+    throw new Error('WebContents destroyed')
   }
-  const dbg = webContents.debugger
-  if (!dbg.isAttached()) {
-    onError('Debugger not attached')
-    return
+  if (!webContents.debugger.isAttached()) {
+    throw new Error('Debugger not attached')
   }
 
   const screenshotParams: Record<string, unknown> = {}
@@ -210,89 +252,22 @@ export function captureScreenshot(
     screenshotParams.fromSurface = params.fromSurface
   }
 
-  let settled = false
-  let timeoutTimer: ReturnType<typeof setTimeout> | null = null
-  let fallbackTimer: ReturnType<typeof setTimeout> | null = null
-  const clearTimers = (): void => {
-    if (timeoutTimer) {
-      clearTimeout(timeoutTimer)
-      timeoutTimer = null
-    }
-    if (fallbackTimer) {
-      clearTimeout(fallbackTimer)
-      fallbackTimer = null
-    }
-  }
-  const settleResult = (result: unknown): void => {
-    if (settled) {
-      return
-    }
-    settled = true
-    clearTimers()
-    onResult(result)
-  }
-  const settleError = (message: string): void => {
-    if (settled) {
-      return
-    }
-    settled = true
-    clearTimers()
-    onError(message)
-  }
-  // Why: a compositor invalidate is cheap and can recover guest instances that
-  // are visible but have not produced a fresh frame since being reclaimed into
-  // the active browser tab.
+  const release = holdPaint()
   try {
-    webContents.invalidate()
-  } catch {
-    // Some guest teardown paths reject repaint requests. Fall through to CDP.
-  }
-  timeoutTimer = setTimeout(() => {
-    if (settled) {
-      return
-    }
-    // Why: capturePage is only a best-effort fallback. If it also stalls, the
-    // CDP proxy must still settle instead of inheriting the compositor hang.
-    fallbackTimer = setTimeout(
-      () => settleError(SCREENSHOT_TIMEOUT_MESSAGE),
+    return await captureUntilDrawn(webContents, screenshotParams)
+  } catch (error) {
+    // Why: capturePage is only a best-effort fallback; if it also stalls or is empty, keep CDP's error.
+    const fallback = await withTimeout(
+      Promise.resolve().then(() => webContents.capturePage()),
       FALLBACK_CAPTURE_TIMEOUT_MS
     )
-    void Promise.resolve()
-      .then(() => webContents.capturePage())
-      .then(
-        (image) => {
-          if (settled) {
-            return
-          }
-          if (fallbackTimer) {
-            clearTimeout(fallbackTimer)
-            fallbackTimer = null
-          }
-          let fallback: { data: string } | null = null
-          try {
-            fallback = encodeNativeImageScreenshot(image, params)
-          } catch {
-            settleError(SCREENSHOT_TIMEOUT_MESSAGE)
-            return
-          }
-          if (fallback) {
-            settleResult(fallback)
-            return
-          }
-          settleError(SCREENSHOT_TIMEOUT_MESSAGE)
-        },
-        () => {
-          if (fallbackTimer) {
-            clearTimeout(fallbackTimer)
-            fallbackTimer = null
-          }
-          settleError(SCREENSHOT_TIMEOUT_MESSAGE)
-        }
-      )
-  }, SCREENSHOT_TIMEOUT_MS)
-
-  dbg
-    .sendCommand('Page.captureScreenshot', screenshotParams)
-    .then((result) => settleResult(result))
-    .catch((err) => settleError((err as Error).message))
+      .then((image) => encodeNativeImageScreenshot(image, params))
+      .catch(() => null)
+    if (fallback) {
+      return fallback
+    }
+    throw error
+  } finally {
+    release()
+  }
 }
