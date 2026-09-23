@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -15,7 +16,8 @@ export function AddRemoteHostServerFormPanel({
   onPairingCodeChange,
   onAllowLoopbackChange,
   onSubmit,
-  onCancel
+  onCancel,
+  children
 }: {
   name: string
   pairingCode: string
@@ -28,6 +30,8 @@ export function AddRemoteHostServerFormPanel({
   onAllowLoopbackChange: (value: boolean) => void
   onSubmit: () => void
   onCancel: () => void
+  /** Rendered between the header and the host fields. */
+  children?: ReactNode
 }): React.JSX.Element {
   return (
     <>
@@ -45,6 +49,8 @@ export function AddRemoteHostServerFormPanel({
           )}
         </DialogDescription>
       </DialogHeader>
+
+      {children}
 
       <RemoteServerFields
         name={name}

@@ -13,6 +13,7 @@ import {
 import { AddRemoteHostSshConfigPicker } from './AddRemoteHostSshConfigPicker'
 import { AddRemoteHostSshFormPanel } from './AddRemoteHostSshFormPanel'
 import { AddRemoteHostServerFormPanel } from './AddRemoteHostServerFormPanel'
+import { MachineNameField } from '../settings/MachineNameField'
 import {
   addAllSshConfigHostsToOrca,
   loadSshConfigHostsForPicker,
@@ -304,6 +305,8 @@ export function AddRemoteHostDialog({
   }
 
   const showSshConfigPicker = renderMode === 'ssh' && sshView === 'config-picker'
+  // Why: this desktop introduces itself to the new host under its machine name, in either mode.
+  const machineNameField = <MachineNameField id="add-remote-host-machine-name" />
 
   return (
     <Dialog
@@ -349,7 +352,9 @@ export function AddRemoteHostDialog({
             onSubmit={() => void saveSshHost()}
             onCancel={close}
             onFillFromConfig={() => void openSshConfigPicker()}
-          />
+          >
+            {machineNameField}
+          </AddRemoteHostSshFormPanel>
         ) : (
           <AddRemoteHostServerFormPanel
             name={serverName}
@@ -366,7 +371,9 @@ export function AddRemoteHostDialog({
             onAllowLoopbackChange={setAllowLoopback}
             onSubmit={() => void saveRemoteServer()}
             onCancel={close}
-          />
+          >
+            {machineNameField}
+          </AddRemoteHostServerFormPanel>
         )}
       </DialogContent>
     </Dialog>
