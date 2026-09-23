@@ -162,7 +162,7 @@ export abstract class AgentHookServerStatusUpdate extends AgentHookServerStatusA
       }
       this.commitStatusRowMutation(rowBefore, held)
       // Why: pushed readers must see the new `mainAgent` a snapshot reader already does.
-      if (held !== previous) {
+      if (held.payload !== previous.payload) {
         this.emitEnrichedStatus(held)
       }
       return held

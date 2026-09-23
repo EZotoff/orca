@@ -6,20 +6,29 @@ import type { EnrichedAgentHookEventPayload } from './server-types'
 
 /** A child's permission prompt stays visible over the main agent's own progress, but the row must
  *  still carry that progress: restart seeds the main agent from it, and a stale `done` would let the
- *  children's drain settle a row whose main agent is working. Returns `previous` when nothing changed. */
+ *  children's drain settle a row whose main agent is working. Returns `previous` when nothing changed,
+ *  and keeps `previous.payload` when only the unpublished shell fact did. */
 export function withHeldChildWaitMainAgent(
   previous: EnrichedAgentHookEventPayload,
   next: AgentHookEventPayload
 ): EnrichedAgentHookEventPayload {
   const mainAgent = next.payload.mainAgent
-  if (
-    !previous.toolAgentId ||
-    !mainAgent ||
-    mainAgentStatusEqual(previous.payload.mainAgent, mainAgent)
-  ) {
+  if (!previous.toolAgentId || !mainAgent) {
     return previous
   }
-  return { ...previous, payload: { ...previous.payload, mainAgent } }
+  // Why: restart seeding reads the shell fact beside `mainAgent`; a stale one settles a shell-held row.
+  const runningNonAgentTask = next.claudeRunningNonAgentTask ?? previous.claudeRunningNonAgentTask
+  const mainAgentChanged = !mainAgentStatusEqual(previous.payload.mainAgent, mainAgent)
+  if (!mainAgentChanged && runningNonAgentTask === previous.claudeRunningNonAgentTask) {
+    return previous
+  }
+  return {
+    ...previous,
+    ...(runningNonAgentTask !== undefined
+      ? { claudeRunningNonAgentTask: runningNonAgentTask }
+      : {}),
+    payload: mainAgentChanged ? { ...previous.payload, mainAgent } : previous.payload
+  }
 }
 
 export function shouldKeepClaudePermissionVisible(

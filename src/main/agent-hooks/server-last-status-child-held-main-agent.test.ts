@@ -229,6 +229,33 @@ describe('Claude rows held open by child agents', () => {
     }
   })
 
+  it('does not settle a restored row whose main agent left a shell running behind a child permission', async () => {
+    let server = await startServer()
+    await post(server, { hook_event_name: 'UserPromptSubmit', prompt: 'delegate' })
+    await post(server, { hook_event_name: 'SubagentStart', agent_id: 'achild-a' })
+    await post(server, CHILD_PERMISSION)
+    await post(server, {
+      hook_event_name: 'Stop',
+      background_tasks: [{ id: 'achild-a', type: 'subagent', status: 'running' }, RUNNING_SHELL]
+    })
+    expect(row(server)).toMatchObject({ state: 'waiting', mainAgent: { state: 'done' } })
+    server = await restart(server)
+    try {
+      await post(server, {
+        hook_event_name: 'PreToolUse',
+        agent_id: 'achild-a',
+        tool_name: 'Bash',
+        tool_input: { command: 'rm scratch' },
+        tool_use_id: 'toolu-approved'
+      })
+      await post(server, { hook_event_name: 'SubagentStop', agent_id: 'achild-a' })
+
+      expect(row(server)?.state).toBe('working')
+    } finally {
+      server.stop()
+    }
+  })
+
   // The shell fact rides beside `mainAgent`; a row rewritten without it would read as shell-free.
   async function expectShellHeldRowStaysOpenAfterRestart(
     server: AgentHookServer,
