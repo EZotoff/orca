@@ -14,16 +14,16 @@ type MarkdownNode = {
 
 const ROOTED_PATH_PREFIX_PATTERN = /^(?:~[\\/]|\.{1,2}[\\/]|[\\/]|[A-Za-z]:[\\/])/
 
-function isLinkifiableFile(link: ParsedTerminalFileLink, requireSeparator: boolean): boolean {
+// Why: a link is underlined only when it names a path; a bare `name.md` resolves nowhere
+// reliable, so underlining it promises a click that cannot open anything.
+function isLinkifiableFile(link: ParsedTerminalFileLink, isProse: boolean): boolean {
   const hasRootedPrefix = ROOTED_PATH_PREFIX_PATTERN.test(link.pathText)
   const hasLineSuffix = link.line !== null || link.column !== null
   const hasAlphabeticExtension = /\.[\p{L}][\p{L}\p{N}\p{M}_+-]*$/u.test(link.pathText)
   const hasPathExtension = /\.[\p{L}\p{N}][\p{L}\p{N}\p{M}_+-]*$/u.test(link.pathText)
   return (
-    (!requireSeparator || /[\\/]/.test(link.pathText)) &&
-    (hasRootedPrefix ||
-      hasLineSuffix ||
-      (requireSeparator ? hasPathExtension : hasAlphabeticExtension)) &&
+    /[\\/]/.test(link.pathText) &&
+    (hasRootedPrefix || hasLineSuffix || (isProse ? hasPathExtension : hasAlphabeticExtension)) &&
     routeNativeChatHref(link.displayText).kind === 'file'
   )
 }
@@ -213,8 +213,12 @@ function inlineCodeFileLink(node: MarkdownNode): MarkdownNode | null {
 
 function transformFileLinks(node: MarkdownNode): void {
   if (node.type === 'link') {
-    if (node.url && routeNativeChatHref(node.url).kind === 'file') {
-      node.url = createNativeChatFileHref(node.url)
+    const route = routeNativeChatHref(node.url)
+    if (route.kind === 'file') {
+      // Why: the wrapped href carries literal location text, so URL syntax is resolved here, once.
+      node.url = createNativeChatFileHref(
+        route.line === null ? route.pathText : `${route.pathText}:${route.line}`
+      )
     }
     return
   }
