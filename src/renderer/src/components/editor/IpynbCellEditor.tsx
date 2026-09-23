@@ -45,13 +45,38 @@ type IpynbCellSourceProps = {
   onSaveRequest: () => Promise<void>
 }
 
+type SourcePosition = { lineNumber: number; column: number }
+
+/** Model position under a press on the preview; its rows mirror the model's lines one-to-one. */
+export function previewPositionAtPoint(x: number, y: number): SourcePosition | null {
+  const caret = document.caretPositionFromPoint(x, y)
+  const node = caret?.offsetNode
+  const row = (node instanceof Element ? node : node?.parentElement)?.closest('code')
+  if (!caret || !node || !row?.parentElement) {
+    return null
+  }
+  const prefix = document.createRange()
+  prefix.setStart(row, 0)
+  prefix.setEnd(node, caret.offset)
+  return {
+    lineNumber: Array.from(row.parentElement.children).indexOf(row) + 1,
+    column: prefix.toString().length + 1
+  }
+}
+
 /** Rendered cell source (markdown document or colorized code) that swaps to Monaco while active. */
 export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element {
   const { cell, source, active, onActivate } = props
+  // Where Monaco opens its caret; null opens at the end (keyboard or markdown activation).
+  const [openAt, setOpenAt] = useState<SourcePosition | null>(null)
+  const activate = (position: SourcePosition | null): void => {
+    setOpenAt(position)
+    onActivate()
+  }
   const activateOnEnter = (event: React.KeyboardEvent): void => {
     if (event.key === 'Enter' && event.target === event.currentTarget) {
       event.preventDefault()
-      onActivate()
+      activate(null)
     }
   }
 
@@ -61,7 +86,7 @@ export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element 
         role="button"
         tabIndex={0}
         className="min-h-8 cursor-text rounded-md px-3 py-1 outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        onDoubleClick={onActivate}
+        onDoubleClick={() => activate(null)}
         onKeyDown={activateOnEnter}
       >
         <IpynbMarkdownCell source={source} />
@@ -72,7 +97,7 @@ export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element 
   return (
     <div className="ipynb-code-surface overflow-hidden rounded-md border border-border bg-muted/60 focus-within:border-ring">
       {active ? (
-        <IpynbSourceEditor {...props} />
+        <IpynbSourceEditor {...props} openAt={openAt} />
       ) : (
         <div
           role="button"
@@ -82,7 +107,7 @@ export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element 
           onMouseDown={(event) => {
             if (event.button === 0) {
               event.preventDefault()
-              onActivate()
+              activate(previewPositionAtPoint(event.clientX, event.clientY))
             }
           }}
           onKeyDown={activateOnEnter}
@@ -137,10 +162,11 @@ function IpynbCodePreview({
 function IpynbSourceEditor({
   cell,
   source,
+  openAt,
   onDeactivate,
   onChange,
   onSaveRequest
-}: IpynbCellSourceProps): React.JSX.Element {
+}: IpynbCellSourceProps & { openAt: SourcePosition | null }): React.JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const editorFontZoomLevel = useAppStore((s) => s.editorFontZoomLevel)
   const isDark = useDocumentDarkTheme()
@@ -157,32 +183,41 @@ function IpynbSourceEditor({
   const [contentHeight, setContentHeight] = useState(
     () => getIpynbCodeCellPreviewLines(source).length * lineHeight + 2 * paddingY
   )
-  const handleMount: OnMount = useCallback((editorInstance, monacoInstance) => {
-    editorInstance.focus()
-    const cleanupSaveShortcut = installEditorSaveShortcut(
-      editorInstance.getContainerDomNode(),
-      () => {
-        void onSaveRequestRef.current()
+  const handleMount: OnMount = useCallback(
+    (editorInstance, monacoInstance) => {
+      // Why: place the caret before focusing; focus highlights occurrences of the word under it.
+      const endPosition = editorInstance.getModel()?.getFullModelRange().getEndPosition()
+      const position = openAt ?? endPosition
+      if (position) {
+        editorInstance.setPosition(position)
       }
-    )
-    const cleanupFindShortcut = installMonacoEditorFindShortcut(editorInstance)
-    const blurSub = editorInstance.onDidBlurEditorWidget(() => {
-      onDeactivateRef.current()
-    })
-    const sizeSub = editorInstance.onDidContentSizeChange((event) => {
-      setContentHeight(event.contentHeight)
-    })
-    setContentHeight(editorInstance.getContentHeight())
-    editorInstance.onDidDispose(() => {
-      cleanupSaveShortcut()
-      cleanupFindShortcut()
-      blurSub.dispose()
-      sizeSub.dispose()
-    })
-    editorInstance.addCommand(monacoInstance.KeyCode.Escape, () => {
-      onDeactivateRef.current()
-    })
-  }, [])
+      editorInstance.focus()
+      const cleanupSaveShortcut = installEditorSaveShortcut(
+        editorInstance.getContainerDomNode(),
+        () => {
+          void onSaveRequestRef.current()
+        }
+      )
+      const cleanupFindShortcut = installMonacoEditorFindShortcut(editorInstance)
+      const blurSub = editorInstance.onDidBlurEditorWidget(() => {
+        onDeactivateRef.current()
+      })
+      const sizeSub = editorInstance.onDidContentSizeChange((event) => {
+        setContentHeight(event.contentHeight)
+      })
+      setContentHeight(editorInstance.getContentHeight())
+      editorInstance.onDidDispose(() => {
+        cleanupSaveShortcut()
+        cleanupFindShortcut()
+        blurSub.dispose()
+        sizeSub.dispose()
+      })
+      editorInstance.addCommand(monacoInstance.KeyCode.Escape, () => {
+        onDeactivateRef.current()
+      })
+    },
+    [openAt]
+  )
 
   useEffect(() => {
     monaco.editor.setTheme(isDark ? 'vs-dark' : 'vs')
