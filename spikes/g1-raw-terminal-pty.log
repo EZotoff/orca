@@ -1,0 +1,5 @@
+=== GAP-FILL: terminal pane, PTY level (cat -v capture, 2026-09-24T01:45:13-21+02:00) ===
+chords sent in order: alt+Left alt+Right alt+Up alt+Down alt+h alt+j alt+k alt+l then Enter
+--- raw bytes received at PTY (cat -A) ---
+^[b^[f^[[1;3A^[[1;3B^[h^[j^[k^[l$
+--- prior accidental evidence (01:43 round, xterm canvas, screenshot g1-raw-terminal-pty.png): zsh executed 'run-help' (its ESC-h/Meta-h binding) after alt+h chord => ESC h reached shell

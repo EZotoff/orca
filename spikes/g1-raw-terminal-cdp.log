@@ -1,0 +1,103 @@
+=== GAP-FILL: terminal pane, CDP window-capture level. App: orca-ide v1.4.197 unmodified base build. CDP port 18240. Date 2026-09-24T01:45-01:47+02:00 ===
+--- round 1 (01:45:14-21) chord markers + deduped events ---
+{"t": 1790207114286, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207114301, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207114318, "type": "keyup", "key": "ArrowLeft", "code": "ArrowLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207115342, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207115359, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207115363, "type": "keyup", "key": "ArrowRight", "code": "ArrowRight", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207116393, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207116405, "type": "keydown", "key": "ArrowUp", "code": "ArrowUp", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207116422, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207116428, "type": "keyup", "key": "ArrowUp", "code": "ArrowUp", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207117460, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207117466, "type": "keydown", "key": "ArrowDown", "code": "ArrowDown", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207117467, "type": "keydown", "key": "ArrowDown", "code": "ArrowDown", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207117475, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207117479, "type": "keyup", "key": "ArrowDown", "code": "ArrowDown", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207118525, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207118547, "type": "keydown", "key": "h", "code": "KeyH", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207118557, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207118584, "type": "keyup", "key": "h", "code": "KeyH", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207119598, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207119606, "type": "keydown", "key": "j", "code": "KeyJ", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207119614, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207119625, "type": "keyup", "key": "j", "code": "KeyJ", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207120643, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207120644, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false, "defPrevBubble": false}
+{"t": 1790207120651, "type": "keydown", "key": "k", "code": "KeyK", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207120658, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207120663, "type": "keyup", "key": "k", "code": "KeyK", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207121679, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207121680, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false, "defPrevBubble": false}
+{"t": 1790207121685, "type": "keydown", "key": "l", "code": "KeyL", "alt": true, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207121693, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207121707, "type": "keyup", "key": "l", "code": "KeyL", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207122724, "type": "keydown", "key": "Enter", "code": "Enter", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207122730, "type": "keyup", "key": "Enter", "code": "Enter", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207123243, "type": "keydown", "key": "Control", "code": "ControlLeft", "alt": false, "ctrl": true, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207123254, "type": "keydown", "key": "c", "code": "KeyC", "alt": false, "ctrl": true, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207123263, "type": "keyup", "key": "Control", "code": "ControlLeft", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+{"t": 1790207123274, "type": "keyup", "key": "c", "code": "KeyC", "alt": false, "ctrl": false, "shift": false, "meta": false, "defPrev": false}
+--- round 2 'sidebar attempt' (01:46:14-21): activeElement remained xterm-helper-textarea; events effectively terminal-pane sample ---
+{"t": 1790207174049, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207174063, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207174072, "type": "keyup", "key": "ArrowLeft", "code": "ArrowLeft", "alt": false, "defPrev": false}
+{"t": 1790207175087, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207175100, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207175105, "type": "keyup", "key": "ArrowRight", "code": "ArrowRight", "alt": false, "defPrev": false}
+{"t": 1790207176126, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207176132, "type": "keydown", "key": "ArrowUp", "code": "ArrowUp", "alt": true, "defPrev": false}
+{"t": 1790207176178, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207176179, "type": "keyup", "key": "ArrowUp", "code": "ArrowUp", "alt": false, "defPrev": false}
+{"t": 1790207177163, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207177168, "type": "keydown", "key": "ArrowDown", "code": "ArrowDown", "alt": true, "defPrev": false}
+{"t": 1790207177199, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207177200, "type": "keyup", "key": "ArrowDown", "code": "ArrowDown", "alt": false, "defPrev": false}
+{"t": 1790207178219, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207178225, "type": "keydown", "key": "h", "code": "KeyH", "alt": true, "defPrev": false}
+{"t": 1790207178252, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207178253, "type": "keyup", "key": "h", "code": "KeyH", "alt": false, "defPrev": false}
+{"t": 1790207179292, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207179300, "type": "keydown", "key": "j", "code": "KeyJ", "alt": true, "defPrev": false}
+{"t": 1790207179325, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207179326, "type": "keyup", "key": "j", "code": "KeyJ", "alt": false, "defPrev": false}
+{"t": 1790207180342, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207180352, "type": "keydown", "key": "k", "code": "KeyK", "alt": true, "defPrev": false}
+{"t": 1790207180376, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207180376, "type": "keyup", "key": "k", "code": "KeyK", "alt": false, "defPrev": false}
+{"t": 1790207181388, "type": "keydown", "key": "Alt", "code": "AltLeft", "alt": true, "defPrev": false}
+{"t": 1790207181393, "type": "keydown", "key": "l", "code": "KeyL", "alt": true, "defPrev": false}
+{"t": 1790207181411, "type": "keyup", "key": "Alt", "code": "AltLeft", "alt": false, "defPrev": false}
+{"t": 1790207181413, "type": "keyup", "key": "l", "code": "KeyL", "alt": false, "defPrev": false}
+--- round 3 sidebar focus attempt (01:46:36-43): JS focus() on sidebar Search input reverted to xterm textarea ---
+{"t": 1790207196694, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207196721, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207196726, "type": "keyup", "key": "ArrowLeft", "alt": false, "defPrev": false}
+{"t": 1790207197749, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207197762, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207197773, "type": "keyup", "key": "ArrowRight", "alt": false, "defPrev": false}
+{"t": 1790207198790, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207198795, "type": "keydown", "key": "ArrowUp", "alt": true, "defPrev": false}
+{"t": 1790207198816, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207198816, "type": "keyup", "key": "ArrowUp", "alt": false, "defPrev": false}
+{"t": 1790207199826, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207199834, "type": "keydown", "key": "ArrowDown", "alt": true, "defPrev": false}
+{"t": 1790207199858, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207199858, "type": "keyup", "key": "ArrowDown", "alt": false, "defPrev": false}
+{"t": 1790207200863, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207200869, "type": "keydown", "key": "h", "alt": true, "defPrev": false}
+{"t": 1790207200894, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207200894, "type": "keyup", "key": "h", "alt": false, "defPrev": false}
+{"t": 1790207201925, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207201930, "type": "keydown", "key": "j", "alt": true, "defPrev": false}
+{"t": 1790207201949, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207201949, "type": "keyup", "key": "j", "alt": false, "defPrev": false}
+{"t": 1790207202960, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207202966, "type": "keydown", "key": "k", "alt": true, "defPrev": false}
+{"t": 1790207202978, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207203005, "type": "keyup", "key": "k", "alt": false, "defPrev": false}
+{"t": 1790207204003, "type": "keydown", "key": "Alt", "alt": true, "defPrev": false}
+{"t": 1790207204016, "type": "keydown", "key": "l", "alt": true, "defPrev": false}
+{"t": 1790207204032, "type": "keyup", "key": "Alt", "alt": false, "defPrev": false}
+{"t": 1790207204044, "type": "keyup", "key": "l", "alt": false, "defPrev": false}
