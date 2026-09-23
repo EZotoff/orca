@@ -4,6 +4,7 @@ import { setAgentSessionRecordConversationName } from './agent-session-record-co
 /** Durable single-writer session records and their operation ledger. */
 
 import {
+  agentSessionOperationKey,
   findAgentSessionGlobalOperationRow,
   type AgentSessionOperationClaim,
   type AgentSessionOperationDecision,
@@ -170,6 +171,9 @@ export class AgentSessionRecordStore {
     now: number
   ): AgentSessionOperationRow | undefined =>
     findAgentSessionGlobalOperationRow(this.state.operations, operationId, now)
+
+  getOperationRow = (callerKey: string, operationId: string): AgentSessionOperationRow | null =>
+    this.state.operations.get(agentSessionOperationKey(callerKey, operationId)) ?? null
 
   isClaimKeyVerifiable = (keyId: string, now: number): boolean =>
     isAgentSessionClaimKeyVerifiable(this.state, keyId, now)
