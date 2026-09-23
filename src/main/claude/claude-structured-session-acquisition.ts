@@ -193,7 +193,7 @@ export async function acquireClaudeSession({
         initProof,
         sessionId,
         providerSessionId: launch.providerSessionId,
-        resumed: launch.resumed,
+        resumesTranscript: launch.resumesTranscript,
         inputOptions: input.options,
         requestTimeoutMs: deps.requestTimeoutMs,
         ...(recordPhase ? { recordPhase } : {}),
@@ -227,7 +227,7 @@ export async function acquireClaudeSession({
       claudeConfigDir: launch.claudeConfigDir,
       leafUuid: observedLeafUuid,
       fence: input.fence,
-      resumed: launch.resumed,
+      continuesChain: launch.continuesChain,
       prompts,
       translator,
       events: input.events,
@@ -254,12 +254,13 @@ export async function acquireClaudeSession({
       isCurrent: () => sessions.get(sessionId) === session,
       requestTimeoutMs: deps.requestTimeoutMs,
       fault: (error) => callbacks.handleExit(sessionId, attempt, error),
-      onStarted: () =>
+      onStarted: (options) =>
         emit({
           type: 'started',
           sessionId,
           fence: input.fence,
-          acquisitionGeneration: session.acquisitionGeneration
+          acquisitionGeneration: session.acquisitionGeneration,
+          ...options
         })
     })
     // A child whose exit already reached `handleExit` is not handed over as live: the create

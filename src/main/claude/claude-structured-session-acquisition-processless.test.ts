@@ -54,7 +54,8 @@ describe('Claude structured processless acquisition', () => {
         claudeConfigDir: '/accounts/claude',
         providerSessionId: PROVIDER_SESSION_ID,
         resumeLeafUuid: null,
-        resumed: false
+        resumesTranscript: false,
+        continuesChain: false
       }),
       openConnection
     })

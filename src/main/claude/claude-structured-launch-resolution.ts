@@ -97,7 +97,11 @@ export type ClaudeStructuredLaunch = {
   claudeConfigDir: string
   providerSessionId: string
   resumeLeafUuid: string | null
-  resumed: boolean
+  /** Launch mode: `--resume` of a transcript Claude wrote, rather than starting the id fresh. */
+  resumesTranscript: boolean
+  /** Lineage: the record's chain already heads this provider session, so the child continues it
+   *  even when no transcript exists to `--resume`. Never derived from the launch mode. */
+  continuesChain: boolean
 }
 
 export type ClaudeStructuredLaunchResolverDeps = {
@@ -209,9 +213,10 @@ export function createClaudeStructuredLaunchResolver(
       head?.handle.provider === 'claude'
         ? head.handle.sessionId
         : claudeSessionIdForOrcaSession(identity.sessionId)
+    const continuesChain = head?.handle.provider === 'claude'
     // A start that failed before its first turn wrote no transcript, and `--resume` of an absent
     // one exits; launch that id fresh instead. With a transcript, `--session-id` would collide.
-    const resumed =
+    const resumesTranscript =
       head?.handle.provider === 'claude' &&
       (head.handle.leafUuid !== null ||
         (await (deps.hasTranscript ?? claudeTranscriptExists)({
@@ -264,7 +269,7 @@ export function createClaudeStructuredLaunchResolver(
         ...CLAUDE_STRUCTURED_BASE_OPTIONS,
         ...permission,
         extraArgs: { ...CLAUDE_STRUCTURED_BASE_OPTIONS.extraArgs, ...permission.extraArgs },
-        ...(resumed && head?.handle.provider === 'claude'
+        ...(resumesTranscript && head?.handle.provider === 'claude'
           ? {
               resume: providerSessionId,
               ...(head.handle.leafUuid === null ? {} : { resumeSessionAt: head.handle.leafUuid })
@@ -275,8 +280,10 @@ export function createClaudeStructuredLaunchResolver(
       env,
       claudeConfigDir: record.accountHome.path,
       providerSessionId,
-      resumeLeafUuid: resumed && head?.handle.provider === 'claude' ? head.handle.leafUuid : null,
-      resumed
+      resumeLeafUuid:
+        resumesTranscript && head?.handle.provider === 'claude' ? head.handle.leafUuid : null,
+      resumesTranscript,
+      continuesChain
     }
   }
 }

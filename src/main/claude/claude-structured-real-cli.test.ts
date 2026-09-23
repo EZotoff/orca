@@ -59,7 +59,8 @@ function realAdapter(
       claudeConfigDir,
       providerSessionId,
       resumeLeafUuid: null,
-      resumed: false
+      resumesTranscript: false,
+      continuesChain: false
     }),
     onEvent: (event) => events.push(event),
     readProcessStartTime: async () => 1,

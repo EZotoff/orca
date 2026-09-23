@@ -2,7 +2,10 @@
 // gates the create: a slow start is still a start, and every way it can fail (exit, auth,
 // a foreign session id, a rewind refusal) faults the published session through its exit path.
 
-import type { StructuredAgentSessionAcquireInput } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import type {
+  StructuredAgentSessionAcquireInput,
+  StructuredAgentSessionStartedEvent
+} from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { withAgentSessionCreatePhase } from '../observability/agent-session-instrumentation'
 import type { ClaudeStreamJsonConnection } from './claude-stream-json-connection'
 import { ClaudeSlashCommandCatalog } from './claude-slash-command-catalog'
@@ -19,7 +22,10 @@ import {
   prepareClaudeStructuredSessionAcquisitionOptions,
   readClaudeStructuredSessionSettings
 } from './claude-structured-session-acquisition-options'
-import { readClaudeSettingsEffort } from './claude-structured-session-options'
+import {
+  claudeStructuredSessionOptionsFrom,
+  readClaudeSettingsEffort
+} from './claude-structured-session-options'
 import {
   failClaudeStartupGate,
   openClaudeStartupGate
@@ -43,6 +49,11 @@ export function createClaudeInitProof(): ClaudeInitProof {
   return { promise, resolve, reject }
 }
 
+export type StructuredAgentSessionStartedOptions = Pick<
+  StructuredAgentSessionStartedEvent,
+  'reportedOptions' | 'restoreSkippedOptions'
+>
+
 export type ClaudeStartupFacts = {
   init: ClaudeInitObservation
   initialization: unknown
@@ -56,7 +67,7 @@ export async function readClaudeStartupFacts(input: {
   initProof: ClaudeInitProof
   sessionId: string
   providerSessionId: string
-  resumed: boolean
+  resumesTranscript: boolean
   inputOptions: StructuredAgentSessionAcquireInput['options']
   requestTimeoutMs: number | undefined
   recordPhase?: StructuredAgentSessionAcquireInput['recordPhase']
@@ -104,7 +115,7 @@ export async function readClaudeStartupFacts(input: {
       settings,
       initialization,
       inputOptions: input.inputOptions,
-      resumed: input.resumed
+      resumesTranscript: input.resumesTranscript
     })
   }
 }
@@ -148,8 +159,8 @@ export async function settleClaudeSessionStartup(input: {
   isCurrent: () => boolean
   requestTimeoutMs: number | undefined
   fault: (error: Error) => void
-  /** Startup has proven: the host may now read this child's options as fact. */
-  onStarted: () => void
+  /** Startup has proven; `options` is what the child now reports, snapshotted from memory. */
+  onStarted: (options: StructuredAgentSessionStartedOptions) => void
 }): Promise<void> {
   const { session } = input
   const superseded = (): boolean => {
@@ -167,7 +178,14 @@ export async function settleClaudeSessionStartup(input: {
     applyClaudeStartupFacts(session, facts)
     await restoreClaudeStructuredSessionOptions(session, input.requestTimeoutMs)
     if (!superseded()) {
-      input.onStarted()
+      input.onStarted({
+        // `list_models` is answered from this same initialize result, so nothing is re-read.
+        reportedOptions: claudeStructuredSessionOptionsFrom(
+          session,
+          readClaudeModels(facts.initialization)
+        ).current,
+        restoreSkippedOptions: [...session.restoreSkippedOptions]
+      })
       await openClaudeStartupGate(session)
     }
   } catch (caught) {

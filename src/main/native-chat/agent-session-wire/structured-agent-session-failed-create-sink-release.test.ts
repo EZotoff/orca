@@ -14,6 +14,7 @@ import {
 import { StructuredAgentSessionHost } from './structured-agent-session-host'
 import {
   HOST_TEST_NOW as NOW,
+  HOST_TEST_SESSION as SESSION,
   HOST_TEST_THREAD as THREAD,
   hostTestAttachParams,
   resetHostTestOperationIds
@@ -35,10 +36,12 @@ beforeEach(async () => {
     link: {
       linkId: `link-${fence}`,
       handle: { provider: 'codex', threadId: THREAD },
-      origin: 'created',
+      // A resume continues the chain the first start created.
+      origin: store.getRecord(SESSION)?.providerHandleChain.length ? 'resumed' : 'created',
       mintedAtFence: fence,
       observedAt: NOW
-    }
+    },
+    acquisitionGeneration: `generation-${fence}`
   }))
   store = await AgentSessionRecordStore.open({ directory: join(root, 'store'), hostId: 'local' })
   host = new StructuredAgentSessionHost({
@@ -89,4 +92,40 @@ describe('a create that fails after its child wrote through the unbound sink', (
       expect(acquire).toHaveBeenCalledTimes(2)
     }
   )
+
+  it.each([
+    ['refused', new Error(EXIT_REASON)],
+    ['thrown', new AgentSessionPreSpawnError(new Error(EXIT_REASON))]
+  ])('releases the sink when a resume of a still-indexed session is %s', async (_how, cause) => {
+    await expect(host.attach(CALLER, hostTestAttachParams(null))).resolves.toMatchObject({
+      ok: true
+    })
+    const exitedFence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
+    await host.handleAdapterEvent({
+      type: 'ended',
+      sessionId: SESSION,
+      reason: 'provider exited',
+      cause: 'unexpected-exit',
+      fence: exitedFence,
+      acquisitionGeneration: `generation-${exitedFence}`
+    })
+    const releasedFence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
+    acquire.mockImplementationOnce(async ({ events }) => {
+      events?.setActivity?.(null)
+      throw cause
+    })
+
+    // The session stays indexed across this failure: it is a resume, not a create.
+    const failed = host.attach(CALLER, hostTestAttachParams(releasedFence))
+    await (cause instanceof AgentSessionPreSpawnError
+      ? expect(failed).rejects.toThrow(EXIT_REASON)
+      : expect(failed).resolves.toMatchObject({ ok: false }))
+
+    const fence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
+    await expect(host.attach(CALLER, hostTestAttachParams(fence))).resolves.toMatchObject({
+      ok: true
+    })
+    await expect(host.flushAllStreamedEvents()).resolves.toBeUndefined()
+    expect(acquire).toHaveBeenCalledTimes(3)
+  })
 })

@@ -117,7 +117,8 @@ describe('claude structured launch resolution', () => {
       cwd: '/repos/workspace-1',
       claudeConfigDir: '/home/work/.claude',
       resumeLeafUuid: null,
-      resumed: false
+      resumesTranscript: false,
+      continuesChain: false
     })
     expect(first.options).toEqual({
       includePartialMessages: true,
@@ -151,7 +152,8 @@ describe('claude structured launch resolution', () => {
     expect(launch).toMatchObject({
       providerSessionId: 'provider-current',
       resumeLeafUuid: 'leaf-current',
-      resumed: true
+      resumesTranscript: true,
+      continuesChain: true
     })
     expect(launch.options.resume).toBe('provider-current')
     expect(launch.options.resumeSessionAt).toBe('leaf-current')
@@ -230,7 +232,9 @@ describe('claude structured launch resolution', () => {
     expect(launch).toMatchObject({
       providerSessionId: 'provider-current',
       resumeLeafUuid: null,
-      resumed: false
+      resumesTranscript: false,
+      // Launching the id fresh does not start a new conversation: the child continues the chain.
+      continuesChain: true
     })
   })
 

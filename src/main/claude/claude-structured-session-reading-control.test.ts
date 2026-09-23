@@ -93,7 +93,7 @@ describe('Claude structured reading control', () => {
     const claude = fakeClaude({ exitBeforeInit: 'claude stream-json exited (code 1)' })
     const adapter = adapterFor(
       claude,
-      { resumed: true, resumeLeafUuid: 'tip' },
+      { resumesTranscript: true, continuesChain: true, resumeLeafUuid: 'tip' },
       [],
       [],
       undefined,
