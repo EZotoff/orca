@@ -67,9 +67,11 @@ export function attachStructuredAgentSession(
   params: AgentSessionAttachParams
 ): Promise<AgentSessionMutationResult<AgentSessionAttachResult>> {
   const sessionId = params.envelope.sessionId
+  // Tracked from enqueue, not from its turn on the queue: a quit drains a queued attach before it
+  // evicts, so no child is spawned behind the eviction and orphaned.
   const run = (recordPhase?: AgentSessionCreatePhaseRecorder) =>
-    context.serialize(sessionId, () =>
-      attachStructuredAgentSessionUnderSerialize(context, callerKey, params, { recordPhase })
+    context.tasks.trackAttach(
+      context.serialize(sessionId, () => runAttach(context, callerKey, params, { recordPhase }))
     )
   if (params.envelope.expectedRuntimeFence !== null) {
     return run()

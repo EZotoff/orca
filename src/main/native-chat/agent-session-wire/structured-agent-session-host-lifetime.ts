@@ -173,13 +173,21 @@ export function createStructuredAgentSessionHolds(
 ): StructuredAgentSessionHolds {
   const context = attachContext()
   return new StructuredAgentSessionHolds({
-    resume: (sessionId) =>
+    resume: (sessionId, attachOptions) =>
       resumeHeldStructuredAgentSession({
         sessionId,
         context: attachContext(),
-        callerKey: 'trusted-local:surface-hold'
+        callerKey: attachOptions?.admitRecoveryTicket
+          ? 'trusted-local:provider-exit-recovery'
+          : 'trusted-local:surface-hold',
+        ...(attachOptions ? { attachOptions } : {})
       }),
-    serialize: (sessionId, task) => attachContext().serialize(sessionId, task),
+    // Tracked from enqueue: a quit drains a queued resume before it evicts, so no child is
+    // spawned behind the eviction and orphaned.
+    serialize: (sessionId, task) => {
+      const current = attachContext()
+      return current.tasks.trackAttach(current.serialize(sessionId, task))
+    },
     evict: close,
     hasProviderChild: (sessionId) => hasProviderChild(context, sessionId),
     isTurnActive: (sessionId) => {

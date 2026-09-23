@@ -22,10 +22,14 @@ import {
 } from './structured-agent-session-release-clock'
 import { StructuredAgentSessionHolders } from './structured-agent-session-holders'
 import type { StructuredAgentSessionResumeOutcome } from './structured-agent-session-hold-resume'
+import type { StructuredAgentSessionAttachOptions } from './structured-agent-session-attach-orchestration'
 
 export type StructuredAgentSessionHoldsDeps = {
   /** Attaches a provider child, for a caller already inside `serialize`. */
-  resume: (sessionId: string) => Promise<StructuredAgentSessionResumeOutcome>
+  resume: (
+    sessionId: string,
+    attachOptions?: StructuredAgentSessionAttachOptions
+  ) => Promise<StructuredAgentSessionResumeOutcome>
   serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
   /** Whether evicting this session would actually free anything. */
   hasProviderChild: (sessionId: string) => boolean
@@ -105,13 +109,17 @@ export class StructuredAgentSessionHolds {
    * exact: a hold and a send that both find the owner gone run this in turn, and the second sees
    * the first one's child. Each caller makes at most one attach, and a failed one leaves the
    * next caller to make its own. With no surface holding the session afterwards, the child goes
-   * on the same clock a departed surface would start.
+   * on the same clock a departed surface would start — including the surface that held it when
+   * provider-exit recovery began and left while the attach ran.
    */
-  async ensureProviderChild(sessionId: string): Promise<StructuredAgentSessionResumeOutcome> {
+  async ensureProviderChild(
+    sessionId: string,
+    attachOptions?: StructuredAgentSessionAttachOptions
+  ): Promise<StructuredAgentSessionResumeOutcome> {
     if (this.deps.hasProviderChild(sessionId)) {
       return { ok: true }
     }
-    const resumed = await this.deps.resume(sessionId)
+    const resumed = await this.deps.resume(sessionId, attachOptions)
     if (!resumed.ok) {
       return resumed
     }

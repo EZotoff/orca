@@ -145,9 +145,10 @@ export class StructuredAgentSessionHost {
         this.subscribers.snapshot(sessionId, session.journal, session.fence),
       publishStatus: this.clientDelivery.publishStatusAndSettlement,
       hasResumeCapableHolder: (sessionId) => this.holds.hasResumeCapableHolder(sessionId),
-      serialize: (sessionId, task) => this.serialize(sessionId, task),
+      // Tracked: a quit drains a queued restart before it evicts, so no child outlives it.
+      serialize: (sessionId, task) => this.tasks.trackAttach(this.serialize(sessionId, task)),
       now: () => this.now(),
-      attachContext: () => this.attachContext(),
+      ensureProviderChild: (id, options) => this.holds.ensureProviderChild(id, options),
       onBarrierError: (sessionId, error) => deps.onEventSinkError?.({ sessionId, error })
     })
     this.restartResume = createStructuredAgentSessionRestartResume(deps, this.sessions, {

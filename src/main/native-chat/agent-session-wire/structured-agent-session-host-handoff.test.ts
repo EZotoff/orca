@@ -183,7 +183,9 @@ describe('native handoff acquisition', () => {
       fence: reserved.record.lease.runtimeFence,
       hasProviderChild: false,
       providerChildPhase: 'ready' as const,
-      acquisitionGeneration: null
+      acquisitionGeneration: null,
+      // Left by a restart before the handoff; a writer current as of it is not current now.
+      resumedFromFence: 1
     }
     const acquiring = acquireNativeHandoffOwner(
       {
@@ -220,6 +222,8 @@ describe('native handoff acquisition', () => {
     await acquiring
 
     expect(order).toEqual(['append-entered', 'append-complete', 'unbind', 'acquire'])
+    // The handoff moved the fence, not a restart: nothing is rebased across it.
+    expect(session.resumedFromFence).toBeUndefined()
   })
 
   it('refuses an unsupported adapter before unbinding the TUI owner', async () => {

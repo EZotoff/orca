@@ -115,6 +115,8 @@ async function proveNativeHandoffOwner(
   session.providerChildPhase = acquired.providerChildPhase ?? 'ready'
   host.publishStatus?.(input.sessionId)
   session.fence = proved.lease.runtimeFence
+  // A handoff moved the fence, not a restart: no writer is rebased across it.
+  delete session.resumedFromFence
   session.acquisitionGeneration = acquired.acquisitionGeneration ?? null
   adopt()
   eventSink.bind({

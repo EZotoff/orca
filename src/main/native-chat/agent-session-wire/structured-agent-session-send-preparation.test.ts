@@ -394,8 +394,9 @@ describe('a send with no live owner', () => {
   it('refuses for good when the owner cannot be restarted, saying why in the answer and in the chat', async () => {
     await loseOwner()
     acquire.mockRejectedValue(new Error('no provider thread to resume'))
+    const params = sendParams('nothing to resume')
 
-    const result = await host.send(CALLER, sendParams('nothing to resume'))
+    const result = await host.send(CALLER, params)
 
     expect(result).toMatchObject({
       ok: false,
@@ -415,6 +416,14 @@ describe('a send with no live owner', () => {
     ).toBe('settled-rejected')
     // The same status row a failed start leaves, so the reason outlives the error strip.
     expect(journalStatuses()).toEqual([expect.stringContaining('no provider thread to resume')])
+
+    // A client that resends the same id gets another attempt, and the chat no second row.
+    await expect(host.send(CALLER, params)).resolves.toMatchObject({
+      ok: false,
+      refusal: { code: 'agent_session_owner_unrecoverable' }
+    })
+    expect(acquire).toHaveBeenCalledTimes(2)
+    expect(journalStatuses()).toHaveLength(1)
 
     // Nothing is remembered: a Retry under a new id is a fresh attempt, and this one succeeds.
     acquire.mockReset()
@@ -497,6 +506,68 @@ describe('a send with no live owner', () => {
     ])
     expect(host['holds'].isReleasePending(SESSION)).toBe(false)
     expect(store.getRecord(SESSION)?.lease.claimStatus).toBe('live')
+  })
+
+  it('puts the child of an auto-restart on the idle clock when its surface left mid-attach', async () => {
+    await host.hold(SESSION, 'desktop-chat:1')
+    const exitedFence = store.getRecord(SESSION)?.lease.runtimeFence ?? 0
+    acquire.mockClear()
+    const entered = Promise.withResolvers<void>()
+    const gate = Promise.withResolvers<void>()
+    const spawnChild = acquire.getMockImplementation()!
+    acquire.mockImplementationOnce(async (input) => {
+      entered.resolve()
+      await gate.promise
+      return spawnChild(input)
+    })
+
+    const restarted = host.handleAdapterEvent({
+      type: 'ended',
+      sessionId: SESSION,
+      reason: 'provider exited',
+      cause: 'unexpected-exit',
+      fence: exitedFence,
+      acquisitionGeneration: 'generation-1'
+    })
+    await entered.promise
+    // The only surface leaves while the host is still spawning the child it asked for.
+    host.release(SESSION, 'desktop-chat:1')
+    gate.resolve()
+    await restarted
+
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(host['holds'].isHeld(SESSION)).toBe(false)
+    // Nobody holds the child, so it goes on the same clock a departed surface would start.
+    expect(host['holds'].isReleasePending(SESSION)).toBe(true)
+    expect(hostErrors).toEqual([])
+  })
+
+  it('counts a queued restart as in flight from the moment it is asked for, so a quit drains it', async () => {
+    const closeSession = vi.mocked(host.deps.adapter.closeSession!)
+    acquire.mockClear()
+    const gate = Promise.withResolvers<void>()
+    closeSession.mockImplementationOnce(async () => {
+      await gate.promise
+      return true
+    })
+    const closing = host.close(SESSION)
+    const hold = host.hold(SESSION, 'desktop-chat:1')
+    let drained = false
+    void host['tasks'].drainAttaches().then(() => {
+      drained = true
+    })
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    // The hold waits its turn behind the close, and the quit's drain waits for the hold: the
+    // child it is about to spawn must exist before the quit decides what to evict.
+    expect(acquire).not.toHaveBeenCalled()
+    expect(drained).toBe(false)
+
+    gate.resolve()
+    await Promise.all([closing, hold])
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(drained).toBe(true)
   })
 
   it('adjudicates a lease this host has not reconciled before a hold resumes it', async () => {

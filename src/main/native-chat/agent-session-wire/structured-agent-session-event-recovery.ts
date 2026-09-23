@@ -1,11 +1,10 @@
-import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import type { StructuredAgentSessionLifecycleEvent } from './structured-agent-session-adapter'
 import type {
   StructuredAgentSessionHostDeps,
   StructuredAgentSessionHostSession
 } from './structured-agent-session-host-types'
 import type { StructuredAgentSessionSinkBarrier } from './structured-agent-session-event-sink'
-import { resumeHeldStructuredAgentSession } from './structured-agent-session-hold-resume'
+import type { StructuredAgentSessionHolds } from './structured-agent-session-holds'
 import { settleStructuredAgentSessionProviderStarted } from './structured-agent-session-provider-started'
 import {
   isStructuredAgentSessionRecoveryTicketCurrent,
@@ -26,7 +25,8 @@ export class StructuredAgentSessionEventRecovery {
       hasResumeCapableHolder: (sessionId: string) => boolean
       serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
       now: () => number
-      attachContext: () => StructuredAgentSessionAttachContext
+      /** The one restart every asker shares; the holds put an unheld child on the idle clock. */
+      ensureProviderChild: StructuredAgentSessionHolds['ensureProviderChild']
       onBarrierError: (sessionId: string, error: unknown) => void
     }
   ) {}
@@ -73,18 +73,13 @@ export class StructuredAgentSessionEventRecovery {
       return
     }
     // One serialized step with the ticket check inside it: a hold or a send that got there first
-    // has already replaced the owner, and this attach then refuses on the stale ticket rather than
-    // spawning a second child against the fence it moved.
+    // has already replaced the owner, and this step finds that child and attaches nothing — or,
+    // once the lease has moved on, refuses on the stale ticket rather than spawning a second child.
     try {
       const resumed = await this.context.serialize(ticket.sessionId, () =>
-        resumeHeldStructuredAgentSession({
-          sessionId: ticket.sessionId,
-          context: this.context.attachContext(),
-          callerKey: 'trusted-local:provider-exit-recovery',
-          attachOptions: {
-            admitRecoveryTicket: () =>
-              isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)
-          }
+        this.context.ensureProviderChild(ticket.sessionId, {
+          admitRecoveryTicket: () =>
+            isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)
         })
       )
       if (!resumed.ok && isStructuredAgentSessionRecoveryTicketCurrent(this.context, ticket)) {

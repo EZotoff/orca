@@ -100,7 +100,7 @@ export function structuredAgentSessionSendNeedsOwner(
 
 type SendPreparationContext = Pick<
   StructuredAgentSessionMutationContext,
-  'deps' | 'sessions' | 'holds' | 'restoreReadable' | 'publish' | 'now'
+  'deps' | 'sessions' | 'holds' | 'restoreReadable' | 'publish'
 >
 
 export async function prepareStructuredAgentSessionSend(
@@ -117,7 +117,7 @@ export async function prepareStructuredAgentSessionSend(
     return { ok: true, envelope }
   }
   if (structuredAgentSessionSendNeedsOwner(context.sessions.get(sessionId), record)) {
-    const refusal = await restartOwnerForSend(context, sessionId)
+    const refusal = await restartOwnerForSend(context, envelope)
     if (refusal) {
       return { ok: false, refusal }
     }
@@ -130,8 +130,9 @@ export async function prepareStructuredAgentSessionSend(
  *  own bookkeeping, which is reported and never gates the user's action. */
 async function restartOwnerForSend(
   context: SendPreparationContext,
-  sessionId: string
+  envelope: AgentSessionMutationEnvelope
 ): Promise<AgentSessionWireRefusal | null> {
+  const { sessionId } = envelope
   let resumed: Awaited<ReturnType<typeof context.holds.ensureProviderChild>>
   try {
     resumed = await context.holds.ensureProviderChild(sessionId)
@@ -147,7 +148,7 @@ async function restartOwnerForSend(
     sessionId,
     error: new Error(`${resumed.refusal.code}: ${resumed.refusal.message}`)
   })
-  await recordFailedRestart(context, sessionId, refusal.message)
+  await recordFailedRestart(context, envelope, refusal.message)
   return refusal
 }
 
@@ -162,12 +163,14 @@ function ownerUnrecoverableRefusal(cause: AgentSessionWireRefusal): AgentSession
 }
 
 /** The same status row a start that failed leaves in the chat, so the reason outlives the error
- *  strip. The journal is made readable for it when the failed attach left none behind. */
+ *  strip. The journal is made readable for it when the failed attach left none behind. Keyed by
+ *  the send, not the clock: a resend of the same id that fails again adds no second row. */
 async function recordFailedRestart(
   context: SendPreparationContext,
-  sessionId: string,
+  envelope: AgentSessionMutationEnvelope,
   text: string
 ): Promise<void> {
+  const { sessionId } = envelope
   try {
     if (!context.sessions.has(sessionId)) {
       await context.restoreReadable(sessionId)
@@ -176,7 +179,7 @@ async function recordFailedRestart(
     if (!session) {
       return
     }
-    const settlementId = `failed-restart:${sessionId}:${session.fence}:${context.now()}`
+    const settlementId = `failed-restart:${envelope.clientOperationId}`
     await session.journal.appendLifecycleBatch({
       settlementId,
       fence: session.fence,
