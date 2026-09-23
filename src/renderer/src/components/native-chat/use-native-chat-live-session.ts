@@ -134,6 +134,8 @@ export function useNativeChatLiveSession(
   const latestTransport = useRef(transport)
   latestTransport.current = transport
   const transcriptEpochRef = useRef(0)
+  // The epoch an older page is in flight for: checked synchronously, and an epoch bump abandons it.
+  const olderPageEpochRef = useRef<number | null>(null)
   const sourceKey = JSON.stringify([
     paneKey,
     runtimeEnvironmentId ?? null,
@@ -289,7 +291,7 @@ export function useNativeChatLiveSession(
     if (
       !latestEnabled.current ||
       !sessionId ||
-      loadingEarlier ||
+      olderPageEpochRef.current === transcriptEpochRef.current ||
       !hasMore ||
       read.phase !== 'ready'
     ) {
@@ -297,6 +299,7 @@ export function useNativeChatLiveSession(
     }
     const nextLimit = nextNativeChatLimit(limitRef.current)
     const requestEpoch = transcriptEpochRef.current
+    olderPageEpochRef.current = requestEpoch
     const lifecycleRevision = transcriptLifecycleControl.revision()
     const isStale = (): boolean =>
       !latestEnabled.current ||
@@ -330,21 +333,15 @@ export function useNativeChatLiveSession(
         throw error
       }
     } finally {
+      if (olderPageEpochRef.current === requestEpoch) {
+        olderPageEpochRef.current = null
+      }
       // Clear the loading flag on the current epoch even when the result is discarded, so a stale resolve can't wedge it true.
       if (latestEnabled.current && transcriptEpochRef.current === requestEpoch) {
         setLoadingEarlier(false)
       }
     }
-  }, [
-    agent,
-    sessionId,
-    transcriptPath,
-    transport,
-    hasMore,
-    loadingEarlier,
-    read.phase,
-    transcriptLifecycleControl
-  ])
+  }, [agent, sessionId, transcriptPath, transport, hasMore, read.phase, transcriptLifecycleControl])
 
   // Computed outside the status memo so hookState churn (status-only) never re-runs the assembler.
   const baseMessages = read.phase === 'ready' ? read.messages : EMPTY_MESSAGES

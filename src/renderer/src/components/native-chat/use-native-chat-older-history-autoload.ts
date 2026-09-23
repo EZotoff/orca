@@ -6,7 +6,7 @@
 // measurement never asks for a page; the virtualizer keeps the reader's row in
 // place across the prepend.
 
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useState } from 'react'
 
 /** How far above the viewport the next page starts loading. The scroller's
  *  `zoom` may scale this, which changes only how early a page is asked for. */
@@ -35,39 +35,22 @@ export function useNativeChatOlderHistoryAutoload({
   isVisible: boolean
   hasMore: boolean
   loadingEarlier: boolean
-  /** Rejects when the page did not land. */
+  /** Rejects when the page did not land; a no-op while a page is already in flight. */
   loadEarlier: () => Promise<void>
 }): NativeChatOlderHistoryAutoload {
   const [sentinel, setSentinel] = useState<HTMLElement | null>(null)
   // Keyed rather than a boolean so a swapped transcript never inherits the failure.
   const [failedHistoryKey, setFailedHistoryKey] = useState<string | null>(null)
-  const inFlightRef = useRef(false)
 
   const canObserve = typeof IntersectionObserver !== 'undefined'
   const isAutoLoadEnabled = canObserve && failedHistoryKey !== historyKey
   const shouldObserve = isAutoLoadEnabled && isVisible && hasMore && !loadingEarlier
 
+  // The lane owns "a page is in flight" and ignores a call while one is; a second
+  // latch here would strand whenever the lane abandons a read that never settles.
   const loadPage = (): void => {
-    if (inFlightRef.current) {
-      return
-    }
-    inFlightRef.current = true
-    loadEarlier()
-      .then(
-        () => undefined,
-        () => setFailedHistoryKey(historyKey)
-      )
-      .finally(() => {
-        inFlightRef.current = false
-      })
+    void loadEarlier().catch(() => setFailedHistoryKey(historyKey))
   }
-  // The latch only bridges the gap until the lane reports loading; after that the
-  // lane owns the request, and one it abandons (reconnect, hide) must not block the next.
-  useEffect(() => {
-    if (loadingEarlier) {
-      inFlightRef.current = false
-    }
-  }, [loadingEarlier])
   // Lane callbacks change identity with their state; the observer must not.
   const loadPageFromObserver = useEffectEvent(loadPage)
 

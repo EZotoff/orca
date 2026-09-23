@@ -414,6 +414,50 @@ describe('useNativeChatLiveSession — transport routing', () => {
     expect(latest?.loadingEarlier).toBe(false)
   })
 
+  // The list may ask again before loading renders; the lane alone dedupes.
+  it('reads one older page when load-earlier is called twice before a render', async () => {
+    const transport = getMockTransport('env-1')
+    const many = Array.from({ length: NATIVE_CHAT_INITIAL_LIMIT }, (_unused, n) =>
+      assistant(`dup-${n}`, 'dup')
+    )
+    await render({ paneKey: PANE, agent: AGENT, sessionId: SESSION, runtimeEnvironmentId: 'env-1' })
+    await act(async () => transport.emit({ type: 'snapshot', messages: many, hasMore: true }))
+    const readsBefore = transport.readSession.mock.calls.length
+    transport.readSession.mockImplementation(() => new Promise(() => {}))
+    const loadEarlier = latest?.loadEarlier
+
+    await act(async () => {
+      void loadEarlier?.()
+      void loadEarlier?.()
+    })
+
+    expect(transport.readSession).toHaveBeenCalledTimes(readsBefore + 1)
+  })
+
+  // A reconnect snapshot abandons the outstanding read; one that never settles
+  // must not hold off the next page.
+  it('reads the next older page after a snapshot abandons one that never settles', async () => {
+    const transport = getMockTransport('env-1')
+    const many = Array.from({ length: NATIVE_CHAT_INITIAL_LIMIT }, (_unused, n) =>
+      assistant(`hung-${n}`, 'hung')
+    )
+    await render({ paneKey: PANE, agent: AGENT, sessionId: SESSION, runtimeEnvironmentId: 'env-1' })
+    await act(async () => transport.emit({ type: 'snapshot', messages: many, hasMore: true }))
+    const readsBefore = transport.readSession.mock.calls.length
+    transport.readSession.mockImplementation(() => new Promise(() => {}))
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
+    await act(async () => transport.emit({ type: 'snapshot', messages: many, hasMore: true }))
+    expect(latest?.loadingEarlier).toBe(false)
+
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
+
+    expect(transport.readSession).toHaveBeenCalledTimes(readsBefore + 2)
+  })
+
   it('resolves load-earlier once the older page lands', async () => {
     const transport = getMockTransport('env-1')
     const many = Array.from({ length: NATIVE_CHAT_INITIAL_LIMIT }, (_unused, n) =>

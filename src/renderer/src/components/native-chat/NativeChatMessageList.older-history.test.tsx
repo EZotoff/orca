@@ -275,24 +275,38 @@ describe('older history auto-load', () => {
     expect(screen.queryByRole('button', { name: /load earlier/i })).not.toBeInTheDocument()
   })
 
-  it('never asks again while a page is in flight or loading', () => {
+  it('stops observing while the lane reports a page loading', () => {
     const loadEarlier = vi.fn(() => new Promise<void>(() => {}))
     const base = markers(100, 150)
     const { container, rerender } = render(paging({ messages: base, loadEarlier }))
-    sentinelInRange = true
-    deliverIntersections()
-    // The lane has not yet reported loading: the observer may report again.
-    sentinelInRange = false
-    deliverIntersections()
     sentinelInRange = true
     deliverIntersections()
     expect(loadEarlier).toHaveBeenCalledTimes(1)
 
     rerender(paging({ messages: base, loadEarlier, loadingEarlier: true }))
     paint(container)
+    sentinelInRange = false
+    deliverIntersections()
+    sentinelInRange = true
     deliverIntersections()
     expect(observations.size).toBe(0)
     expect(loadEarlier).toHaveBeenCalledTimes(1)
+  })
+
+  // The lane can start and abandon a read (a reconnect snapshot) before loading is
+  // ever rendered; the list cannot tell that from "not reported yet", so it must
+  // not hold its own latch on the outstanding read. The lane dedupes instead.
+  it('asks again when the lane never reports the outstanding page as loading', () => {
+    const loadEarlier = vi.fn(() => new Promise<void>(() => {}))
+    render(paging({ messages: markers(100, 150), loadEarlier }))
+    sentinelInRange = true
+    deliverIntersections()
+    sentinelInRange = false
+    deliverIntersections()
+    sentinelInRange = true
+    deliverIntersections()
+
+    expect(loadEarlier).toHaveBeenCalledTimes(2)
   })
 
   // A reconnect snapshot or a hide ends the lane's loading while its read is still

@@ -172,6 +172,29 @@ describe('useStructuredAgentSessionRead history window', () => {
     expect(result.current.state.items[0]?.itemId).toBe('oldest')
   })
 
+  // The list may ask again before loading renders; the owner alone dedupes.
+  it('reads one older page when asked twice before it lands', async () => {
+    const tailItems = Array.from({ length: 300 }, (_, index) =>
+      message(`tail-${index}`, 301 + index, 'assistant')
+    )
+    mocks.call
+      .mockResolvedValueOnce({ ok: true, page: page('tail', tailItems, true) })
+      .mockImplementation(() => new Promise(() => {}))
+    const { result } = renderHook(() =>
+      useStructuredAgentSessionRead({ sessionId: 'session-a', target: LOCAL_TARGET })
+    )
+    await waitFor(() => expect(result.current.state.hasOlder).toBe(true))
+    const callsBefore = mocks.call.mock.calls.length
+    const loadOlder = result.current.loadOlder
+
+    await act(async () => {
+      void loadOlder()
+      void loadOlder()
+    })
+
+    expect(mocks.call).toHaveBeenCalledTimes(callsBefore + 1)
+  })
+
   it('does no host work when the app regains focus', async () => {
     const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
     mocks.call.mockResolvedValue({ ok: true, page: page('tail', [], false) })
