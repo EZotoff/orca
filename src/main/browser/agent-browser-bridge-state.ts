@@ -16,7 +16,7 @@ export abstract class AgentBrowserBridgeState {
   protected readonly sessions = new Map<string, SessionState>()
   protected readonly commandQueues = new Map<string, QueuedCommand[]>()
   protected readonly processingQueues = new Set<string>()
-  // Why: screenshot prep mutates shared paintability across tabs; serialize globally so concurrent captures don't blank each other.
+  // Why: the automation visibility lease mutates shared paintability across tabs; serialize globally so concurrent captures don't blank each other.
   protected screenshotTurn: Promise<void> = Promise.resolve()
   protected readonly agentBrowserBin: string
   protected readonly agentBrowserEnv: NodeJS.ProcessEnv
