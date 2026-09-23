@@ -201,8 +201,10 @@ mainAgent?: { state: AgentStatusState; outcome?: AgentJournalTurnOutcome; stateS
 so a settled main agent whose subagent still runs reads `working`. `mainAgent` answers
 "what is the main agent itself doing", which the fold used to destroy at publish
 time; every guard that reconstructed a fragment of it (`fromChildWork`, the
-persisted `claudeLeadBoundaryChildOnly` flag) is now derived from `mainAgent` plus
-the row's child evidence instead of stored. `outcome` is the recorded verdict on
+persisted `claudeLeadBoundaryChildOnly` flag) now reads `mainAgent` instead of a
+stored copy. A Claude row whose `mainAgent` is `done` while a child agent still
+works (including a child's permission wait) refuses OSC, which carries no child
+identity; the children's own lifecycle hooks settle it. `outcome` is the recorded verdict on
 the main agent's most recent finished turn, present only while `mainAgent.state` is
 `done`. It is reported by the provider, or is a `cancellation` Orca inferred
 from the user's own interrupt keystroke (the journal's turn outcome, by
@@ -220,10 +222,14 @@ IPC and disk. A malformed `mainAgent` drops the field and keeps the row. Old hos
 send none and readers fall back to `state`. Hook rows persist it inside the
 payload; hydration maps an older row's `claudeLeadBoundaryChildOnly: true`
 onto `mainAgent: { state: 'done' }` when the row has no `mainAgent`, and never writes the
-flag again. `claudeRunningNonAgentTask` is persisted alongside because it is
-the one child-work fact `mainAgent` cannot express: whether a shell was running
-beside the child agents, which decides whether a settled main agent may be seeded
-at hydrate.
+flag again. Hydration seeds the Claude main agent record straight from a saved
+`mainAgent` that is `done`, so the children's drain can still settle the row after
+a restart. `claudeRunningNonAgentTask` is persisted alongside because it is the one
+child-work fact `mainAgent` cannot express: a shell running beside the main agent,
+whose liveness hydration does not restore, so such a row is not seeded. Writers that
+restate a row without their own inventory (an OSC repaint, an inferred answer) carry
+it forward beside the `mainAgent` they keep. A child's sticky permission prompt
+still records the main agent's own progress in the held row's `mainAgent`.
 
 Two combining rules remain outside the shared fold and are named so a reader
 does not mistake them for drift:
