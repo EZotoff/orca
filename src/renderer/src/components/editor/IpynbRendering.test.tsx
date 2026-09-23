@@ -12,7 +12,7 @@ vi.mock('./use-document-dark-theme', () => ({ useDocumentDarkTheme: () => true }
 vi.mock('@/lib/monaco-setup', () => ({ monaco: {} }))
 vi.mock('@monaco-editor/react', () => ({ default: () => null }))
 vi.mock('./MonacoCodeExcerpt', () => ({
-  default: ({ lines }: { lines: string[] }) => <pre>{lines.join('\n')}</pre>
+  useMonacoColorizedLines: () => []
 }))
 
 function cell(kind: IpynbCell['kind'], source: string, outputs: IpynbOutput[] = []): IpynbCell {
@@ -62,6 +62,16 @@ describe('notebook cell source', () => {
     expect(onActivate).not.toHaveBeenCalled()
     fireEvent.mouseDown(preview, { button: 0 })
     expect(onActivate).toHaveBeenCalledOnce()
+  })
+})
+
+describe('notebook code preview', () => {
+  it('shows source as literal text until Monaco colorizes it', () => {
+    renderSource(cell('code', 'x = "<b>hi</b>"\n'))
+    expect(screen.getByText('x = "<b>hi</b>"')).toBeTruthy()
+    expect(document.querySelector('b')).toBeNull()
+    // The trailing newline keeps its own row, matching the Monaco model.
+    expect(document.querySelectorAll('code')).toHaveLength(2)
   })
 })
 

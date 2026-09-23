@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { Components } from 'react-markdown'
 import { monaco } from '@/lib/monaco-setup'
@@ -11,10 +11,18 @@ import {
 } from './ipynb-code-cell-lines'
 import type { IpynbCell } from './ipynb-parse'
 import { MarkdownPreviewBody } from './MarkdownPreviewBody'
-import MonacoCodeExcerpt, { CODE_EXCERPT_LAYOUT } from './MonacoCodeExcerpt'
+import { useMonacoColorizedLines } from './MonacoCodeExcerpt'
 import { useDocumentDarkTheme } from './use-document-dark-theme'
 
 const NO_MARKDOWN_COMPONENTS: Components = {}
+// Box metrics the preview and the live editor share, so activating a cell never shifts it.
+const CODE_LAYOUT = { lineHeight: 20, paddingY: 4, paddingX: 12 } as const
+// Fixed rows keep colorized blank lines one line tall; preflight gives <code> its own font.
+const CODE_ROW_STYLE = {
+  height: CODE_LAYOUT.lineHeight,
+  paddingInline: CODE_LAYOUT.paddingX,
+  fontFamily: 'inherit'
+} as const
 
 export function IpynbMarkdownCell({ source }: { source: string }): React.JSX.Element {
   const isDark = useDocumentDarkTheme()
@@ -79,16 +87,49 @@ export function IpynbCellSource(props: IpynbCellSourceProps): React.JSX.Element 
           }}
           onKeyDown={activateOnEnter}
         >
-          <MonacoCodeExcerpt
-            lines={getIpynbCodeCellPreviewLines(source)}
-            firstLineNumber={1}
-            highlightedStartLine={-1}
-            highlightedEndLine={-1}
-            language={cell.language}
-            showLineNumbers={false}
-          />
+          <IpynbCodePreview source={source} language={cell.language} />
         </div>
       )}
+    </div>
+  )
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function IpynbCodePreview({
+  source,
+  language
+}: {
+  source: string
+  language: string
+}): React.JSX.Element {
+  const settings = useAppStore((s) => s.settings)
+  const editorFontZoomLevel = useAppStore((s) => s.editorFontZoomLevel)
+  const lines = useMemo(() => getIpynbCodeCellPreviewLines(source), [source])
+  const htmlLines = useMonacoColorizedLines(lines, language)
+  return (
+    <div
+      className="overflow-x-auto text-foreground"
+      style={{
+        fontFamily: resolveEditorFontStack(settings),
+        fontSize: computeEditorFontSize(settings?.terminalFontSize ?? 13, editorFontZoomLevel),
+        lineHeight: `${CODE_LAYOUT.lineHeight}px`,
+        paddingBlock: CODE_LAYOUT.paddingY,
+        // Monaco renders code without the app's body tracking.
+        letterSpacing: 0
+      }}
+    >
+      {lines.map((line, index) => (
+        <code
+          key={index}
+          className="block whitespace-pre"
+          style={CODE_ROW_STYLE}
+          // Plain text shows until Monaco's async colorizer fills in token HTML.
+          dangerouslySetInnerHTML={{ __html: htmlLines[index] || escapeHtml(line) }}
+        />
+      ))}
     </div>
   )
 }
@@ -110,7 +151,7 @@ function IpynbSourceEditor({
     onSaveRequestRef.current = onSaveRequest
   }, [onDeactivate, onSaveRequest])
   const fontSize = computeEditorFontSize(settings?.terminalFontSize ?? 13, editorFontZoomLevel)
-  const { lineHeight, paddingX, paddingY } = CODE_EXCERPT_LAYOUT
+  const { lineHeight, paddingX, paddingY } = CODE_LAYOUT
   const maxHeight = IPYNB_CODE_CELL_PREVIEW_MAX_LINES * lineHeight
   // Seeds the first frame only; Monaco reports the real content height after mount.
   const [contentHeight, setContentHeight] = useState(

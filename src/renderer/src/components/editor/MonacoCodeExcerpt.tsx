@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { monaco } from '@/lib/monaco-setup'
-import { computeEditorFontSize, resolveEditorFontStack } from '@/lib/editor-font-zoom'
+import { computeEditorFontSize, resolveEditorFontFamily } from '@/lib/editor-font-zoom'
 import { resolveDocumentTheme } from '@/lib/document-theme'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
@@ -30,35 +30,9 @@ async function ensureColorizationLanguage(language: string): Promise<void> {
   await pythonLanguageRegistrationPromise
 }
 
-/** Box metrics a live Monaco editor must reuse to swap in for an excerpt without shifting. */
-export const CODE_EXCERPT_LAYOUT = { lineHeight: 20, paddingY: 4, paddingX: 12 } as const
-// Why: preflight gives <code> its own mono stack; inherit so the editor font setting applies.
-const CODE_STYLE = { paddingInline: CODE_EXCERPT_LAYOUT.paddingX, fontFamily: 'inherit' } as const
-
-type MonacoCodeExcerptProps = {
-  lines: string[]
-  firstLineNumber: number
-  highlightedStartLine: number
-  highlightedEndLine: number
-  language: string
-  showLineNumbers?: boolean
-}
-
-export default function MonacoCodeExcerpt({
-  lines,
-  firstLineNumber,
-  highlightedStartLine,
-  highlightedEndLine,
-  language,
-  showLineNumbers = true
-}: MonacoCodeExcerptProps): React.JSX.Element {
+/** Monaco token HTML per line; loads lazy tokenizers (e.g. Python) before colorizing. */
+export function useMonacoColorizedLines(lines: string[], language: string): string[] {
   const settings = useAppStore((s) => s.settings)
-  const editorFontZoomLevel = useAppStore((s) => s.editorFontZoomLevel)
-  const editorFontSize = computeEditorFontSize(
-    settings?.terminalFontSize ?? 13,
-    editorFontZoomLevel
-  )
-  const fontFamily = resolveEditorFontStack(settings)
   const isDark = resolveDocumentTheme(settings?.theme ?? 'system')
   const code = useMemo(() => lines.join('\n'), [lines])
   const [htmlLines, setHtmlLines] = useState<string[]>(() => lines.map(() => ''))
@@ -93,16 +67,37 @@ export default function MonacoCodeExcerpt({
     }
   }, [code, language, lines])
 
+  return htmlLines
+}
+
+type MonacoCodeExcerptProps = {
+  lines: string[]
+  firstLineNumber: number
+  highlightedStartLine: number
+  highlightedEndLine: number
+  language: string
+}
+
+export default function MonacoCodeExcerpt({
+  lines,
+  firstLineNumber,
+  highlightedStartLine,
+  highlightedEndLine,
+  language
+}: MonacoCodeExcerptProps): React.JSX.Element {
+  const settings = useAppStore((s) => s.settings)
+  const editorFontZoomLevel = useAppStore((s) => s.editorFontZoomLevel)
+  const editorFontSize = computeEditorFontSize(
+    settings?.terminalFontSize ?? 13,
+    editorFontZoomLevel
+  )
+  const fontFamily = resolveEditorFontFamily(settings)
+  const htmlLines = useMonacoColorizedLines(lines, language)
+
   return (
     <div
-      className="overflow-x-auto"
-      style={{
-        fontFamily,
-        fontSize: editorFontSize,
-        lineHeight: `${CODE_EXCERPT_LAYOUT.lineHeight}px`,
-        paddingBlock: CODE_EXCERPT_LAYOUT.paddingY,
-        letterSpacing: 0
-      }}
+      className="overflow-x-auto py-1 text-[12px] leading-5"
+      style={{ fontFamily, fontSize: editorFontSize }}
     >
       {lines.map((codeLine, index) => {
         const lineNumber = firstLineNumber + index
@@ -112,23 +107,18 @@ export default function MonacoCodeExcerpt({
         return (
           <div
             key={lineNumber}
-            className={cn('flex', isCommentedLine && 'bg-workspace-status-review/10')}
-            // Why: colorized blank lines are empty spans; a fixed row keeps them one line tall.
-            style={{ height: CODE_EXCERPT_LAYOUT.lineHeight }}
+            className={cn('flex font-mono', isCommentedLine && 'bg-emerald-500/10')}
           >
-            {showLineNumbers ? (
-              <span className="w-12 shrink-0 select-none border-r border-border/40 px-2 text-right text-muted-foreground tabular-nums">
-                {lineNumber}
-              </span>
-            ) : null}
+            <span className="w-12 shrink-0 select-none border-r border-border/40 px-2 text-right text-muted-foreground tabular-nums">
+              {lineNumber}
+            </span>
             {html ? (
               <code
-                className="min-w-max flex-1 whitespace-pre text-foreground"
-                style={CODE_STYLE}
+                className="min-w-max flex-1 whitespace-pre px-3 text-foreground"
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             ) : (
-              <code className="min-w-max flex-1 whitespace-pre text-foreground" style={CODE_STYLE}>
+              <code className="min-w-max flex-1 whitespace-pre px-3 text-foreground">
                 {codeLine || ' '}
               </code>
             )}
