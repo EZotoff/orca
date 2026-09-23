@@ -23,6 +23,8 @@ export type ScriptedClaudeBehavior = {
   initHangs?: boolean
   /** Every control read after startup's own settings read waits for `releaseStalls`. */
   stallsControlReads?: boolean
+  /** The spawn itself waits for `releaseStalls`, holding its acquisition open. */
+  spawnHangs?: boolean
 }
 
 export type ScriptedClaudeChild = {
@@ -57,6 +59,9 @@ export function createScriptedClaudeRuntime(sessionIds: readonly string[]) {
       throw new Error(`no scripted Claude session for ${providerSessionId}`)
     }
     const behavior = behaviors.get(sessionId) ?? {}
+    if (behavior.spawnHangs) {
+      await stall
+    }
     let failInit = (_error: Error): void => {}
     const answer = <T>(value: T, startup: boolean): Promise<T> =>
       behavior.stallsControlReads && !startup ? stall.then(() => value) : Promise.resolve(value)
