@@ -70,7 +70,7 @@ export const AgentLaunchFields = z.object({
       delivery: z.enum(['submit', 'draft'])
     })
     .optional(),
-  /** Only the seedable string options a structured create accepts; a terminal launch ignores them. */
+  /** A chat seeds the options it accepts; a terminal launch reads the model, effort and mode. */
   sessionOptions: z.record(z.string(), z.string()).optional(),
   reuseTerminal: z.object({ handle: z.string().min(1, 'Missing terminal handle') }).optional(),
   /** Nullable on purpose: `null` is "no arguments", absent is "use the settings default". */
