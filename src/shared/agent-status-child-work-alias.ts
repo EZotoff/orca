@@ -15,8 +15,14 @@ import {
 const CHILD_ALIAS_KEY_PREFIX = 'agent-child-work-alias-v1:'
 const MAX_ALIAS_PART_LENGTH = 512
 
-/** `thread_id` names a child by its own provider thread (a Codex subagent). */
-export const AGENT_CHILD_WORK_ALIAS_KINDS = ['task_id', 'tool_use_id', 'thread_id'] as const
+/** `thread_id` names a child by its own provider thread (a Codex subagent); `turn_id` names one
+ *  run of such a child, as `tool_use_id` names one run of a task. */
+export const AGENT_CHILD_WORK_ALIAS_KINDS = [
+  'task_id',
+  'tool_use_id',
+  'thread_id',
+  'turn_id'
+] as const
 export type AgentChildWorkAliasKind = (typeof AGENT_CHILD_WORK_ALIAS_KINDS)[number]
 const ALIAS_KIND_SET: ReadonlySet<string> = new Set(AGENT_CHILD_WORK_ALIAS_KINDS)
 
