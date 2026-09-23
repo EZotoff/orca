@@ -6,7 +6,7 @@ import type { SoftKeyboardState } from '../platform/keyboard-occlusion'
 import type { RouteHandoff } from '../navigation/route-handoff'
 
 const harness = vi.hoisted(() => {
-  const keyboard: SoftKeyboardState = { height: 0, visible: false }
+  const keyboard: SoftKeyboardState = { height: 0, visible: false, duration: 0 }
   return {
     keyboard,
     notifyKeyboardVisibility: vi.fn<(visible: boolean) => void>(),
@@ -102,7 +102,7 @@ async function rerender(tree: ReactTestRenderer): Promise<void> {
 
 describe('what the session screen hears about the keyboard', () => {
   beforeEach(() => {
-    harness.keyboard = { height: 0, visible: false }
+    harness.keyboard = { height: 0, visible: false, duration: 0 }
     harness.notifyKeyboardVisibility.mockClear()
     harness.notifyTerminalFrameHeight.mockClear()
     harness.setKeyboardHeight.mockClear()
@@ -110,12 +110,12 @@ describe('what the session screen hears about the keyboard', () => {
 
   it('lifts by the height the seam reports and drops back when it closes', async () => {
     const tree = await mount()
-    harness.keyboard = { height: 336, visible: true }
+    harness.keyboard = { height: 336, visible: true, duration: 0 }
     await rerender(tree)
     expect(harness.setKeyboardHeight).toHaveBeenLastCalledWith(336)
     expect(harness.notifyKeyboardVisibility).toHaveBeenLastCalledWith(true)
 
-    harness.keyboard = { height: 0, visible: false }
+    harness.keyboard = { height: 0, visible: false, duration: 0 }
     await rerender(tree)
     expect(harness.setKeyboardHeight).toHaveBeenLastCalledWith(0)
     expect(harness.notifyKeyboardVisibility).toHaveBeenLastCalledWith(false)
@@ -126,7 +126,7 @@ describe('what the session screen hears about the keyboard', () => {
     // dock needs no lift. Refitting on that height change would reflow the desktop PTY on every
     // keyboard open, which is the reflow the visibility flag exists to defer.
     const tree = await mount()
-    harness.keyboard = { height: 0, visible: true }
+    harness.keyboard = { height: 0, visible: true, duration: 0 }
     await rerender(tree)
     expect(harness.notifyKeyboardVisibility).toHaveBeenLastCalledWith(true)
     expect(harness.setKeyboardHeight.mock.calls.every(([height]) => height === 0)).toBe(true)

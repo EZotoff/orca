@@ -74,8 +74,12 @@ export function useKeyboardAvoidingPadding(): number {
   return useKeyboardOcclusion()
 }
 
-/** The sibling's shape; the two facts it answers together are measured separately here. */
-export type SoftKeyboardState = { readonly height: number; readonly visible: boolean }
+/** The sibling's shape; the facts it answers together are measured separately here. */
+export type SoftKeyboardState = {
+  readonly height: number
+  readonly visible: boolean
+  readonly duration: number
+}
 
 /**
  * Whether a keyboard is open, which here is not what it covers: the shell shortens the WebView to
@@ -110,6 +114,7 @@ function useShortenedWindow(): boolean {
   return shortened
 }
 
+/** Duration 0: the shell has resized the WebView by the time the page hears of it. */
 export function useSoftKeyboard(): SoftKeyboardState {
-  return { height: useKeyboardOcclusion(), visible: useShortenedWindow() }
+  return { height: useKeyboardOcclusion(), visible: useShortenedWindow(), duration: 0 }
 }

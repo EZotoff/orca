@@ -202,7 +202,7 @@ describe('the keyboard the browser reports', () => {
 })
 
 const LAYOUT_WIDTH = 400
-let keyboardState: SoftKeyboardState = { height: 0, visible: false }
+let keyboardState: SoftKeyboardState = { height: 0, visible: false, duration: 0 }
 
 function StateHarness(): null {
   keyboardState = useSoftKeyboard()
@@ -242,20 +242,21 @@ describe('the keyboard the page cannot see, because the shell already moved it',
         tree.unmount()
       }
     })
-    keyboardState = { height: 0, visible: false }
+    keyboardState = { height: 0, visible: false, duration: 0 }
     Object.defineProperty(window, 'innerWidth', { value: LAYOUT_WIDTH, configurable: true })
     Object.defineProperty(window, 'innerHeight', { value: LAYOUT_HEIGHT, configurable: true })
   })
 
   it('reads no keyboard while the window keeps the height it mounted at', async () => {
     await mountState()
-    expect(keyboardState).toEqual({ height: 0, visible: false })
+    expect(keyboardState).toEqual({ height: 0, visible: false, duration: 0 })
   })
 
   it('calls the window shortened at an unchanged width the keyboard, and covers nothing by it', async () => {
     await mountState()
     await act(async () => resizeWindow(LAYOUT_WIDTH, LAYOUT_HEIGHT - 336))
-    expect(keyboardState).toEqual({ height: 0, visible: true })
+    // Duration 0: the shell has already resized the WebView, so there is nothing left to animate.
+    expect(keyboardState).toEqual({ height: 0, visible: true, duration: 0 })
   })
 
   it('drops the flag when the window gets its height back', async () => {
