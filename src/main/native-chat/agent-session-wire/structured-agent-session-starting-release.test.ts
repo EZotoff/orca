@@ -108,7 +108,7 @@ async function attachStarting(): Promise<void> {
   await host.hold(SESSION, SURFACE)
 }
 
-async function send(text: string): Promise<string> {
+async function send(text: string, dispatchState = 'pending'): Promise<string> {
   const body = hostTestMessage(text)
   const sent = await host.send(CALLER, {
     envelope: {
@@ -123,7 +123,7 @@ async function send(text: string): Promise<string> {
     },
     body
   })
-  expect(sent).toMatchObject({ ok: true, value: { submission: { dispatchState: 'pending' } } })
+  expect(sent).toMatchObject({ ok: true, value: { submission: { dispatchState } } })
   return sent.ok ? sent.value.clientMessageId : ''
 }
 
@@ -155,6 +155,28 @@ describe('a chat left while its Claude CLI is still starting', () => {
 
     expect(claude.connections[0].sent).toEqual([expect.objectContaining({ type: 'user' })])
     await vi.waitFor(() => expect(dispatchState(held)).toBe('accepted'))
+  })
+
+  it('is released after the grace once its turn has finished', async () => {
+    await attachStarting()
+    landInit()
+    await adapter.drainStartup(SESSION)
+    await send('answered', 'accepted')
+    claude.connections[0].handlers.onMessage?.({
+      type: 'result',
+      subtype: 'success',
+      uuid: 'result-1',
+      session_id: PROVIDER_SESSION_ID,
+      is_error: false,
+      result: 'done'
+    })
+    await host.flushStreamedEvents(SESSION)
+    expect(host.journalSnapshot(SESSION).submissions).toHaveLength(1)
+
+    host.release(SESSION, SURFACE)
+
+    await vi.waitFor(() => expect(host.hasSession(SESSION)).toBe(false))
+    expect(claude.connections[0].closeCount).toBe(1)
   })
 
   it('is released after the grace when it owes nothing', async () => {
