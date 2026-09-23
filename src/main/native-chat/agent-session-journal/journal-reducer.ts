@@ -13,7 +13,7 @@ import type {
   AgentJournalSnapshot,
   AgentJournalSubmission
 } from '../../../shared/agent-session-journal-types'
-import { journalRenderItem } from './journal-render-item'
+import { journalBatchMutationProducer, journalRenderItem } from './journal-render-item'
 import {
   agentJournalSubmissionKey,
   parseAgentJournalItemKey
@@ -96,7 +96,13 @@ export function applyJournalRow(state: JournalReducerState, row: JournalRow): vo
           state,
           itemId,
           mutation.revision,
-          journalRenderItem(itemId, mutation.revision, mutation.body, row)
+          journalRenderItem(
+            itemId,
+            mutation.revision,
+            mutation.body,
+            row,
+            journalBatchMutationProducer(row, mutation)
+          )
         )
       } else {
         removeItem(state, resolveItemId(state, mutation.itemId), mutation.revision)

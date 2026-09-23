@@ -1,9 +1,10 @@
 // The journal options one admitted sink append forwards.
 //
-// Its own module because four append paths need it and the sink's own file
+// Its own module because five append paths need it and the sink's own file
 // already depends on two of them. Every path calls this, so a row-level field
 // added to the sink's options reaches the durable row through all four rather
-// than through whichever spread the next change remembers to edit.
+// than through whichever spread the next change remembers to edit. The
+// lifecycle-batch path is the exception: its producers ride each mutation.
 
 import { agentJournalLinkageFields } from '../../../shared/agent-session-journal-producer'
 import type { JournalItemAppendOptions } from '../agent-session-journal/journal-store-contracts'

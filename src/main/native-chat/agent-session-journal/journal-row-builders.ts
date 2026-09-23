@@ -100,18 +100,54 @@ function boundedDispatchReason(input: ResolveDispatchInput): string | null {
 }
 
 export type JournalLifecycleMutationInput =
-  | { kind: 'item'; identity: AgentJournalItemIdentity; body: AgentJournalItemBody }
+  | {
+      kind: 'item'
+      identity: AgentJournalItemIdentity
+      body: AgentJournalItemBody
+      /** The row's producer, restated by every revision. Absent ⇒ the session's own agent. */
+      linkage?: AgentJournalProducerLinkage
+    }
   | { kind: 'tombstone'; identity: AgentJournalItemIdentity }
+
+/** A batch revision of a row someone else wrote. It restates that row's producer,
+ *  because the reducer takes linkage from the newest revision: without it a
+ *  settlement would hand a subagent's row to the session's own agent. */
+export function journalLifecycleRevisionOf(
+  row: AgentJournalProducerLinkage,
+  identity: AgentJournalItemIdentity,
+  body: AgentJournalItemBody
+): JournalLifecycleMutationInput {
+  const linkage = agentJournalLinkageFields(row)
+  return { kind: 'item', identity, body, ...(Object.keys(linkage).length > 0 ? { linkage } : {}) }
+}
+
+/** The persisted form of one mutation, shared with the partitioner's size probe
+ *  so a chunk is measured with the linkage it will actually carry. */
+export function journalLifecycleMutationRow(
+  mutation: JournalLifecycleMutationInput,
+  itemId: string,
+  revision: number
+): JournalLifecycleMutation {
+  return mutation.kind === 'item'
+    ? {
+        kind: 'item',
+        itemId,
+        revision,
+        body: mutation.body,
+        ...agentJournalLinkageFields(mutation.linkage)
+      }
+    : { kind: 'tombstone', itemId, revision }
+}
 
 export function journalLifecycleBatchRowBuilder(
   state: () => JournalReducerState,
   settlementId: string,
   mutations: readonly JournalLifecycleMutationInput[],
-  /** No producer linkage: one batch row covers N mutations, so a row-level
-   *  producer would stamp whoever opened the batch onto every one of them. The
-   *  reducer still READS linkage off a batch row, because a row may come from a
-   *  host that writes one; a mixed-producer batch would have to stamp per
-   *  mutation, which nothing needs yet. */
+  /** No ROW-level producer: one batch row covers N mutations, so a row-level
+   *  producer would stamp whoever opened the batch onto every one of them.
+   *  Each item mutation carries its own instead. The reducer still reads
+   *  row-level linkage as the fallback for a mutation that names none, because
+   *  a row may come from a host that wrote one. */
   options: { fence: number; recovered?: true }
 ): RowBuilder<JournalLifecycleBatchRow> {
   return (seq, ts) => {
@@ -130,9 +166,7 @@ export function journalLifecycleBatchRowBuilder(
             current.tombstones.get(resolved) ?? 0
           )) + 1
       revisions.set(resolved, revision)
-      return mutation.kind === 'item'
-        ? { kind: 'item', itemId, revision, body: mutation.body }
-        : { kind: 'tombstone', itemId, revision }
+      return journalLifecycleMutationRow(mutation, itemId, revision)
     })
     const row: JournalLifecycleBatchRow = {
       kind: 'lifecycle-batch',

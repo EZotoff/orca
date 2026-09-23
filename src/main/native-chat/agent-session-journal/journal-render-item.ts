@@ -1,5 +1,6 @@
 import type {
   AgentJournalItemBody,
+  AgentJournalProducerLinkage,
   AgentJournalRenderItem
 } from '../../../shared/agent-session-journal-types'
 import { agentJournalLinkageFields } from '../../../shared/agent-session-journal-producer'
@@ -13,7 +14,8 @@ export function journalRenderItem(
   itemId: string,
   revision: number,
   body: AgentJournalItemBody,
-  row: JournalRow
+  row: JournalRow,
+  producer: AgentJournalProducerLinkage = row
 ): AgentJournalRenderItem {
   return {
     itemId,
@@ -22,6 +24,16 @@ export function journalRenderItem(
     sequence: row.seq,
     observedAt: row.ts,
     ...(row.recovered ? { recovered: row.recovered } : {}),
-    ...agentJournalLinkageFields(row)
+    ...agentJournalLinkageFields(producer)
   }
+}
+
+/** Who produced one mutation of a batch: the mutation itself when it names a
+ *  producer, else the batch row, which only a host stamping whole batches wrote. */
+export function journalBatchMutationProducer(
+  row: AgentJournalProducerLinkage,
+  mutation: AgentJournalProducerLinkage
+): AgentJournalProducerLinkage {
+  const named = agentJournalLinkageFields(mutation)
+  return Object.keys(named).length > 0 ? named : row
 }

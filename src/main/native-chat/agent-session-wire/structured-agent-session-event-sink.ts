@@ -87,7 +87,8 @@ export type StructuredAgentSessionEventSink = {
   tryAppendLifecycleTransition?(
     identitySizeBound: AgentJournalItemIdentity,
     body: AgentJournalItemBody,
-    resolveIdentity: StructuredAgentSessionIdentityResolver
+    resolveIdentity: StructuredAgentSessionIdentityResolver,
+    options?: StructuredAgentSessionAppendOptions
   ): StructuredAgentSessionSinkAdmission
   /** Current durable epoch, when this deferred sink is bound to its journal. */
   journalEpoch?(): string | null
@@ -230,7 +231,7 @@ export function createDeferredStructuredAgentSessionEventSink(
           options
         ),
       ...resolvedAppend,
-      tryAppendLifecycleTransition: (identitySizeBound, body, resolveIdentity) => {
+      tryAppendLifecycleTransition: (identitySizeBound, body, resolveIdentity, options = {}) => {
         const bytes = estimateStructuredAgentSessionItemBytes(identitySizeBound, body)
         return queue.submit(
           {
@@ -244,7 +245,11 @@ export function createDeferredStructuredAgentSessionEventSink(
               if (estimateStructuredAgentSessionItemBytes(identity, body) > bytes) {
                 throw new Error('structured agent-session item identity exceeded its reserved size')
               }
-              await bound.journal.appendItem(identity, body, { fence: bound.fence })
+              await bound.journal.appendItem(
+                identity,
+                body,
+                structuredAgentSessionJournalAppendOptions(bound.fence, options)
+              )
               bound.publish()
             }
           },
