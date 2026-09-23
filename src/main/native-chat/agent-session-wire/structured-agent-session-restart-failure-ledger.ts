@@ -58,7 +58,8 @@ export type StructuredAgentSessionRestartFailureLedger = {
   /** The current records as rows a surface can show; sessions this host no longer holds are left
    *  out, and records the chat has since superseded are dropped and pruned. */
   list: () => Promise<StructuredAgentSessionResumeFailure[]>
-  /** One action's attempts; a chat unreadable at its attempt falls back to its reserved marker. */
+  /** One action's attempts; a chat never observed after an attempt falls back to its reserved
+   *  marker. */
   attempts: (
     markers: ReadonlyMap<string, AgentSessionResumeMarker>
   ) => StructuredAgentSessionRestartAttempts

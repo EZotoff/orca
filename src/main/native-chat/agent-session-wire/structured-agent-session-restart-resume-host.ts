@@ -204,8 +204,8 @@ export function createStructuredAgentSessionRestartResume(
       outcomes = await resumeStructuredAgentSessionsFromRestart(
         {
           admission,
+          // An ineligible chat is not observed: the message that made it so answers its failure.
           consumeMarker: async (sessionId) => {
-            attempts.observe(sessionId)
             const marker = markersBySession.get(sessionId)
             return marker !== undefined && derive([marker], 'may-be-held').length === 1
           },

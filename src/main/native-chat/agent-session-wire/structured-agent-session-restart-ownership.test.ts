@@ -675,9 +675,9 @@ it('fails closed on corrupt recovery storage while ordinary hold and send still 
 
 /** A reattach that succeeds and a continuation the host refuses: the provider finished the turn
  *  while the continuation was being recorded, as the superseded-evidence cases above set up. */
-/** `afterAttempt` runs once this chat's own attempt has ended, before the action settles — where
- *  the rest of a batch would still be running. */
-async function supersededRefusal(afterAttempt?: () => Promise<void>) {
+/** `userAnswers` has the user reply in the chat just before or after its own attempt, while the
+ *  rest of a batch would still be running. */
+async function supersededRefusal(userAnswers?: 'before' | 'after') {
   const { host, acquire, dispatch, root } = await interruptedRestart()
   await host.restartResume.list()
   await host.hold(SESSION, 'pane')
@@ -698,19 +698,23 @@ async function supersededRefusal(afterAttempt?: () => Promise<void>) {
   })
   const admit = StructuredAgentSessionResumeAdmission.prototype.run
   const admitting = vi.spyOn(StructuredAgentSessionResumeAdmission.prototype, 'run')
-  if (afterAttempt) {
+  const body = hostTestMessage('Carry on from where you stopped')
+  const answer = () =>
+    host.send(CALLER, { envelope: envelope('agentSession.send', { body }), body })
+  if (userAnswers) {
     admitting.mockImplementationOnce(async function (this, ...args) {
+      await (userAnswers === 'before' ? answer() : null)
       try {
         return await admit.apply(this, args)
       } finally {
-        await afterAttempt()
+        await (userAnswers === 'after' ? answer() : null)
       }
     })
   }
   try {
     const result = await host.restartResume.continueAfterRestart([SESSION], 'modal')
     expect(result.continued).toMatchObject([{ outcome: 'refused' }])
-    expect(dispatch).toHaveBeenCalledTimes(afterAttempt ? 1 : 0)
+    expect(dispatch).toHaveBeenCalledTimes(userAnswers ? 1 : 0)
     return { host, root, result }
   } finally {
     writing.mockRestore()
@@ -763,26 +767,27 @@ it('retires a recorded failure once the user sends in that chat, with no send ho
   host.release(SESSION, 'pane')
 })
 
-// The chat's own note asks for a message, and the user can send it while other chats in the same
-// action are still being continued. That message answers the failure; it is not part of it.
-it('retires a failure the user answered before the rest of the action settled', async () => {
-  const body = hostTestMessage('Carry on from where you stopped')
-  const { host, root, result } = await supersededRefusal(async () => {
-    await hostTestState().host.send(CALLER, {
-      envelope: envelope('agentSession.send', { body }),
-      body
+// The user can reply in a chat while other chats in the same action are still being continued,
+// before its turn in the batch or after its own note asks them to. Either reply answers the failure.
+it.each(['before', 'after'] as const)(
+  'retires a failure the user answered %s its own attempt, before the action settled',
+  async (userAnswers) => {
+    const { host, root, result } = await supersededRefusal(userAnswers)
+    expect(result.resumed).toMatchObject([
+      userAnswers === 'before' ? { reason: 'agent_session_resume_not_eligible' } : {}
+    ])
+    expect(
+      statusNotes(host).some(
+        (note) => note.text === AGENT_SESSION_RESTART_CONTINUATION_REFUSED_NOTE
+      )
+    ).toBe(userAnswers === 'after')
+    expect(result.failed).toEqual([])
+    await vi.waitFor(async () => {
+      expect(await new AgentSessionRecoveryCapsule(root).listFailed(NOW)).toEqual([])
     })
-  })
-  expect(statusNotes(host)).toContainEqual({
-    text: AGENT_SESSION_RESTART_CONTINUATION_REFUSED_NOTE,
-    tone: 'error'
-  })
-  expect(result.failed).toEqual([])
-  await vi.waitFor(async () => {
-    expect(await new AgentSessionRecoveryCapsule(root).listFailed(NOW)).toEqual([])
-  })
-  host.release(SESSION, 'pane')
-})
+    host.release(SESSION, 'pane')
+  }
+)
 
 it('removes a failure when a named retry succeeds', async () => {
   const { host, root, dispatch } = await interruptedRestart()
