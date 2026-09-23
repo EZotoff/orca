@@ -105,6 +105,13 @@ export class StructuredAgentSessionHolds {
     return this.holders.hasResumeCapableHolder(sessionId)
   }
 
+  /** Work the child was holding just reached it; a pending release restarts its full grace. */
+  restartReleaseGrace(sessionId: string): void {
+    if (this.clock.isArmed(sessionId)) {
+      this.clock.arm(sessionId)
+    }
+  }
+
   isReleasePending(sessionId: string): boolean {
     return this.clock.isArmed(sessionId)
   }

@@ -25,6 +25,7 @@ export class StructuredAgentSessionEventRecovery {
       publishFence: (sessionId: string, session: StructuredAgentSessionHostSession) => void
       publishStatus?: (sessionId: string) => void
       hasResumeCapableHolder: (sessionId: string) => boolean
+      restartReleaseGrace: (sessionId: string) => void
       serialize: <T>(sessionId: string, task: () => Promise<T>) => Promise<T>
       now: () => number
       attachContext: () => StructuredAgentSessionAttachContext

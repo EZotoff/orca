@@ -145,6 +145,7 @@ export class StructuredAgentSessionHost {
         this.subscribers.snapshot(sessionId, session.journal, session.fence),
       publishStatus: this.clientDelivery.publishStatusAndSettlement,
       hasResumeCapableHolder: (sessionId) => this.holds.hasResumeCapableHolder(sessionId),
+      restartReleaseGrace: (sessionId) => this.holds.restartReleaseGrace(sessionId),
       serialize: (sessionId, task) => this.serialize(sessionId, task),
       now: () => this.now(),
       attachContext: () => this.attachContext(),
