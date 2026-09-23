@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { normalizeHookPayload } from './agent-hook-listener'
 import { markClaudeLeadTurnInterrupted } from './agent-hook-listener/providers/claude-roster-state'
+import { markCodexLeadTurnInterrupted } from './agent-hook-listener/providers/codex-state'
 import {
   createHookListenerState,
   type HookListenerState
@@ -23,7 +24,7 @@ import type {
   AgentWorkingMode,
   ParsedAgentStatusPayload
 } from './agent-status-types'
-import { codexRosterEffectiveState, seedCodexSubagentRoster } from './codex-subagent-roster'
+import { codexRosterChildWorkLiveness, seedCodexSubagentRoster } from './codex-subagent-roster'
 import { structuredAgentSessionAgentStatus } from './structured-agent-session-agent-status'
 import type { AgentJournalTurnOutcome } from './agent-turn-outcome'
 
@@ -193,6 +194,67 @@ const STORIES: Story[] = [
     }
   },
   {
+    // KNOWN DIVERGENCE in the main agent fact, pinned on purpose. The Claude hook lane records a
+    // child's permission wait by displacing the main agent record (`waitingAgentId`,
+    // `stateBeforeWait`), so its published `mainAgent.state` reads `waiting` while the main agent
+    // is really still working. Codex keeps the wait on the child and its `mainAgent` stays the
+    // root's own state; the fold's waiting-child input surfaces it. Moving Claude onto the child
+    // fact flips its rows here.
+    name: 'a child blocked on the user (known divergence: Claude displaces the main agent record)',
+    claude: {
+      events: [
+        { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
+        { hook_event_name: 'SubagentStart', agent_id: 'agent-1' },
+        {
+          hook_event_name: 'PermissionRequest',
+          agent_id: 'agent-1',
+          tool_name: 'Bash',
+          tool_input: { command: 'rm' }
+        }
+      ],
+      expect: { state: 'waiting', mainAgent: { state: 'waiting' } }
+    },
+    codex: {
+      events: [
+        { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
+        { hook_event_name: 'SubagentStart', agent_id: 'agent-1' },
+        { hook_event_name: 'PermissionRequest', agent_id: 'agent-1', tool_name: 'shell' }
+      ],
+      expect: { state: 'waiting', mainAgent: { state: 'working' } }
+    }
+  },
+  {
+    name: 'settled main agent whose child is blocked on the user (same known divergence)',
+    claude: {
+      events: [
+        { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
+        { hook_event_name: 'SubagentStart', agent_id: 'agent-1' },
+        { hook_event_name: 'Stop', background_tasks: [RUNNING_AGENT] },
+        {
+          hook_event_name: 'PermissionRequest',
+          agent_id: 'agent-1',
+          tool_name: 'Bash',
+          tool_input: { command: 'rm' }
+        }
+      ],
+      expect: { state: 'waiting', mainAgent: { state: 'waiting' } }
+    },
+    structured: {
+      status: 'idle',
+      backgroundTasks: [{ ...AGENT_TASK, state: 'waiting' }],
+      expect: { state: 'waiting', mainAgent: { state: 'done' } }
+    },
+    codex: {
+      events: [
+        { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
+        { hook_event_name: 'SubagentStart', agent_id: 'agent-1' },
+        { hook_event_name: 'Stop' },
+        { hook_event_name: 'PermissionRequest', agent_id: 'agent-1', tool_name: 'shell' }
+      ],
+      expect: { state: 'waiting', mainAgent: { state: 'done' } }
+    }
+  },
+  {
     name: 'failed turn',
     claude: {
       events: [
@@ -248,6 +310,27 @@ const STORIES: Story[] = [
     }
   },
   {
+    // Neither CLI reports a cancel on its own Stop, so the late turn boundary must keep the
+    // verdict Orca inferred rather than downgrade it to "unknown".
+    name: 'interrupted, then the late turn boundary',
+    claude: {
+      events: [
+        { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
+        ORCA_INFERRED_INTERRUPT,
+        { hook_event_name: 'Stop' }
+      ],
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'cancellation' } }
+    },
+    codex: {
+      events: [
+        { hook_event_name: 'UserPromptSubmit', prompt: 'go' },
+        ORCA_INFERRED_INTERRUPT,
+        { hook_event_name: 'Stop' }
+      ],
+      expect: { state: 'done', mainAgent: { state: 'done', outcome: 'cancellation' } }
+    }
+  },
+  {
     // Secondary source: a build that does send `is_interrupt` on its Stop. Same known divergence.
     name: 'interrupted by a Stop that carries is_interrupt, with a watch loop (older builds)',
     claude: {
@@ -259,14 +342,6 @@ const STORIES: Story[] = [
     }
   }
 ]
-
-/** Codex never reports a blocked root; the combine's input type says so. */
-function codexMainAgentState(state: AgentStatusState): 'working' | 'waiting' | 'done' {
-  if (state === 'blocked') {
-    throw new Error('Codex published a blocked main agent')
-  }
-  return state
-}
 
 /** The stories a lane takes part in, as `it.each` rows. */
 function storiesFor<K extends 'claude' | 'structured' | 'grok' | 'codex'>(
@@ -296,7 +371,11 @@ describe('mainAgent status parity across lanes', () => {
     let last: ParsedAgentStatusPayload | null = null
     for (const payload of events) {
       if (payload === ORCA_INFERRED_INTERRUPT) {
-        markClaudeLeadTurnInterrupted(state, PANE_KEY)
+        if (source === 'codex') {
+          markCodexLeadTurnInterrupted(state, PANE_KEY)
+        } else {
+          markClaudeLeadTurnInterrupted(state, PANE_KEY)
+        }
         continue
       }
       const event = normalizeHookPayload(
@@ -316,6 +395,8 @@ describe('mainAgent status parity across lanes', () => {
   /** The hook lane's child evidence: the roster on the row, the shell and cron sets in memory. */
   function claudeChildWorkLiveness(payload: ParsedAgentStatusPayload): AgentChildWorkLiveness {
     return agentChildWorkLivenessFromEvidence({
+      // The roster never carries a wait: this lane displaces the main agent record instead.
+      hasWaitingChildWork: false,
       hasLiveAgentWork: payload.subagents?.some((child) => child.state === 'working') === true,
       hasLiveNonAgentWork:
         state.claudeRunningNonAgentTaskPaneKeys.has(PANE_KEY) ||
@@ -366,18 +447,15 @@ describe('mainAgent status parity across lanes', () => {
     })
   })
 
-  describe('Codex hook lane (own combine, not the shared fold)', () => {
+  describe('Codex hook lane', () => {
     it.each(storiesFor('codex'))('%s', (_name, lane) => {
       const payload = drive('codex', lane.events)
       const row = published(payload)
       expect(row).toEqual(lane.expect)
-      // Codex keeps `codexRosterEffectiveState` until its combine moves onto the fold: a
-      // waiting child wins, a settled root with any live child reads working, no monitoring.
+      // Codex's child evidence is the roster on the row: every child a spawned agent thread.
       const roster = new Map()
       seedCodexSubagentRoster(roster, payload.subagents ?? [])
-      expect(row.state).toBe(
-        codexRosterEffectiveState(roster, codexMainAgentState(row.mainAgent.state))
-      )
+      expect(row).toEqual(refold(row.mainAgent, codexRosterChildWorkLiveness(roster)))
     })
   })
 })
