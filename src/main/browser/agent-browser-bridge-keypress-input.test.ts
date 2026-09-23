@@ -250,7 +250,7 @@ describe('AgentBrowserBridge keypress input', () => {
   }
 
   it('rejects with tab not found when the page dies after its target is resolved', async () => {
-    const remaining = killPageAfterLookups(2)
+    const remaining = killPageAfterLookups(1)
 
     await expect(bridge.keypress('a', undefined, 'tab-1')).rejects.toMatchObject({
       code: 'browser_tab_not_found'
@@ -260,7 +260,7 @@ describe('AgentBrowserBridge keypress input', () => {
   })
 
   it('rejects with tab not found when the page dies mid-dispatch', async () => {
-    const remaining = killPageAfterLookups(3)
+    const remaining = killPageAfterLookups(2)
     wc.debugger.sendCommand.mockRejectedValue(new Error('Inspected target navigated or closed'))
 
     await expect(bridge.keypress('a', undefined, 'tab-1')).rejects.toMatchObject({
