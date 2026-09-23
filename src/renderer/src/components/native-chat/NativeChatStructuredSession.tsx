@@ -23,7 +23,7 @@ import { useNativeChatLaunchDraftSignal } from './use-native-chat-launch-draft-a
 import { NativeChatLaunchRetry } from './NativeChatLaunchRetry'
 import { useNativeChatProvisionalLaunch } from './use-native-chat-provisional-launch'
 import { NativeChatDeliveryRetry } from './NativeChatDeliveryRetry'
-import { useStructuredAgentSessionStatusSummary } from './StructuredAgentSessionStatusBridge'
+import { useStructuredAgentSessionHostExecutionPhase } from './StructuredAgentSessionStatusBridge'
 import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
 import { NativeChatThreadGoalBanner } from './NativeChatThreadGoalBanner'
 
@@ -41,9 +41,7 @@ export function NativeChatStructuredSession(
   )
   const { sendThroughRelaunch } = provisionalLaunch
   // The host's own word on whether the provider child has answered startup yet.
-  const startupPhase =
-    useStructuredAgentSessionStatusSummary(props.sessionId, props.target).summary
-      ?.hostExecutionPhase ?? null
+  const startupPhase = useStructuredAgentSessionHostExecutionPhase(props.sessionId, props.target)
   const controller = useStructuredAgentSession({
     ...props,
     transportEnabled: provisionalLaunch.transportEnabled
