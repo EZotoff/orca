@@ -219,7 +219,12 @@ function IpynbSourceEditor({
     editorInstance.focus()
     model.onDidChangeContent(() => onChange(model.getValue()))
     editorInstance.onDidBlurEditorWidget(onDeactivate)
-    editorInstance.addCommand(monaco.KeyCode.Escape, onDeactivate)
+    // Escape closes an open widget first; only a bare Escape leaves the cell.
+    editorInstance.addCommand(
+      monaco.KeyCode.Escape,
+      onDeactivate,
+      '!suggestWidgetVisible && !findWidgetVisible && !parameterHintsVisible'
+    )
     const cleanupFindShortcut = installMonacoEditorFindShortcut(editorInstance)
     return () => {
       cleanupFindShortcut()
