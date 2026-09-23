@@ -7,6 +7,7 @@ import type {
 import { agentJournalLinkageFields } from '../../shared/agent-session-journal-producer'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
 import { createCodexJournalTranslator } from './codex-structured-journal-translation'
+import type { CodexThreadItem } from './codex-thread-item-identity'
 import { CODEX_COMMAND_APPROVAL_METHOD } from './codex-structured-prompt-replies'
 
 const SESSION = 'session-1'
@@ -70,7 +71,7 @@ function harness(primaryThreadId: string | null = PARENT) {
       method,
       params: { threadId, ...params }
     })
-  const item = (threadId: string, method: string, turnId: string, body: object) =>
+  const item = (threadId: string, method: string, turnId: string, body: CodexThreadItem) =>
     on(threadId, method, { turnId, item: body })
   const spawn = (spawner: string, turnId: string, child: string, path: string) => {
     const body = {

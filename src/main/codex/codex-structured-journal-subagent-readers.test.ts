@@ -18,6 +18,7 @@ import { openAgentSessionJournal } from '../native-chat/agent-session-journal/jo
 import type { AgentSessionJournal } from '../native-chat/agent-session-journal/journal-store'
 import { createDeferredStructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
 import { createCodexJournalTranslator } from './codex-structured-journal-translation'
+import type { CodexThreadItem } from './codex-thread-item-identity'
 
 const SESSION = 'session-codex-children'
 const PARENT = 'thread-parent'
@@ -73,7 +74,7 @@ async function session() {
       method,
       params: { threadId, ...params }
     })
-  const item = (threadId: string, method: string, turnId: string, body: object) =>
+  const item = (threadId: string, method: string, turnId: string, body: CodexThreadItem) =>
     on(threadId, method, { turnId, item: body })
   return {
     on,
