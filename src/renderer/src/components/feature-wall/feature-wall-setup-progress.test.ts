@@ -17,11 +17,8 @@ function makeInput(
     settings: null,
     featureInteractions: {},
     hasConnectedTaskSource: false,
-    browserUseSkillInstalled: false,
-    computerUseSkillInstalled: false,
-    computerUsePermissionsReady: false,
-    orchestrationSkillInstalled: false,
-    orcaCliRegistered: true,
+    orcaCliRegistered: false,
+    orcaCliUnverifiable: false,
     gitRepoCount: 0,
     worktreesByRepo: {},
     hasSetupScript: false,
@@ -104,10 +101,7 @@ describe('getFeatureWallSetupProgress', () => {
         hasConnectedTaskSource: true,
         hasSetupScript: true,
         gitRepoCount: 2,
-        browserUseSkillInstalled: true,
-        computerUseSkillInstalled: true,
-        computerUsePermissionsReady: true,
-        orchestrationSkillInstalled: true
+        orcaCliRegistered: true
       })
     )
 
@@ -143,10 +137,7 @@ describe('getFeatureWallSetupProgress', () => {
         hasConnectedTaskSource: true,
         hasSetupScript: true,
         gitRepoCount: 2,
-        browserUseSkillInstalled: true,
-        computerUseSkillInstalled: true,
-        computerUsePermissionsReady: true,
-        orchestrationSkillInstalled: true
+        orcaCliRegistered: true
       })
     )
 
@@ -249,91 +240,25 @@ describe('getFeatureWallSetupProgress', () => {
     expect(progress.stepDone['agent-capabilities']).toBe(false)
   })
 
-  it('marks agent capabilities complete only when required skills and permissions are ready', () => {
+  it('marks Enable Orca CLI complete once the CLI is registered, with no skills installed', () => {
     expect(
-      getFeatureWallSetupProgress(
-        makeInput({
-          browserUseSkillInstalled: true,
-          computerUseSkillInstalled: true,
-          computerUsePermissionsReady: false,
-          orchestrationSkillInstalled: true
-        })
-      ).stepDone['agent-capabilities']
-    ).toBe(false)
-
-    const progress = getFeatureWallSetupProgress(
-      makeInput({
-        browserUseSkillInstalled: true,
-        computerUseSkillInstalled: true,
-        computerUsePermissionsReady: true,
-        orchestrationSkillInstalled: true
-      })
-    )
-
-    expect(progress.stepDone['agent-capabilities']).toBe(true)
-  })
-
-  it('keeps agent capabilities incomplete while the Orca CLI is not registered', () => {
-    const allSkillsReady = {
-      browserUseSkillInstalled: true,
-      computerUseSkillInstalled: true,
-      computerUsePermissionsReady: true,
-      orchestrationSkillInstalled: true
-    }
-
-    expect(
-      getFeatureWallSetupProgress(makeInput({ ...allSkillsReady, orcaCliRegistered: false }))
-        .stepDone['agent-capabilities']
+      getFeatureWallSetupProgress(makeInput({ orcaCliRegistered: false })).stepDone[
+        'agent-capabilities'
+      ]
     ).toBe(false)
     expect(
-      getFeatureWallSetupProgress(makeInput({ ...allSkillsReady, orcaCliRegistered: true }))
-        .stepDone['agent-capabilities']
+      getFeatureWallSetupProgress(makeInput({ orcaCliRegistered: true })).stepDone[
+        'agent-capabilities'
+      ]
     ).toBe(true)
   })
 
-  it('does not block agent capabilities when this client cannot verify the host CLI', () => {
+  it('does not block Enable Orca CLI when this client cannot verify the host CLI', () => {
     const progress = getFeatureWallSetupProgress(
-      makeInput({
-        browserUseSkillInstalled: true,
-        computerUseSkillInstalled: true,
-        computerUsePermissionsReady: true,
-        orchestrationSkillInstalled: true,
-        orcaCliRegistered: false,
-        orcaCliUnverifiable: true
-      })
+      makeInput({ orcaCliRegistered: false, orcaCliUnverifiable: true })
     )
 
     expect(progress.stepDone['agent-capabilities']).toBe(true)
-  })
-
-  it('does not block agent capabilities on unavailable Computer Use access', () => {
-    const progress = getFeatureWallSetupProgress(
-      makeInput({
-        browserUseSkillInstalled: true,
-        computerUseSkillInstalled: true,
-        computerUsePermissionsReady: false,
-        computerUseUnavailable: true,
-        orchestrationSkillInstalled: true
-      })
-    )
-
-    expect(progress.stepDone['agent-capabilities']).toBe(true)
-  })
-
-  it('marks the Orca CLI setup row complete when installed skills are ready and Computer Use is unavailable', () => {
-    const progress = getFeatureWallSetupProgress(
-      makeInput({
-        browserUseSkillInstalled: true,
-        computerUseSkillInstalled: true,
-        computerUsePermissionsReady: false,
-        computerUseUnavailable: true,
-        orchestrationSkillInstalled: true
-      })
-    )
-
-    expect(progress.stepDone).toMatchObject({
-      'agent-capabilities': true
-    })
     expect(getFirstIncompleteFeatureWallSetupStepId(progress.stepDone)).not.toBe(
       'agent-capabilities'
     )

@@ -35,8 +35,6 @@ type FeatureWallSetupChecklistProps = {
   activeStep: FeatureWallSetupStep | null
   progress: FeatureWallSetupProgress
   onSelectStep: (id: FeatureWallSetupStepId) => void
-  onOrchestrationSkillInstalledChange: (installed: boolean) => void
-  onBrowserUseSkillInstalledChange: (installed: boolean) => void
   /** Modal keeps a compact rail; embedded (settings pane) gets more column breathing room. */
   layout?: FeatureWallSetupChecklistLayout
 }
@@ -157,12 +155,7 @@ function SelectedStepAction(props: FeatureWallSetupChecklistProps): React.JSX.El
     return <TaskSourcesAction />
   }
   if (activeStep.id === 'agent-capabilities') {
-    return (
-      <AgentCapabilitiesSetupAction
-        onOrchestrationSkillInstalledChange={props.onOrchestrationSkillInstalledChange}
-        onBrowserUseSkillInstalledChange={props.onBrowserUseSkillInstalledChange}
-      />
-    )
+    return <AgentCapabilitiesSetupAction />
   }
   if (activeStep.id === 'setup-script') {
     return <SetupScriptAction />

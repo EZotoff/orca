@@ -56,7 +56,7 @@ const getLocalizedFeatureWallSetupChecklistCopyById = createLocalizedCatalog(
       ),
       description: translate(
         'auto.components.feature.wall.feature.wall.setup.checklist.localized.copy.7bcb4097fa',
-        'Register the Orca shell command and install agent skills for browser, computer, and orchestration workflows.'
+        'Register the Orca shell command so agents can use the browser, orchestration, and computer skills.'
       )
     },
     'task-sources': {

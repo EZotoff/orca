@@ -43,7 +43,7 @@ describe('useSettingsSetupGuideProgress', () => {
     mocks.useSetupGuideProgress.mockReturnValue(makeProgress())
 
     expect(renderToStaticMarkup(<SettingsProgressProbe />)).toContain('4/8')
-    expect(mocks.useSetupGuideProgress).toHaveBeenCalledWith(true, false, false)
+    expect(mocks.useSetupGuideProgress).toHaveBeenCalledWith(true)
   })
 
   it('uses legacy-aware completion returned by the shared setup progress path', () => {

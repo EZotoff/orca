@@ -29,11 +29,7 @@ import { notifyOrcaCliInstallStateChanged } from '@/hooks/use-orca-cli-install-s
 import { ensureWslCliAvailableForAgentSkillTerminal } from '../settings/CliSkillRuntimeSetup'
 import { translate } from '@/i18n/i18n'
 
-export function AgentCapabilitiesSetupAction(props: {
-  onOrchestrationSkillInstalledChange: (installed: boolean) => void
-  onBrowserUseSkillInstalledChange: (installed: boolean) => void
-}): React.JSX.Element {
-  const { onBrowserUseSkillInstalledChange, onOrchestrationSkillInstalledChange } = props
+export function AgentCapabilitiesSetupAction(): React.JSX.Element {
   const capabilitySetupStatus = useAgentCapabilitySetupStatus()
   const { readiness } = capabilitySetupStatus
   const featureSetupDefaultsAppliedRef = useRef(false)
@@ -49,12 +45,6 @@ export function AgentCapabilitiesSetupAction(props: {
   const [setupBusyLabel, setSetupBusyLabel] = useState<string | null>(null)
   const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
   const activeSkillRuntime = useActiveProjectSkillRuntime()
-  useEffect(() => {
-    onBrowserUseSkillInstalledChange(readiness.browserUseSkillInstalled)
-  }, [onBrowserUseSkillInstalledChange, readiness.browserUseSkillInstalled])
-  useEffect(() => {
-    onOrchestrationSkillInstalledChange(readiness.orchestrationSkillInstalled)
-  }, [onOrchestrationSkillInstalledChange, readiness.orchestrationSkillInstalled])
   useEffect(() => {
     if (featureSetupDefaultsAppliedRef.current || featureSetupChangedByUserRef.current) {
       return

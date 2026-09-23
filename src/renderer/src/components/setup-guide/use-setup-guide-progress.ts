@@ -7,15 +7,6 @@ import { checkRuntimeHooks } from '@/runtime/runtime-hooks-client'
 import { getLocalPreflightContext, localPreflightContextKey } from '@/lib/local-preflight-context'
 import { hasEffectiveSetupCommand } from '@/lib/setup-script-status'
 import { getProviderRuntimeContextKey } from '@/lib/provider-runtime-context'
-import {
-  COMPUTER_USE_SKILL_NAME,
-  ORCA_CLI_SKILL_NAME,
-  ORCHESTRATION_SKILL_NAME
-} from '@/lib/agent-feature-install-commands'
-import {
-  GLOBAL_AGENT_SKILL_SOURCE_KINDS,
-  useInstalledAgentSkill
-} from '@/hooks/useInstalledAgentSkills'
 import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
 import { useOrcaCliInstallStatus } from '@/hooks/use-orca-cli-install-status'
 import {
@@ -24,7 +15,6 @@ import {
 } from '../feature-wall/feature-wall-setup-progress'
 import { deriveIntegrationConnectionStatus } from '../feature-wall/use-integration-connection-status'
 import { useSetupGuideBrowserMilestoneProgress } from './setup-guide-browser-milestone-progress'
-import { useSetupGuideComputerUsePermissions } from './use-setup-guide-computer-use-permissions'
 import {
   getCurrentSetupScriptProbeState,
   getSetupGuideProgressReady,
@@ -38,11 +28,7 @@ import {
 
 const SETUP_SCRIPT_PROBE_SETTLE_TIMEOUT_MS = 15_000
 
-export function useSetupGuideProgress(
-  shouldRefreshCoreState: boolean,
-  orchestrationSkillInstalled: boolean,
-  browserUseSkillInstalled: boolean
-): FeatureWallSetupProgress {
+export function useSetupGuideProgress(shouldRefreshCoreState: boolean): FeatureWallSetupProgress {
   const settings = useAppStore((s) => s.settings)
   const featureInteractions = useAppStore((s) => s.featureInteractions)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
@@ -71,30 +57,7 @@ export function useSetupGuideProgress(
     readSetupScriptProbeCache,
     readSetupScriptProbeCache
   )
-  const { installed: detectedBrowserUseSkillInstalled, loading: detectedBrowserUseSkillLoading } =
-    useInstalledAgentSkill(ORCA_CLI_SKILL_NAME, {
-      enabled: shouldRefreshCoreState,
-      discoveryTarget: activeSkillRuntime.discoveryTarget,
-      sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
-    })
-  const { installed: computerUseSkillInstalled, loading: computerUseSkillLoading } =
-    useInstalledAgentSkill(COMPUTER_USE_SKILL_NAME, {
-      enabled: shouldRefreshCoreState,
-      discoveryTarget: activeSkillRuntime.discoveryTarget,
-      sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
-    })
-  const {
-    installed: detectedOrchestrationSkillInstalled,
-    loading: detectedOrchestrationSkillLoading
-  } = useInstalledAgentSkill(ORCHESTRATION_SKILL_NAME, {
-    enabled: shouldRefreshCoreState,
-    discoveryTarget: activeSkillRuntime.discoveryTarget,
-    sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
-  })
   const orcaCli = useOrcaCliInstallStatus(activeSkillRuntime, { enabled: shouldRefreshCoreState })
-  const computerUsePermissions = useSetupGuideComputerUsePermissions(
-    shouldRefreshCoreState && computerUseSkillInstalled
-  )
   const providerRuntimeContextKey = getProviderRuntimeContextKey(settings)
   const linearStatusCurrent = linearStatusContextKey === providerRuntimeContextKey
   const jiraStatusCurrent = jiraStatusContextKey === providerRuntimeContextKey
@@ -219,12 +182,7 @@ export function useSetupGuideProgress(
     preflightStatusChecked: !taskSourceStatus.checking,
     linearStatusChecked: true,
     jiraStatusChecked: true,
-    browserUseSkillDiscoveryLoading: detectedBrowserUseSkillLoading,
-    computerUseSkillDiscoveryLoading: computerUseSkillLoading,
-    orchestrationSkillDiscoveryLoading: detectedOrchestrationSkillLoading,
     setupScriptProbeReady: currentSetupScriptProbe.ready,
-    computerUseSkillInstalled,
-    computerUsePermissionStatusChecked: computerUsePermissions.checked,
     orcaCliStatusChecked: shouldRefreshCoreState && orcaCli.checked
   })
 
@@ -235,12 +193,6 @@ export function useSetupGuideProgress(
         settings,
         featureInteractions,
         hasConnectedTaskSource,
-        browserUseSkillInstalled: browserUseSkillInstalled || detectedBrowserUseSkillInstalled,
-        computerUseSkillInstalled,
-        computerUsePermissionsReady: computerUsePermissions.ready,
-        computerUseUnavailable: computerUsePermissions.unavailable,
-        orchestrationSkillInstalled:
-          orchestrationSkillInstalled || detectedOrchestrationSkillInstalled,
         orcaCliRegistered: orcaCli.registered,
         orcaCliUnverifiable: orcaCli.unverifiable,
         gitRepoCount,
@@ -248,18 +200,11 @@ export function useSetupGuideProgress(
         hasSetupScript: currentSetupScriptProbe.hasSetupScript
       }),
     [
-      browserUseSkillInstalled,
       ready,
-      computerUsePermissions.unavailable,
-      computerUsePermissions.ready,
-      computerUseSkillInstalled,
-      detectedBrowserUseSkillInstalled,
-      detectedOrchestrationSkillInstalled,
       featureInteractions,
       gitRepoCount,
       hasConnectedTaskSource,
       currentSetupScriptProbe.hasSetupScript,
-      orchestrationSkillInstalled,
       orcaCli.registered,
       orcaCli.unverifiable,
       settings,

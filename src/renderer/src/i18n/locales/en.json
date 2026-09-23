@@ -14436,7 +14436,7 @@
                       "46db810da8": "Choose your default agent",
                       "b8e5bae17f": "Start new work faster with your preferred agent already selected.",
                       "fee5557b02": "Enable Orca CLI",
-                      "7bcb4097fa": "Register the Orca shell command and install agent skills for browser, computer, and orchestration workflows.",
+                      "7bcb4097fa": "Register the Orca shell command so agents can use the browser, orchestration, and computer skills.",
                       "ad342dd4c6": "Connect integrations",
                       "06fe30fdb0": "Start an agent from a task in one click and keep PR status in view.",
                       "eddc532e58": "Automate workspace setup",
