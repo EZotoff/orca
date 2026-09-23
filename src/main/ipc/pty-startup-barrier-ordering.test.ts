@@ -7,7 +7,7 @@ function readRepoSource(relPath: string): string {
 }
 
 describe('PTY startup barrier ordering', () => {
-  it('waits for local startup before resolving the provider for runtime and renderer spawns', () => {
+  it('waits for the pane provider before resolving it for runtime and renderer spawns', () => {
     const runtimeSpawn =
       readRepoSource('src/main/ipc/pty/runtime/spawn.ts') +
       readRepoSource('src/main/ipc/pty/runtime/spawn-early.ts') +
@@ -15,13 +15,14 @@ describe('PTY startup barrier ordering', () => {
 
     const rendererSource =
       readRepoSource('src/main/ipc/pty/ipc/spawn.ts') +
+      readRepoSource('src/main/ipc/pty/ipc/spawn-run.ts') +
       readRepoSource('src/main/ipc/pty/ipc/spawn-begin.ts') +
       readRepoSource('src/main/ipc/pty/ipc/spawn-preflight.ts')
     const rendererSpawnStart = rendererSource.indexOf("ipcMain.handle('pty:spawn'")
     const rendererSpawn = rendererSource.slice(rendererSpawnStart)
 
     for (const spawnBlock of [runtimeSpawn, rendererSpawn]) {
-      const barrierIndex = spawnBlock.indexOf('getLocalPtyStartupPromise(args.connectionId)')
+      const barrierIndex = spawnBlock.indexOf('awaitPaneProviderReady(')
       const providerIndex = spawnBlock.indexOf('getProvider(args.connectionId)')
 
       expect(barrierIndex).toBeGreaterThanOrEqual(0)

@@ -51,6 +51,9 @@ export type PtyIpcSessionOptions = {
   prepareCodexSessionResume?: PrepareCodexSessionResume
   awaitLocalPtyStartup?: () => Promise<void>
   awaitLocalPtyProviderStartup?: () => Promise<void>
+  awaitManagedWslCliStartupBarrier?: () => Promise<void>
+  /** False while the daemon may still replace the in-process provider at startup. */
+  isLocalPtyStartupSettled?: () => boolean
   // Why: returns true once for the crash-recovery reload so its did-finish-load skips the orphan sweep and keeps live PTYs (#5787).
   isRecoveryReloadInFlight?: (webContentsId: number) => boolean
   onCodexHomePtySpawned?: (args: CodexHomePtySpawnedLifecycleArgs) => void

@@ -21,7 +21,7 @@ export type SshPtyLeaseOperations = {
  * the remote shell (docs/reference/ssh-execution-boundary.md). Wiping the binding on `expired` made
  * `resolvePersistedStablePaneOwner` return null, so `adoptStablePane` gave up and `createTerminal`
  * spawned a replacement over a process that was still running. Keeping it buys a reattach ATTEMPT
- * only — a genuinely dead shell is retired by `attachStablePaneOwner` on the relay's own absence
+ * only — a genuinely dead shell is retired by `attachStablePaneOwner` on the relay's proven-exit
  * answer, which then falls through to a fresh spawn.
  *
  * Supersession is the one place `expired` still scrubs a binding, and it does so explicitly in

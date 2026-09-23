@@ -1,4 +1,5 @@
 import { rejectPaneSpawnReservation } from '../pane/spawn-reservation'
+import { awaitPaneProviderReady } from '../pane/pane-provider-readiness'
 import { ptySizes } from '../delivery/visibility-state'
 import { beginPtyIpcSpawn } from './spawn-begin'
 import { preparePtyIpcSpawnPreflight } from './spawn-preflight'
@@ -31,6 +32,18 @@ function restoreProvisionalPtySize(ctx: PtyIpcSpawnState): void {
 }
 
 export async function runPtyIpcSpawn(deps: PtySpawnIpcDeps, args: PtySpawnIpcArgs) {
+  // Why first: the owner decision below reads the provider this wait installs.
+  const providerReady = awaitPaneProviderReady(deps.paneProviderReadiness, {
+    connectionId: args.connectionId,
+    worktreeId: args.worktreeId,
+    cwd: args.cwd,
+    sessionId: args.sessionId,
+    shellOverride: args.shellOverride,
+    projectRuntime: args.projectRuntime
+  })
+  if (providerReady) {
+    await providerReady
+  }
   triggerPtySpawnPushTargetMaterialization(deps, args)
   const ctx = createPtyIpcSpawnState(deps, args)
   const early = await beginPtyIpcSpawn(ctx)

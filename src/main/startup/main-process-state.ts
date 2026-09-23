@@ -122,6 +122,8 @@ export const mainProcessState = {
   gpuFeatureStatus: null as Electron.GPUFeatureStatus | null,
   gpuCrashDiagnostics: null as GpuCrashDiagnosticsRecorder | null,
   localPtyStartupReady: Promise.resolve(),
+  // Why derived: tracks the gate above so the in-process provider knows when its misses are final.
+  localPtyStartupSettled: true,
   localPtyProviderStartupReady: Promise.resolve(),
   isServeMode: false,
   devInstanceIdentity: null as ReturnType<typeof getDevInstanceIdentity> | null,

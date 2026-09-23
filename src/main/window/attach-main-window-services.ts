@@ -58,6 +58,8 @@ export function attachMainWindowServices(
     prepareCodexSessionResume?: PrepareCodexSessionResume
     awaitLocalPtyStartup?: () => Promise<void>
     awaitLocalPtyProviderStartup?: () => Promise<void>
+    awaitManagedWslCliStartupBarrier?: () => Promise<void>
+    isLocalPtyStartupSettled?: () => boolean
     onBeforeRendererReload?: (args: { webContentsId: number; ignoreCache: boolean }) => void
     // Why: lets the PTY orphan sweep skip the one crash-recovery reload (#5787).
     isRecoveryReloadInFlight?: (webContentsId: number) => boolean
@@ -94,6 +96,8 @@ export function attachMainWindowServices(
       prepareCodexSessionResume: options?.prepareCodexSessionResume,
       awaitLocalPtyStartup: options?.awaitLocalPtyStartup,
       awaitLocalPtyProviderStartup: options?.awaitLocalPtyProviderStartup,
+      awaitManagedWslCliStartupBarrier: options?.awaitManagedWslCliStartupBarrier,
+      isLocalPtyStartupSettled: options?.isLocalPtyStartupSettled,
       isRecoveryReloadInFlight: options?.isRecoveryReloadInFlight,
       onCodexHomePtySpawned: options?.onCodexHomePtySpawned,
       onPtyExit: options?.onPtyExit

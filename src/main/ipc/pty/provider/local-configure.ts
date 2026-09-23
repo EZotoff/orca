@@ -19,7 +19,7 @@ import {
 } from '../host-env/codex-home'
 import type { GetSelectedCodexHomePath } from '../host-env/types'
 import { isCurrentPtyExit, ptyOwnership } from './ownership-state'
-import { localProvider } from './registry'
+import { getLocalPtyProvider, localProvider } from './registry'
 import { clearProviderPtyState } from './state-cleanup'
 import { awaitExplicitPiOmpGuestReadiness } from '../../../agent-hooks/wsl-pi-omp-guest-readiness'
 
@@ -28,13 +28,18 @@ export function configureLocalPtyProvider(args: {
   getSettings?: () => GlobalSettings
   getSelectedCodexHomePath?: GetSelectedCodexHomePath
   trustedTerminalHandleEnv: Set<string>
+  isLocalPtyStartupSettled?: () => boolean
 }): void {
   // Why: only LocalPtyProvider needs main-process hook injection; daemon-backed providers spawn subprocesses internally.
   if (!(localProvider instanceof LocalPtyProvider)) {
     return
   }
   const { runtime, getSettings, getSelectedCodexHomePath, trustedTerminalHandleEnv } = args
+  const configuredProvider = localProvider
   localProvider.configure({
+    // Why: once a daemon is installed this registry is only its fallback, which answers for itself.
+    ownsUnspawnedSessionIds: () =>
+      (args.isLocalPtyStartupSettled?.() ?? true) || getLocalPtyProvider() !== configuredProvider,
     isHistoryEnabled: () => getSettings?.()?.terminalScopeHistoryByWorktree ?? true,
     getWindowsShell: () => getSettings?.()?.terminalWindowsShell,
     getDefaultShell: () => getSettings?.()?.terminalDefaultShell,

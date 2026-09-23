@@ -37,10 +37,13 @@ export async function executePtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<void> {
       ctx.pendingRegistrationPtyId = expectedPtyId
     }
     if (ctx.isDaemonHostSpawn && expectedPtyId) {
+      // Why: a recreated session is a new incarnation; nothing of the exited one may carry over.
+      const startsNewIncarnation =
+        (ctx.isMintedSessionId || ctx.recreatedSessionId !== undefined) && !stablePaneOwnerCandidate
       ctx.preparedProvisionalExecutionContext =
         ctx.deps.runtime?.preparePtyExecutionContext?.(expectedPtyId, ctx.expectedWslDistro, {
-          resetIncarnation: ctx.isMintedSessionId && !stablePaneOwnerCandidate,
-          preserveExisting: !ctx.isMintedSessionId || Boolean(stablePaneOwnerCandidate)
+          resetIncarnation: startsNewIncarnation,
+          preserveExisting: !startsNewIncarnation
         }) ?? false
     }
     const sequenceBeforeProviderSpawn = expectedPtyId
@@ -186,7 +189,10 @@ export async function executePtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<void> {
       }
     }
     // Why: provider state buildPtyHostEnv materialized for this minted id leaks if spawn failed.
-    if (ctx.isMintedSessionId && ctx.effectiveSessionId !== undefined) {
+    if (
+      (ctx.isMintedSessionId || ctx.recreatedSessionId !== undefined) &&
+      ctx.effectiveSessionId !== undefined
+    ) {
       clearProviderPtyState(ctx.effectiveSessionId)
     }
     // Why: telemetry-plan.md§agent_error — attribute the error to the renderer-threaded agent_kind, else sniff the command for `claude`; raw messages are dropped at the validator boundary.

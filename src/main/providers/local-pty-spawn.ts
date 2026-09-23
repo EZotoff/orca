@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { win32 as pathWin32 } from 'node:path'
 import * as pty from 'node-pty'
-import { SessionNotFoundError } from '../daemon/daemon-errors'
+import { SessionNotFoundError, TerminalSessionOwnerUnverifiedError } from '../daemon/daemon-errors'
 import { prepareMacosTccLoginShell } from './macos-tcc-login-shell'
 import { finalizeLocalPtySpawnEnvironment } from './local-pty-finalize-environment'
 import { normalizeLocalCallerSessionId } from './local-pty-launch-helpers'
@@ -34,7 +34,11 @@ export async function spawnLocalPty(
     }
   }
   if (args.attachOnly) {
-    throw new SessionNotFoundError(args.sessionId ?? '')
+    const sessionId = args.sessionId ?? ''
+    // Why: before the daemon installs, a restored id belongs to it; this miss is no exit evidence.
+    throw getOptions().ownsUnspawnedSessionIds?.() === false
+      ? new TerminalSessionOwnerUnverifiedError(sessionId)
+      : new SessionNotFoundError(sessionId)
   }
   const id = allocatePtyId(reattachId ?? undefined)
   const incarnationId = randomUUID()

@@ -210,6 +210,14 @@ export function bindTerminalRuntimeStartupServices(
   services: Promise<WindowsDesktopStartupServices>
 ): void {
   state.firstWindowStartupServicesReady = services.then((value) => value.firstWindowReady)
-  state.localPtyStartupReady = services.then((value) => value.localPtyReady)
+  const localPtyStartupReady = services.then((value) => value.localPtyReady)
+  state.localPtyStartupReady = localPtyStartupReady
+  state.localPtyStartupSettled = false
+  const markSettled = (): void => {
+    if (state.localPtyStartupReady === localPtyStartupReady) {
+      state.localPtyStartupSettled = true
+    }
+  }
+  void localPtyStartupReady.then(markSettled, markSettled)
   state.localPtyProviderStartupReady = services.then((value) => value.localPtyProviderReady)
 }

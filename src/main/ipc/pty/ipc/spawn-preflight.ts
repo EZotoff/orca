@@ -5,7 +5,7 @@ import {
 import { isWslUncPath, toWindowsWslPath } from '../../../../shared/wsl-paths'
 import { isClaudeAuthSwitchInProgress } from '../../../claude-accounts/live-pty-gate'
 import { CLAUDE_AUTH_SWITCH_IN_PROGRESS_MESSAGE } from '../../../claude-accounts/environment'
-import { mintPtySessionId } from '../../../daemon/pty-session-id'
+import { mintPtySessionId, parsePtySessionId } from '../../../daemon/pty-session-id'
 import { resolveWslSessionContext } from '../../../daemon/wsl-session-context'
 import { LocalPtyProvider } from '../../../providers/local-pty-provider'
 import { normalizeWindowsTerminalCwd } from '../../../providers/windows-shell-args'
@@ -19,17 +19,20 @@ import {
 import { getAppPtyId, getProvider, getRelayPtyId } from '../provider/registry'
 import type { PtyIpcSpawnState } from './spawn-state'
 
-export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promise<void> {
+function assignEffectiveSessionIdentity(ctx: PtyIpcSpawnState): void {
   const args = ctx.args
-  // Establish daemon identity before the first await so hidden delivery is gated before byte zero.
-  ctx.provider = getProvider(args.connectionId)
+  const previousHiddenMarkId = ctx.preSpawnHiddenMarkId
   ctx.isDaemonHostSpawn =
     !args.connectionId &&
     !(ctx.provider instanceof LocalPtyProvider) &&
     !routesFreshSpawnsToLocalProvider(ctx.provider)
-  ctx.isMintedSessionId = args.sessionId === undefined && ctx.isDaemonHostSpawn
+  const recreatedSessionId = ctx.isDaemonHostSpawn ? ctx.recreatedSessionId : undefined
+  ctx.isMintedSessionId =
+    args.sessionId === undefined && recreatedSessionId === undefined && ctx.isDaemonHostSpawn
   ctx.effectiveSessionId =
-    args.sessionId ?? (ctx.isDaemonHostSpawn ? mintPtySessionId(args.worktreeId) : undefined)
+    args.sessionId ??
+    recreatedSessionId ??
+    (ctx.isDaemonHostSpawn ? mintPtySessionId(args.worktreeId) : undefined)
   ctx.effectiveSessionAppId =
     ctx.effectiveSessionId !== undefined
       ? getAppPtyId(args.connectionId, ctx.effectiveSessionId)
@@ -38,14 +41,36 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
     ctx.effectiveSessionId !== undefined
       ? getRelayPtyId(args.connectionId, ctx.effectiveSessionId)
       : undefined
-  ctx.initiallyHidden = args.initiallyHidden === true
   ctx.preSpawnHiddenMarkId =
     ctx.initiallyHidden && ctx.isDaemonHostSpawn && ctx.effectiveSessionAppId !== undefined
       ? ctx.effectiveSessionAppId
       : null
-  if (ctx.preSpawnHiddenMarkId !== null) {
-    ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(ctx.preSpawnHiddenMarkId, true)
+  if (previousHiddenMarkId !== ctx.preSpawnHiddenMarkId) {
+    if (previousHiddenMarkId !== null) {
+      ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(previousHiddenMarkId, false)
+    }
+    if (ctx.preSpawnHiddenMarkId !== null) {
+      ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(ctx.preSpawnHiddenMarkId, true)
+    }
   }
+}
+
+// Why only daemon-minted ids of this workspace: the daemon keys cold-restore history by them.
+function recreatableSessionId(ctx: PtyIpcSpawnState, exitedPtyId: string): string | undefined {
+  return ctx.args.sessionId === undefined &&
+    !ctx.args.connectionId &&
+    ctx.args.worktreeId !== undefined &&
+    parsePtySessionId(exitedPtyId).worktreeId === ctx.args.worktreeId
+    ? exitedPtyId
+    : undefined
+}
+
+export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promise<void> {
+  const args = ctx.args
+  // Establish daemon identity before the first await so hidden delivery is gated before byte zero.
+  ctx.provider = getProvider(args.connectionId)
+  ctx.initiallyHidden = args.initiallyHidden === true
+  assignEffectiveSessionIdentity(ctx)
   if (!ctx.earlyStablePaneOwner) {
     const pathUsable = ctx.deps.assertFolderWorkspacePtyPathUsable(args.worktreeId)
     if (pathUsable) {
@@ -53,9 +78,9 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
     }
   }
   ctx.spawnTiming.mark('stable_adoption_setup')
-  ctx.preAdoptedStablePane =
+  const stablePaneOpen =
     ctx.earlyStablePaneOwner && ctx.earlyWorktreeId
-      ? await ctx.deps.adoptStablePane({
+      ? await ctx.deps.openStablePane({
           cols: args.cols,
           rows: args.rows,
           cwd: ctx.cwd,
@@ -66,6 +91,14 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
           ownsPaneSpawnReservation: true
         })
       : null
+  ctx.preAdoptedStablePane = stablePaneOpen?.kind === 'live' ? stablePaneOpen.adoption : null
+  if (stablePaneOpen?.kind === 'exited') {
+    // Why: a proven exit recreates the same session so its history restores, not a blank shell.
+    ctx.recreatedSessionId = recreatableSessionId(ctx, stablePaneOpen.owner.ptyId)
+    if (ctx.recreatedSessionId !== undefined) {
+      assignEffectiveSessionIdentity(ctx)
+    }
+  }
   ctx.spawnTiming.mark('stable_adoption')
   if (ctx.earlyStablePaneOwner && !ctx.preAdoptedStablePane) {
     const pathUsable = ctx.deps.assertFolderWorkspacePtyPathUsable(args.worktreeId)
@@ -162,34 +195,7 @@ export async function preparePtyIpcSpawnPreflight(ctx: PtyIpcSpawnState): Promis
     : recoverFreshSpawnProviderRouting(ctx.provider, args.connectionId, args.sessionId)
   if (freshSpawnRecovery) {
     await freshSpawnRecovery
-    const previousHiddenMarkId = ctx.preSpawnHiddenMarkId
-    ctx.isDaemonHostSpawn =
-      !args.connectionId &&
-      !(ctx.provider instanceof LocalPtyProvider) &&
-      !routesFreshSpawnsToLocalProvider(ctx.provider)
-    ctx.isMintedSessionId = args.sessionId === undefined && ctx.isDaemonHostSpawn
-    ctx.effectiveSessionId =
-      args.sessionId ?? (ctx.isDaemonHostSpawn ? mintPtySessionId(args.worktreeId) : undefined)
-    ctx.effectiveSessionAppId =
-      ctx.effectiveSessionId !== undefined
-        ? getAppPtyId(args.connectionId, ctx.effectiveSessionId)
-        : undefined
-    ctx.effectiveSessionRelayId =
-      ctx.effectiveSessionId !== undefined
-        ? getRelayPtyId(args.connectionId, ctx.effectiveSessionId)
-        : undefined
-    ctx.preSpawnHiddenMarkId =
-      ctx.initiallyHidden && ctx.isDaemonHostSpawn && ctx.effectiveSessionAppId !== undefined
-        ? ctx.effectiveSessionAppId
-        : null
-    if (previousHiddenMarkId !== ctx.preSpawnHiddenMarkId) {
-      if (previousHiddenMarkId !== null) {
-        ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(previousHiddenMarkId, false)
-      }
-      if (ctx.preSpawnHiddenMarkId !== null) {
-        ctx.deps.transitionSpawnHiddenRendererPtyDeliveryState(ctx.preSpawnHiddenMarkId, true)
-      }
-    }
+    assignEffectiveSessionIdentity(ctx)
   }
   ctx.isClaudeLaunch =
     !ctx.preAdoptedStablePane && !args.connectionId && isClaudeLaunchCommand(args.command)

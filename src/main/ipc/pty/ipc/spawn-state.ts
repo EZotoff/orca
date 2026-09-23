@@ -45,6 +45,8 @@ export type PtyIpcSpawnState = {
   }
   isDaemonHostSpawn: boolean
   isMintedSessionId: boolean
+  /** The exited owner's session id, reused so the daemon cold-restores its history. */
+  recreatedSessionId: string | undefined
   effectiveSessionId: string | undefined
   effectiveSessionAppId: string | undefined
   effectiveSessionRelayId: string | undefined
@@ -120,6 +122,7 @@ export function createPtyIpcSpawnState(
     terminalRuntimeOptions: {},
     isDaemonHostSpawn: false,
     isMintedSessionId: false,
+    recreatedSessionId: undefined,
     effectiveSessionId: undefined,
     effectiveSessionAppId: undefined,
     effectiveSessionRelayId: undefined,

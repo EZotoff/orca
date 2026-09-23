@@ -4,6 +4,7 @@ import { allocatePtyLifecycleSequence } from '../host-env/types'
 import { snapshotCodexPaneHomeRoutes, codexReattachedHomeRouteField } from '../host-env/codex-home'
 import { ensureWslHookRelayForReattach } from '../../../agent-hooks/wsl-hook-relay-reattach'
 import type { CodexPaneHomeRoute } from '../../../codex/codex-pane-account-registry'
+import { awaitPaneProviderReady } from '../pane/pane-provider-readiness'
 import type { RuntimePtySpawnState } from './spawn-state'
 
 export function adoptMaterializedRuntimePtySpawn(
@@ -28,8 +29,16 @@ export function adoptMaterializedRuntimePtySpawn(
         )
       : new Map<string, CodexPaneHomeRoute | null>()
   }
-  const startupPromise = ctx.deps.getLocalPtyStartupPromise(args.connectionId)
-  if (startupPromise && !startupAlreadyAwaited) {
+  const startupPromise = startupAlreadyAwaited
+    ? undefined
+    : awaitPaneProviderReady(ctx.deps.paneProviderReadiness, {
+        connectionId: args.connectionId,
+        worktreeId: args.worktreeId,
+        cwd: args.cwd,
+        sessionId: args.sessionId,
+        shellOverride: args.shellOverride
+      })
+  if (startupPromise) {
     return startupPromise.then(() => adoptMaterializedRuntimePtySpawn(ctx, true))
   }
   if (!ctx.preAdoptedStablePane?.materialized) {

@@ -25,7 +25,7 @@ function makeDeps(): PtyRuntimeControllerDeps {
       terminalWindowsShell: HOST_DEFAULT_SHELL
     }),
     adoptStablePane: async () => null,
-    getLocalPtyStartupPromise: () => undefined,
+    paneProviderReadiness: { getLocalPtyStartupPromise: () => undefined },
     getLocalPtyProviderStartupPromise: () => undefined,
     prepareCodexResumeHome: () => null,
     resolveCodexResumeLaunch: async (command) => noCodexResumeLaunch(command),

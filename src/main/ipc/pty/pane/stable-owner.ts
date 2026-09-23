@@ -14,7 +14,9 @@ import {
 import { ptyIncarnationById, ptyOwnership } from '../provider/ownership-state'
 import { isHostReportedPtyAbsenceError, isObservedPtyExitEvidence } from '../provider/liveness'
 import { clearProviderPtyState } from '../provider/state-cleanup'
+import { runInStablePaneOpenLane } from './stable-pane-open-lane'
 import { spawnCommitBindingOrigin } from '../../../persistence/loading-store/pty-binding-span'
+import { resolvePersistedPanePtyBinding } from '../../../../shared/workspace-session-pane-pty-binding'
 
 export type StablePaneOwner = {
   handle?: string
@@ -26,13 +28,6 @@ export type StablePaneOwner = {
   persistedIncarnationId?: string
   runtimeIncarnationId?: string
 }
-export type StablePaneAdoption = {
-  result: PtySpawnResult
-  owner: StablePaneOwner
-  materialized?: true
-} | null
-export const stablePaneAdoptionsByOwnerKey = new Map<string, Promise<StablePaneAdoption>>()
-
 export function resolvePersistedStablePaneOwner(
   store: Store | undefined,
   paneKey: string,
@@ -49,18 +44,15 @@ export function resolvePersistedStablePaneOwner(
   const session = store.getWorkspaceSession(
     connectionId ? toSshExecutionHostId(connectionId) : undefined
   )
-  const tab = session.tabsByWorktree?.[worktreeId]?.find(
-    (candidate) => candidate.id === parsed.tabId && candidate.worktreeId === worktreeId
-  )
-  const ptyId = session.terminalLayoutsByTabId?.[parsed.tabId]?.ptyIdsByLeafId?.[parsed.leafId]
-  if (!tab || typeof ptyId !== 'string' || ptyId.length === 0) {
+  const binding = resolvePersistedPanePtyBinding(session, worktreeId, parsed.tabId, parsed.leafId)
+  if (!binding) {
     return null
   }
   const incarnationId = session.terminalPtyIncarnationsByPaneKey?.[paneKey]
   return {
     tabId: parsed.tabId,
     leafId: parsed.leafId,
-    ptyId,
+    ptyId: binding.ptyId,
     ...(incarnationId ? { incarnationId } : {})
   }
 }
@@ -212,28 +204,39 @@ export function persistAdmittedStablePaneBinding(args: {
   return true
 }
 
+/**
+ * The host's answer for a persisted owner. `live` attached it; `exited` means the owning host
+ * observed the process gone and the binding is retired, so the pane may be recreated. Anything the
+ * host could not observe rejects with `terminal_pane_owner_unverified` and leaves the binding.
+ */
+export type StablePaneOwnerAttach =
+  | { kind: 'live'; result: PtySpawnResult; owner: StablePaneOwner }
+  | { kind: 'exited'; owner: StablePaneOwner }
+
 export async function attachStablePaneOwner(
   args: StablePaneSpawnContext & { owner: StablePaneOwner }
-): Promise<{ result: PtySpawnResult; owner: StablePaneOwner } | null> {
+): Promise<StablePaneOwnerAttach> {
   const { owner, provider, runtime, spawnOptions } = args
   let result: PtySpawnResult
   try {
-    result = await provider.spawn({
-      ...spawnOptions,
-      sessionId: owner.ptyId,
-      attachOnly: true,
-      expectedIncarnationId: owner.runtimeIncarnationId ?? owner.persistedIncarnationId,
-      expectedIncarnationIsAuthoritative: owner.runtimeIncarnationId !== undefined,
-      isNewSession: undefined,
-      command: undefined,
-      commandDelivery: undefined,
-      startupCommandDelivery: undefined,
-      launchAgent: undefined,
-      startupIngress: undefined,
-      agentSessionEnsure: undefined,
-      agentSessionCreateOperationId: undefined,
-      onPtySpawnCommitted: undefined
-    })
+    result = await runInStablePaneOpenLane(() =>
+      provider.spawn({
+        ...spawnOptions,
+        sessionId: owner.ptyId,
+        attachOnly: true,
+        expectedIncarnationId: owner.runtimeIncarnationId ?? owner.persistedIncarnationId,
+        expectedIncarnationIsAuthoritative: owner.runtimeIncarnationId !== undefined,
+        isNewSession: undefined,
+        command: undefined,
+        commandDelivery: undefined,
+        startupCommandDelivery: undefined,
+        launchAgent: undefined,
+        startupIngress: undefined,
+        agentSessionEnsure: undefined,
+        agentSessionCreateOperationId: undefined,
+        onPtySpawnCommitted: undefined
+      })
+    )
   } catch (error) {
     if (error instanceof TerminalSessionOwnerUnverifiedError) {
       throw new Error('terminal_pane_owner_unverified')
@@ -260,14 +263,20 @@ export async function attachStablePaneOwner(
     // the marked half observed the process, so only it may certify a death; the rest publishes the
     // stop sentinel its sibling handlePtyReattachFailure publishes, which every reader resolves to
     // `stop_unverified` (docs/reference/ssh-execution-boundary.md).
+    const observedExit = isObservedPtyExitEvidence(error)
     runtime?.onPtyExit(
       owner.ptyId,
       UNVERIFIED_PROCESS_EXIT_CODE,
       owner.incarnationId,
-      isObservedPtyExitEvidence(error) ? { hostExitConfirmed: true } : {}
+      observedExit ? { hostExitConfirmed: true } : {}
     )
     clearProviderPtyState(owner.ptyId)
     ptyOwnership.delete(owner.ptyId)
+    if (!observedExit) {
+      // Why: the unmarked answer retires this client's route and nothing more; the shell may still
+      // run at a stranded relay, so recreating here would duplicate it.
+      throw new Error('terminal_pane_owner_unverified')
+    }
     if (
       args.worktreeId &&
       !retirePersistedStablePaneOwner(args.store, owner, args.worktreeId, args.connectionId)
@@ -277,7 +286,7 @@ export async function attachStablePaneOwner(
     if (args.resolveOwner?.()) {
       throw new Error('terminal_pane_owner_changed')
     }
-    return null
+    return { kind: 'exited', owner }
   }
   if (
     result.id !== owner.ptyId ||
@@ -288,7 +297,7 @@ export async function attachStablePaneOwner(
   ) {
     throw new Error('terminal_pane_owner_changed')
   }
-  return { result, owner }
+  return { kind: 'live', result, owner }
 }
 
 export async function spawnForStablePane(
@@ -296,8 +305,8 @@ export async function spawnForStablePane(
 ): Promise<{ result: PtySpawnResult; owner: StablePaneOwner | null }> {
   if (args.owner) {
     const attached = await attachStablePaneOwner({ ...args, owner: args.owner })
-    if (attached) {
-      return attached
+    if (attached.kind === 'live') {
+      return { result: attached.result, owner: attached.owner }
     }
   }
   const result = await args.provider.spawn(args.spawnOptions)

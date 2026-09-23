@@ -99,6 +99,7 @@ async function adoptAfterAttachRefusal(error: unknown): Promise<{
   store: Store
   read: () => WorkspaceSessionState
   spawn: ReturnType<typeof vi.fn>
+  outcome: PromiseSettledResult<unknown>
 }> {
   const { store, read } = paneStore()
   const runtime = runtimeOwning(store)
@@ -106,26 +107,36 @@ async function adoptAfterAttachRefusal(error: unknown): Promise<{
     .fn()
     .mockRejectedValueOnce(error)
     .mockResolvedValueOnce({ id: 'ssh:conn-1@@pty2:epoch-b:1', isReattach: false })
-  await spawnForStablePane({
-    runtime,
-    store,
-    provider: { spawn } as unknown as IPtyProvider,
-    spawnOptions: { cols: 80, rows: 24 },
-    owner: OWNER,
-    worktreeId: WORKTREE,
-    connectionId: CONNECTION,
-    resolveOwner: () => null
-  })
-  return { runtime, store, read, spawn }
+  const [outcome] = await Promise.allSettled([
+    spawnForStablePane({
+      runtime,
+      store,
+      provider: { spawn } as unknown as IPtyProvider,
+      spawnOptions: { cols: 80, rows: 24 },
+      owner: OWNER,
+      worktreeId: WORKTREE,
+      connectionId: CONNECTION,
+      resolveOwner: () => null
+    })
+  ])
+  return { runtime, store, read, spawn, outcome }
 }
 
 describe('a stable pane whose reattach was refused', () => {
   it('records no death certificate when the relay merely does not know the id', async () => {
-    const { runtime, spawn } = await adoptAfterAttachRefusal(
+    const { runtime, store, spawn, outcome } = await adoptAfterAttachRefusal(
       new SshPtyAbsentFromRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty2:epoch-a:1`)
     )
 
-    expect(spawn).toHaveBeenCalledTimes(2)
+    // Unverifiable, not exited: no replacement shell and the pane keeps its binding.
+    expect(outcome).toMatchObject({
+      status: 'rejected',
+      reason: expect.objectContaining({ message: 'terminal_pane_owner_unverified' })
+    })
+    expect(spawn).toHaveBeenCalledTimes(1)
+    expect(
+      resolvePersistedStablePaneOwner(store, makePaneKey(TAB, LEAF), WORKTREE, CONNECTION)
+    ).toMatchObject({ ptyId: PTY_ID })
     // The shell may well still be running under the previous daemon's orphaned process tree, so the
     // register must keep saying "we could not observe it" — not "it ended".
     expect(runtime.getPtyLivenessVerdict(PTY_ID)).toEqual({

@@ -50,7 +50,8 @@ import { bindProviderListeners } from './provider/bind-listeners'
 import { installSessionSshOutputIntake } from './delivery/ssh-intake'
 import { installPtySerializeBufferIpc } from './ipc/serialize-buffer'
 import { installPtyResizeVisibilityIpc } from './ipc/resize-visibility'
-import { adoptStablePane } from './pane/adopt-stable'
+import { adoptStablePane, openStablePane } from './pane/adopt-stable'
+import type { PaneProviderReadinessDeps } from './pane/pane-provider-readiness'
 import { getPtyIpc } from '../pty-host-bindings'
 import {
   noCodexResumeLaunch,
@@ -146,7 +147,8 @@ export function registerPtyHandlers(
     runtime,
     getSettings,
     getSelectedCodexHomePath,
-    trustedTerminalHandleEnv: session.trustedTerminalHandleEnv
+    trustedTerminalHandleEnv: session.trustedTerminalHandleEnv,
+    isLocalPtyStartupSettled: options?.isLocalPtyStartupSettled
   })
   installSessionSshOutputIntake(session)
   bindProviderListeners(session)
@@ -201,15 +203,23 @@ export function registerPtyHandlers(
     args: Parameters<typeof prepareCodexResumeHome>[1]
   ): ReturnType<typeof prepareCodexResumeHome> =>
     prepareCodexResumeHome(options?.prepareCodexSessionResume, args)
-  const adoptStablePaneBound = (args: Parameters<typeof adoptStablePane>[2]) =>
-    adoptStablePane(runtime, store, args)
+  const paneProviderReadiness: PaneProviderReadinessDeps = {
+    getLocalPtyStartupPromise,
+    getManagedWslCliStartupBarrier: options?.awaitManagedWslCliStartupBarrier,
+    getSettings,
+    store
+  }
+  const adoptStablePaneBound = (args: Parameters<typeof adoptStablePane>[3]) =>
+    adoptStablePane(runtime, store, paneProviderReadiness, args)
+  const openStablePaneBound = (args: Parameters<typeof openStablePane>[3]) =>
+    openStablePane(runtime, store, paneProviderReadiness, args)
 
   // Why: route through getProviderForPty() so CLI commands work for remote PTYs too; localProvider would silently fail for them.
   installPtyRuntimeController({
     runtime,
     store,
     adoptStablePane: adoptStablePaneBound,
-    getLocalPtyStartupPromise,
+    paneProviderReadiness,
     getLocalPtyProviderStartupPromise,
     prepareCodexResumeHome: prepareCodexResumeHomeBound,
     resolveCodexResumeLaunch,
@@ -246,8 +256,8 @@ export function registerPtyHandlers(
     getSelectedCodexHomePath,
     prepareClaudeAuth,
     options,
-    getLocalPtyStartupPromise,
-    adoptStablePane: adoptStablePaneBound,
+    paneProviderReadiness,
+    openStablePane: openStablePaneBound,
     assertFolderWorkspacePtyPathUsable,
     resolvePtySpawnStartupCwd,
     localStartupCwdDirectoryExists,

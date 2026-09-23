@@ -116,6 +116,8 @@ export function attachMainWindowCoreServices(
       prepareCodexSessionResume: prepareCodexSessionResumeForLaunch,
       awaitLocalPtyStartup: () => state.localPtyStartupReady,
       awaitLocalPtyProviderStartup: () => state.localPtyProviderStartupReady,
+      awaitManagedWslCliStartupBarrier: () => state.managedWslCliStartupBarrierReady,
+      isLocalPtyStartupSettled: () => state.localPtyStartupSettled,
       onBeforeRendererReload: ({ ignoreCache, webContentsId }) => {
         if (window.webContents.id === webContentsId) {
           deps.markExpectedRendererReload(webContentsId)

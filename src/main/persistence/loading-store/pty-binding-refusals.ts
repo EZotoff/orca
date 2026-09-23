@@ -1,5 +1,6 @@
 import { isTerminalLeafId } from '../../../shared/stable-pane-id'
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
+import { resolvePersistedPanePtyBinding } from '../../../shared/workspace-session-pane-pty-binding'
 import { layoutContainsLeafId } from '../restoring-sessions/terminal-layout-normalization'
 import type { PtyBindingSourceExpectation } from './store'
 
@@ -44,12 +45,14 @@ export function ptyBindingIsRefused(
     }
   }
   if (args.expectedBinding) {
-    const tab = session.tabsByWorktree?.[bindingWorktreeId]?.find(
-      (candidate) => candidate.id === args.tabId && candidate.worktreeId === bindingWorktreeId
-    )
-    const boundPtyId = session.terminalLayoutsByTabId?.[args.tabId]?.ptyIdsByLeafId?.[args.leafId]
+    // Why the shared resolver: the stable owner fences on the binding it resolved, tab-level included.
+    const boundPtyId = resolvePersistedPanePtyBinding(
+      session,
+      bindingWorktreeId,
+      args.tabId,
+      args.leafId
+    )?.ptyId
     if (
-      !tab ||
       boundPtyId !== args.expectedBinding.ptyId ||
       session.terminalPtyIncarnationsByPaneKey?.[paneKey] !== args.expectedBinding.incarnationId
     ) {

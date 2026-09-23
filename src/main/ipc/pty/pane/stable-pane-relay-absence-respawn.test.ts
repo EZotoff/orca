@@ -3,7 +3,8 @@ import type { WorkspaceSessionState } from '../../../../shared/workspace-session
 import { TerminalSessionOwnerUnverifiedError } from '../../../daemon/daemon-errors'
 import {
   SSH_SESSION_EXPIRED_ERROR,
-  SshPtyAbsentFromRelayError
+  SshPtyAbsentFromRelayError,
+  SshPtyProvenExitedOnRelayError
 } from '../../../providers/ssh-pty-errors'
 import type { Store } from '../../../persistence'
 import type { IPtyProvider } from '../../../providers/types'
@@ -124,9 +125,9 @@ describe('stable pane adoption after the relay reports the PTY absent', () => {
     }
   )
 
-  it('spawns fresh once the relay has positively answered for that id', async () => {
+  it('spawns fresh once the relay has proven the PTY exited', async () => {
     const { run, spawn } = spawnAfterAttachRejection(
-      new SshPtyAbsentFromRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty-1`)
+      new SshPtyProvenExitedOnRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty-1`)
     )
 
     const result = await run()
@@ -135,6 +136,22 @@ describe('stable pane adoption after the relay reports the PTY absent', () => {
     expect(spawn.mock.calls[0]?.[0]).toMatchObject({ attachOnly: true })
     expect(spawn.mock.calls[1]?.[0]).not.toHaveProperty('sessionId')
     expect(result.owner).toBeNull()
+  })
+
+  // A relay that never minted the id gives the same absence while the shell runs at a stranded
+  // relay; recreating here would put a duplicate beside it.
+  it('answers unverifiable and never respawns when the relay merely does not know the id', async () => {
+    const { store, read } = sessionStore([LEAF, SIBLING_LEAF])
+    const before = JSON.stringify(read())
+    const { run, spawn } = spawnAfterAttachRejection(
+      new SshPtyAbsentFromRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty-1`),
+      { store, worktreeId: WORKTREE }
+    )
+
+    await expect(run()).rejects.toThrow('terminal_pane_owner_unverified')
+
+    expect(spawn).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(read())).toBe(before)
   })
 
   // A restarted relay renumbers from pty-1, so the message alone cannot distinguish absence from a
@@ -154,10 +171,10 @@ describe('stable pane adoption after the relay reports the PTY absent', () => {
   // which can delete the parent tab and its layout — never runs. "Reconnect lost every tab" is the
   // regression this subsystem was reverted for twice, so the composition needs its own coverage.
   describe('with persistence actually reached', () => {
-    it('retires only the absent leaf and leaves the tab and its sibling bound', async () => {
+    it('retires only the exited leaf and leaves the tab and its sibling bound', async () => {
       const { store, read } = sessionStore([LEAF, SIBLING_LEAF])
       const { run, spawn } = spawnAfterAttachRejection(
-        new SshPtyAbsentFromRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty-1`),
+        new SshPtyProvenExitedOnRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty-1`),
         { store, worktreeId: WORKTREE }
       )
 
@@ -176,10 +193,10 @@ describe('stable pane adoption after the relay reports the PTY absent', () => {
     // Pins current behaviour rather than blessing it: retiring the LAST leaf drops the tab from
     // persistence, and the fallback returns owner=null so main does not re-persist a binding — tab
     // survival then rests entirely on the renderer. If that ever regresses, this is the tripwire.
-    it('drops the tab when the absent leaf was the only one, leaving re-persistence to the renderer', async () => {
+    it('drops the tab when the exited leaf was the only one, leaving re-persistence to the renderer', async () => {
       const { store, read } = sessionStore([LEAF])
       const { run, spawn } = spawnAfterAttachRejection(
-        new SshPtyAbsentFromRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty-1`),
+        new SshPtyProvenExitedOnRelayError(`${SSH_SESSION_EXPIRED_ERROR}: pty-1`),
         { store, worktreeId: WORKTREE }
       )
 
@@ -192,7 +209,7 @@ describe('stable pane adoption after the relay reports the PTY absent', () => {
       expect(session.terminalLayoutsByTabId['tab-1']).toBeUndefined()
     })
 
-    it('leaves persistence untouched when the failure is not positive absence', async () => {
+    it('leaves persistence untouched when the failure is not proven exit', async () => {
       const { store, read } = sessionStore([LEAF, SIBLING_LEAF])
       const before = JSON.stringify(read())
       const { run, spawn } = spawnAfterAttachRejection(
