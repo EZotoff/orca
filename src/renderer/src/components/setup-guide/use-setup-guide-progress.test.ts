@@ -155,7 +155,8 @@ describe('getSetupGuideProgressReady', () => {
     orchestrationSkillDiscoveryLoading: false,
     setupScriptProbeReady: true,
     computerUseSkillInstalled: false,
-    computerUsePermissionStatusChecked: false
+    computerUsePermissionStatusChecked: false,
+    orcaCliStatusChecked: true
   }
 
   it('waits for every setup-guide skill discovery scan to settle', () => {
@@ -205,6 +206,11 @@ describe('getSetupGuideProgressReady', () => {
         computerUsePermissionStatusChecked: false
       })
     ).toBe(false)
+  })
+
+  it('waits for the first Orca CLI registration probe', () => {
+    expect(getSetupGuideProgressReady({ ...readyInput, orcaCliStatusChecked: false })).toBe(false)
+    expect(getSetupGuideProgressReady({ ...readyInput, orcaCliStatusChecked: true })).toBe(true)
   })
 
   it('waits for preflight, Linear, and Jira checks', () => {

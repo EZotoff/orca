@@ -12261,7 +12261,9 @@
             "3a59452a67": "Comando de skill copiado e insertado abajo para revisarlo.",
             "c605f51f2b": "Configuración de capacidades lista",
             "1aa657d8f4": "La configuración de algunas capacidades necesita atención",
-            "c89534cbe9": "Instalar CLI y skills"
+            "c89534cbe9": "Instalar CLI y skills",
+            "156aa26012": "Registrando CLI...",
+            "42a5646f60": "Registrar CLI"
           },
           "AiCommitPrSettingsCard": {
             "8d4152701a": "p. ej. ollama run llama3.1 {{value0}}",
@@ -12628,6 +12630,23 @@
             "0d6efe9cf4": "Recomendado en macOS cuando los proyectos o worktrees están en carpetas protegidas.",
             "dac08ec03e": "Abriendo...",
             "6e3d62b816": "Abrir Acceso total al disco"
+          },
+          "OrcaCliRegistrationStatusRow": {
+            "af16f704ca": "CLI de Orca",
+            "fd07e4468c": "Instalada en",
+            "06b6808275": "Los agentes necesitan el comando orca en el PATH para usar las skills de navegador, orquestación y computadora."
+          },
+          "orca": {
+            "cli": {
+              "registration": {
+                "status": {
+                  "503dfe3cc0": "Comprobando",
+                  "d6a8b109f1": "Registrada",
+                  "965fb4c9cb": "No está en el PATH",
+                  "aeee102e9b": "No registrada"
+                }
+              }
+            }
           }
         },
         "tips": {

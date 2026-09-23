@@ -21,6 +21,7 @@ function makeInput(
     computerUseSkillInstalled: false,
     computerUsePermissionsReady: false,
     orchestrationSkillInstalled: false,
+    orcaCliRegistered: true,
     gitRepoCount: 0,
     worktreesByRepo: {},
     hasSetupScript: false,
@@ -266,6 +267,39 @@ describe('getFeatureWallSetupProgress', () => {
         computerUseSkillInstalled: true,
         computerUsePermissionsReady: true,
         orchestrationSkillInstalled: true
+      })
+    )
+
+    expect(progress.stepDone['agent-capabilities']).toBe(true)
+  })
+
+  it('keeps agent capabilities incomplete while the Orca CLI is not registered', () => {
+    const allSkillsReady = {
+      browserUseSkillInstalled: true,
+      computerUseSkillInstalled: true,
+      computerUsePermissionsReady: true,
+      orchestrationSkillInstalled: true
+    }
+
+    expect(
+      getFeatureWallSetupProgress(makeInput({ ...allSkillsReady, orcaCliRegistered: false }))
+        .stepDone['agent-capabilities']
+    ).toBe(false)
+    expect(
+      getFeatureWallSetupProgress(makeInput({ ...allSkillsReady, orcaCliRegistered: true }))
+        .stepDone['agent-capabilities']
+    ).toBe(true)
+  })
+
+  it('does not block agent capabilities when this client cannot verify the host CLI', () => {
+    const progress = getFeatureWallSetupProgress(
+      makeInput({
+        browserUseSkillInstalled: true,
+        computerUseSkillInstalled: true,
+        computerUsePermissionsReady: true,
+        orchestrationSkillInstalled: true,
+        orcaCliRegistered: false,
+        orcaCliUnverifiable: true
       })
     )
 

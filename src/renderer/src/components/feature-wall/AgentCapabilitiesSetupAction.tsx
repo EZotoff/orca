@@ -22,6 +22,10 @@ import {
   type AgentCapabilityInstallStatus
 } from './agent-capability-setup-status'
 import { FullDiskAccessSetupPrompt } from './FullDiskAccessSetupPrompt'
+import { OrcaCliRegistrationStatusRow } from './OrcaCliRegistrationStatusRow'
+import { isOrcaCliRegistrationNeeded } from './orca-cli-registration-status'
+import { ensureOrcaCliAvailableForAgentSkillTerminal } from '@/lib/agent-skill-cli-prerequisite'
+import { ensureWslCliAvailableForAgentSkillTerminal } from '../settings/CliSkillRuntimeSetup'
 import { translate } from '@/i18n/i18n'
 
 export function AgentCapabilitiesSetupAction(props: {
@@ -30,7 +34,7 @@ export function AgentCapabilitiesSetupAction(props: {
 }): React.JSX.Element {
   const { onBrowserUseSkillInstalledChange, onOrchestrationSkillInstalledChange } = props
   const capabilitySetupStatus = useAgentCapabilitySetupStatus()
-  const { readiness } = capabilitySetupStatus
+  const { readiness, refreshOrcaCli } = capabilitySetupStatus
   const featureSetupDefaultsAppliedRef = useRef(false)
   const featureSetupChangedByUserRef = useRef(false)
   const [featureSetup, setFeatureSetup] = useState<OnboardingFeatureSetupSelection>(
@@ -66,6 +70,27 @@ export function AgentCapabilitiesSetupAction(props: {
   }, [])
   const handleStartFeatureSetup = useCallback(async (): Promise<void> => {
     if (setupBusyLabel !== null || featureSetupCommand !== null) {
+      return
+    }
+    if (!hasSelectedOnboardingFeatureSetup(featureSetup)) {
+      if (activeSkillRuntime.installDisabledReason) {
+        return
+      }
+      setSetupBusyLabel(
+        translate(
+          'auto.components.feature.wall.AgentCapabilitiesSetupAction.156aa26012',
+          'Registering CLI...'
+        )
+      )
+      try {
+        // Why: the feature setup run returns before touching the CLI when nothing is selected.
+        await (activeSkillRuntime.agentRuntime?.runtime === 'wsl'
+          ? ensureWslCliAvailableForAgentSkillTerminal(activeSkillRuntime.agentRuntime)
+          : ensureOrcaCliAvailableForAgentSkillTerminal())
+      } finally {
+        setSetupBusyLabel(null)
+        refreshOrcaCli()
+      }
       return
     }
     setSetupBusyLabel('Setting up capabilities...')
@@ -121,14 +146,19 @@ export function AgentCapabilitiesSetupAction(props: {
       }
     } finally {
       setSetupBusyLabel(null)
+      // Why: the setup-state event fires before the CLI install, so it alone reads stale state.
+      refreshOrcaCli()
     }
   }, [
     activeSkillRuntime,
     featureSetup,
     featureSetupCommand,
     recordFeatureInteraction,
+    refreshOrcaCli,
     setupBusyLabel
   ])
+  const cliNeedsRegistration =
+    !activeSkillRuntime.installDisabledReason && isOrcaCliRegistrationNeeded(readiness)
 
   return (
     <div className="space-y-5">
@@ -141,6 +171,13 @@ export function AgentCapabilitiesSetupAction(props: {
         setupBusyLabel={setupBusyLabel}
         onStartFeatureSetup={() => void handleStartFeatureSetup()}
         installStatus={capabilitySetupStatus.installStatus}
+        cliNeedsRegistration={cliNeedsRegistration}
+        cliStatusRow={
+          <OrcaCliRegistrationStatusRow
+            readiness={readiness}
+            installDisabledReason={activeSkillRuntime.installDisabledReason}
+          />
+        }
       />
     </div>
   )
@@ -213,9 +250,21 @@ function AgentCapabilitySetupControls(props: {
   setupBusyLabel: string | null
   onStartFeatureSetup: () => void
   installStatus: Record<OnboardingFeatureSetupId, AgentCapabilityInstallStatus>
+  cliNeedsRegistration: boolean
+  cliStatusRow: ReactNode
 }): React.JSX.Element {
   const hasSelectedFeatures = hasSelectedOnboardingFeatureSetup(props.featureSetup)
   const showSetupAction = !props.featureSetupCommand
+  const setupLabel =
+    !hasSelectedFeatures && props.cliNeedsRegistration
+      ? translate(
+          'auto.components.feature.wall.AgentCapabilitiesSetupAction.42a5646f60',
+          'Register CLI'
+        )
+      : translate(
+          'auto.components.feature.wall.AgentCapabilitiesSetupAction.c89534cbe9',
+          'Install CLI & Skills'
+        )
 
   return (
     <>
@@ -224,6 +273,7 @@ function AgentCapabilitySetupControls(props: {
         onChange={props.onFeatureSetupChange}
         installStatus={props.installStatus}
       />
+      {props.cliStatusRow}
       <FullDiskAccessSetupPrompt />
       {showSetupAction ? (
         <div className="mt-6 flex items-center">
@@ -231,7 +281,9 @@ function AgentCapabilitySetupControls(props: {
             type="button"
             variant="default"
             className="shrink-0"
-            disabled={!hasSelectedFeatures || Boolean(props.setupBusyLabel)}
+            disabled={
+              (!hasSelectedFeatures && !props.cliNeedsRegistration) || Boolean(props.setupBusyLabel)
+            }
             onClick={props.onStartFeatureSetup}
           >
             {props.setupBusyLabel ? (
@@ -239,11 +291,7 @@ function AgentCapabilitySetupControls(props: {
             ) : (
               <Terminal className="size-4" />
             )}
-            {props.setupBusyLabel ??
-              translate(
-                'auto.components.feature.wall.AgentCapabilitiesSetupAction.c89534cbe9',
-                'Install CLI & Skills'
-              )}
+            {props.setupBusyLabel ?? setupLabel}
           </Button>
         </div>
       ) : null}

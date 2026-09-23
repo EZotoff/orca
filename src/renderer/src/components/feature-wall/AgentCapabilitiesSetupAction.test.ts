@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getDefaultAgentCapabilitySetupSelection } from './agent-capability-setup-status'
+import {
+  getDefaultAgentCapabilitySetupSelection,
+  isAgentCapabilityReadinessChecking
+} from './agent-capability-setup-status'
 
 const READY_INPUT = {
   browserUseSkillInstalled: true,
@@ -10,7 +13,11 @@ const READY_INPUT = {
   computerUseChecking: false,
   computerUseUnavailable: false,
   orchestrationSkillInstalled: true,
-  orchestrationSkillLoading: false
+  orchestrationSkillLoading: false,
+  orcaCliRegistered: true,
+  orcaCliChecking: false,
+  orcaCliStatus: null,
+  orcaCliUnverifiable: false
 }
 
 describe('getDefaultAgentCapabilitySetupSelection', () => {
@@ -65,5 +72,12 @@ describe('getDefaultAgentCapabilitySetupSelection', () => {
       orchestration: false,
       linearTickets: false
     })
+  })
+})
+
+describe('isAgentCapabilityReadinessChecking', () => {
+  it('waits for the first Orca CLI probe before applying default selections', () => {
+    expect(isAgentCapabilityReadinessChecking(READY_INPUT)).toBe(false)
+    expect(isAgentCapabilityReadinessChecking({ ...READY_INPUT, orcaCliChecking: true })).toBe(true)
   })
 })

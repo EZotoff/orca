@@ -13,6 +13,8 @@ import {
   useInstalledAgentSkill
 } from '@/hooks/useInstalledAgentSkills'
 import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
+import { useOrcaCliInstallStatus } from '@/hooks/use-orca-cli-install-status'
+import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import { translate } from '@/i18n/i18n'
 
 export type AgentCapabilityInstallStatusTone = 'ready' | 'pending' | 'checking' | 'error'
@@ -33,11 +35,16 @@ export type AgentCapabilityReadiness = {
   computerUseUnavailable: boolean
   orchestrationSkillInstalled: boolean
   orchestrationSkillLoading: boolean
+  orcaCliRegistered: boolean
+  orcaCliChecking: boolean
+  orcaCliStatus: CliInstallStatus | null
+  orcaCliUnverifiable: boolean
 }
 
 export type AgentCapabilitySetupStatus = {
   readiness: AgentCapabilityReadiness
   installStatus: Record<OnboardingFeatureSetupId, AgentCapabilityInstallStatus>
+  refreshOrcaCli: () => void
 }
 
 export function useAgentCapabilitySetupStatus(): AgentCapabilitySetupStatus {
@@ -55,6 +62,7 @@ export function useAgentCapabilitySetupStatus(): AgentCapabilitySetupStatus {
     sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
   })
   const computerUsePermissionStatus = useComputerUsePermissionStatus(computerUseSkill.installed)
+  const orcaCli = useOrcaCliInstallStatus(activeSkillRuntime)
   const readiness: AgentCapabilityReadiness = useMemo(
     () => ({
       browserUseSkillInstalled: browserUseSkill.installed,
@@ -65,7 +73,12 @@ export function useAgentCapabilitySetupStatus(): AgentCapabilitySetupStatus {
       computerUseChecking: computerUsePermissionStatus.checking,
       computerUseUnavailable: computerUsePermissionStatus.unavailableReason !== null,
       orchestrationSkillInstalled: orchestrationSkill.installed,
-      orchestrationSkillLoading: orchestrationSkill.loading
+      orchestrationSkillLoading: orchestrationSkill.loading,
+      orcaCliRegistered: orcaCli.registered,
+      // Why: only the first probe gates the badge; focus refreshes must not flash "Checking".
+      orcaCliChecking: !orcaCli.checked,
+      orcaCliStatus: orcaCli.status,
+      orcaCliUnverifiable: orcaCli.unverifiable
     }),
     [
       browserUseSkill.installed,
@@ -76,7 +89,11 @@ export function useAgentCapabilitySetupStatus(): AgentCapabilitySetupStatus {
       computerUseSkill.installed,
       computerUseSkill.loading,
       orchestrationSkill.installed,
-      orchestrationSkill.loading
+      orchestrationSkill.loading,
+      orcaCli.checked,
+      orcaCli.registered,
+      orcaCli.status,
+      orcaCli.unverifiable
     ]
   )
 
@@ -92,7 +109,7 @@ export function useAgentCapabilitySetupStatus(): AgentCapabilitySetupStatus {
     [browserUseSkill, computerUsePermissionStatus, computerUseSkill, orchestrationSkill]
   )
 
-  return { readiness, installStatus }
+  return { readiness, installStatus, refreshOrcaCli: orcaCli.refresh }
 }
 
 export function getDefaultAgentCapabilitySetupSelection(
@@ -115,7 +132,8 @@ export function isAgentCapabilityReadinessChecking(readiness: AgentCapabilityRea
     readiness.browserUseSkillLoading ||
     readiness.computerUseSkillLoading ||
     (readiness.computerUseSkillInstalled && readiness.computerUseChecking) ||
-    readiness.orchestrationSkillLoading
+    readiness.orchestrationSkillLoading ||
+    readiness.orcaCliChecking
   )
 }
 

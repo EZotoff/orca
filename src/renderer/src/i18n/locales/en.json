@@ -14204,7 +14204,9 @@
             "3a59452a67": "Skill command copied and inserted below for review.",
             "c605f51f2b": "Capability setup ready",
             "1aa657d8f4": "Some capability setup needs attention",
-            "c89534cbe9": "Install CLI & Skills"
+            "c89534cbe9": "Install CLI & Skills",
+            "156aa26012": "Registering CLI...",
+            "42a5646f60": "Register CLI"
           },
           "AiCommitPrSettingsCard": {
             "8d4152701a": "e.g. ollama run llama3.1 {{value0}}",
@@ -14596,6 +14598,23 @@
             "0d6efe9cf4": "Recommended on macOS when projects or worktrees live in protected folders.",
             "dac08ec03e": "Opening...",
             "6e3d62b816": "Open Full Disk Access"
+          },
+          "OrcaCliRegistrationStatusRow": {
+            "af16f704ca": "Orca CLI",
+            "fd07e4468c": "Installed at",
+            "06b6808275": "Agents need the orca command on PATH to use the browser, orchestration, and computer skills."
+          },
+          "orca": {
+            "cli": {
+              "registration": {
+                "status": {
+                  "503dfe3cc0": "Checking",
+                  "d6a8b109f1": "Registered",
+                  "965fb4c9cb": "Not on PATH",
+                  "aeee102e9b": "Not registered"
+                }
+              }
+            }
           }
         },
         "tips": {

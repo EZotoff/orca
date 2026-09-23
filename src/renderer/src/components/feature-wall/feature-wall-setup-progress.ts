@@ -17,6 +17,8 @@ export type FeatureWallSetupProgressInput = {
   computerUsePermissionsReady: boolean
   computerUseUnavailable?: boolean
   orchestrationSkillInstalled: boolean
+  orcaCliRegistered: boolean
+  orcaCliUnverifiable?: boolean
   gitRepoCount: number
   worktreesByRepo: Record<string, Worktree[]>
   hasSetupScript: boolean
@@ -49,7 +51,9 @@ export function getFeatureWallSetupProgress(
     input.browserUseSkillInstalled &&
     input.computerUseSkillInstalled &&
     (input.computerUsePermissionsReady || input.computerUseUnavailable === true) &&
-    input.orchestrationSkillInstalled
+    input.orchestrationSkillInstalled &&
+    // Why: the skills only work when agents can run the orca command they call.
+    (input.orcaCliRegistered || input.orcaCliUnverifiable === true)
   const stepDone: Record<FeatureWallSetupStepId, boolean> = {
     'default-agent':
       Boolean(input.settings?.defaultTuiAgent) && input.settings?.defaultTuiAgent !== 'blank',
