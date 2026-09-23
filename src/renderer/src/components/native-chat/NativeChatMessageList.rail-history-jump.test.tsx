@@ -268,7 +268,8 @@ describe('jumping from the rail while following the end', () => {
     fireEvent.click(screen.getByRole('button', { name: prompt }))
     await settle(60)
 
-    expect(Math.abs(rowOffsetFromViewportTop(prompt))).toBeLessThanOrEqual(2)
+    // The failure mode: the jump cancelled itself a few pixels above the end.
     expect(distanceFromBottom()).toBeGreaterThan(100)
+    expect(Math.abs(rowOffsetFromViewportTop(prompt))).toBeLessThanOrEqual(2)
   })
 })
