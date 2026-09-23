@@ -1,4 +1,5 @@
 import type { WorktreeSlice } from '../../worktree-helpers'
+import { isStaleWorktreeCatalogPublication } from './worktree-catalog-version-state'
 import type { WorktreeSliceGet, WorktreeSliceSet } from './worktree-slice-types'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../../../shared/constants'
 import {
@@ -57,7 +58,9 @@ export function createFetchAllWorktrees(
             reuseRecentCompatibilityFailure: true,
             directSshAuthority,
             connectionId: r.connectionId,
-            knownWorktreeIds: getKnownWorktreeIdsForPurge(requestStartedState, r.id, hostId)
+            knownWorktreeIds: getKnownWorktreeIdsForPurge(requestStartedState, r.id, hostId),
+            isStaleCatalogPublication: (result) =>
+              isStaleWorktreeCatalogPublication(get(), r.id, hostId, result.catalogVersion)
           })
           if (refresh.status !== 'admitted') {
             return
@@ -112,7 +115,9 @@ export function createFetchAllWorktrees(
               reuseRecentCompatibilityFailure: true,
               directSshAuthority,
               connectionId: r.connectionId,
-              knownWorktreeIds: getKnownWorktreeIdsForPurge(requestStartedState, r.id, hostId)
+              knownWorktreeIds: getKnownWorktreeIdsForPurge(requestStartedState, r.id, hostId),
+              isStaleCatalogPublication: (result) =>
+                isStaleWorktreeCatalogPublication(get(), r.id, hostId, result.catalogVersion)
             }
           )
           if (refresh.status !== 'admitted') {

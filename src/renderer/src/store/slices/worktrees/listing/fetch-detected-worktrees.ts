@@ -1,4 +1,8 @@
 import type { WorktreeSlice } from '../../worktree-helpers'
+import {
+  appliedWorktreeCatalogVersionPatch,
+  isStaleWorktreeCatalogPublication
+} from './worktree-catalog-version-state'
 import type { WorktreeSliceGet, WorktreeSliceSet } from './worktree-slice-types'
 import { parseExecutionHostId } from '../../../../../../shared/execution-host'
 import { findRepoForHost } from '../../repo-host-identity'
@@ -50,7 +54,9 @@ export function createFetchDetectedWorktrees(
           executionHostId: hostId,
           directSshAuthority,
           connectionId: repoOwner?.connectionId,
-          knownWorktreeIds: getKnownWorktreeIdsForPurge(ownerState, repoId, hostId)
+          knownWorktreeIds: getKnownWorktreeIdsForPurge(ownerState, repoId, hostId),
+          isStaleCatalogPublication: (result) =>
+            isStaleWorktreeCatalogPublication(get(), repoId, hostId, result.catalogVersion)
         }
       )
       if (refresh.status !== 'admitted') {
@@ -58,6 +64,9 @@ export function createFetchDetectedWorktrees(
       }
       let admitted = false
       set((s) => {
+        if (isStaleWorktreeCatalogPublication(s, repoId, hostId, refresh.result.catalogVersion)) {
+          return s
+        }
         if (
           !isCurrentDetectedWorktreeRefresh(s, refresh) ||
           !repoHasExactlyOneExecutionHostOwner(
@@ -78,9 +87,18 @@ export function createFetchDetectedWorktrees(
           setup,
           worktreeHostMatchOptions(s, repoId, hostId)
         )
+        const versionPatch = appliedWorktreeCatalogVersionPatch(
+          s,
+          repoId,
+          hostId,
+          refresh.result.catalogVersion
+        )
         return areDetectedWorktreeResultsEqual(s.detectedWorktreesByRepo[repoId], mergedDetected)
-          ? s
+          ? Object.keys(versionPatch).length === 0
+            ? s
+            : { ...s, ...versionPatch }
           : {
+              ...versionPatch,
               detectedWorktreesByRepo: {
                 ...s.detectedWorktreesByRepo,
                 [repoId]: mergedDetected

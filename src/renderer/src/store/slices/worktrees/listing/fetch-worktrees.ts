@@ -3,6 +3,8 @@ import type {
   WorktreeFetchOptions,
   WorktreeSlice
 } from '../../worktree-helpers'
+import type { HostQualifiedDetectedWorktreeResult } from '../../../../../../shared/detected-worktree-provider-contract'
+import { isStaleWorktreeCatalogPublication } from './worktree-catalog-version-state'
 import type { WorktreeSliceGet, WorktreeSliceSet } from './worktree-slice-types'
 import {
   LOCAL_EXECUTION_HOST_ID,
@@ -28,10 +30,17 @@ export function createFetchWorktrees(
   set: WorktreeSliceSet,
   get: WorktreeSliceGet
 ): WorktreeSlice['fetchWorktrees'] {
-  return (async (
+  // Why declared overloads: the slice type is an overload pair, and a declaration carries it
+  // without asserting the implementation into shape.
+  function fetchWorktrees(
+    repoId: string,
+    options: DirectSshWorktreeFetchOptions
+  ): Promise<HostQualifiedDetectedWorktreeResult>
+  function fetchWorktrees(repoId: string, options?: WorktreeFetchOptions): Promise<boolean>
+  async function fetchWorktrees(
     repoId: string,
     options?: WorktreeFetchOptions | DirectSshWorktreeFetchOptions
-  ) => {
+  ): Promise<boolean | HostQualifiedDetectedWorktreeResult> {
     const directCallerAuthority =
       options && 'directSshAuthority' in options ? options.directSshAuthority : undefined
     try {
@@ -82,13 +91,15 @@ export function createFetchWorktrees(
         requireAuthoritative: options?.requireAuthoritative,
         directSshAuthority,
         connectionId: repoOwner?.connectionId,
-        knownWorktreeIds: getKnownWorktreeIdsForPurge(ownerState, repoId, hostId)
+        knownWorktreeIds: getKnownWorktreeIdsForPurge(ownerState, repoId, hostId),
+        isStaleCatalogPublication: (result) =>
+          isStaleWorktreeCatalogPublication(get(), repoId, hostId, result.catalogVersion)
       })
       if (refresh.status !== 'admitted') {
         return directCallerAuthority ? refresh.providerResult : false
       }
       if (options?.requireAuthoritative && !refresh.result.authoritative) {
-        return directCallerAuthority ? refresh.providerResult : false
+        return directCallerAuthority ? (refresh.providerResult ?? false) : false
       }
       const admitted = mergeFetchedWorktrees(set, {
         repoId,
@@ -120,5 +131,6 @@ export function createFetchWorktrees(
       console.error(`Failed to fetch worktrees for repo ${repoId}:`, err)
       return false
     }
-  }) as WorktreeSlice['fetchWorktrees']
+  }
+  return fetchWorktrees
 }
