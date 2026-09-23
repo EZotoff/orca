@@ -529,6 +529,39 @@ describe('useStructuredAgentSessionOutbox', () => {
     ).toBe(firstId)
   })
 
+  it('re-drives a send refused as stale under the fence a host resume published', async () => {
+    // A send into a session whose child ended: the host restarts it and answers stale.
+    mocks.call
+      .mockResolvedValueOnce(refusedResult('agent_session_checkpoint_stale'))
+      .mockResolvedValueOnce(acceptedResult(2))
+    const { result, rerender } = renderHook(
+      ({ fence }) =>
+        useStructuredAgentSessionOutbox({
+          sessionId: 'session-1',
+          target: LOCAL_TARGET,
+          fence,
+          submissions: []
+        }),
+      { initialProps: { fence: 1 } }
+    )
+
+    act(() => expect(result.current.send('hello')).toBe(true))
+    await waitFor(() => expect(result.current.error).toBe('agent_session_checkpoint_stale'))
+    expect(mocks.call).toHaveBeenCalledOnce()
+
+    rerender({ fence: 2 })
+    await waitFor(() => expect(result.current.outbox).toHaveLength(0))
+    const envelopes = mocks.call.mock.calls.map(
+      (call) => (call[2] as { envelope: { clientOperationId: string } }).envelope
+    )
+    expect(envelopes).toHaveLength(2)
+    expect(envelopes[1]).toMatchObject({
+      expectedRuntimeFence: 2,
+      clientOperationId: envelopes[0]!.clientOperationId
+    })
+    expect(result.current.error).toBeNull()
+  })
+
   it('persists and dispatches an attachment-only structured send', async () => {
     mocks.call.mockResolvedValue(acceptedResult(1))
     const { result } = renderHook(() =>
