@@ -2,6 +2,7 @@ import { initializeMainProcessI18nAndMenu } from './main-process-i18n-menu'
 import { mainProcessState as state } from './main-process-state'
 import { initializeReadyFoundation } from './main-process-ready-foundation'
 import { initializeReadyRuntimeServices } from './main-process-ready-runtime'
+import { releaseDesktopActivationAfter } from './serve-desktop-activation'
 import {
   initializeMainProcessRuntimeLaunch,
   type MainProcessRuntimeLaunchOptions
@@ -9,8 +10,15 @@ import {
 
 /** Runs the ready-phase composition in the same dependency order as the legacy entry point. */
 export async function initializeMainProcessReady(
-  options: MainProcessRuntimeLaunchOptions
+  launchOptions: MainProcessRuntimeLaunchOptions
 ): Promise<void> {
+  const options: MainProcessRuntimeLaunchOptions = {
+    ...launchOptions,
+    openMainWindow: releaseDesktopActivationAfter(
+      state.desktopActivationGate,
+      launchOptions.openMainWindow
+    )
+  }
   await initializeReadyFoundation()
   await initializeReadyRuntimeServices()
   // Why concurrent: window creation reads no translated string and no menu item, and both the
@@ -18,5 +26,14 @@ export async function initializeMainProcessReady(
   // ahead of openMainWindow only delayed the renderer (8 ms in English, more for a lazy locale).
   const i18nAndMenuReady = initializeMainProcessI18nAndMenu()
   state.mainProcessI18nReady = i18nAndMenuReady.catch(() => {})
-  await Promise.all([i18nAndMenuReady, initializeMainProcessRuntimeLaunch(options)])
+  await Promise.all([
+    i18nAndMenuReady,
+    initializeMainProcessRuntimeLaunch(options).catch((error: unknown) => {
+      // Why: a desktop launch that failed before its startup window must not swallow later activations.
+      if (!state.isServeMode) {
+        state.desktopActivationGate?.markReady()
+      }
+      throw error
+    })
+  ])
 }
