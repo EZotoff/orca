@@ -1,4 +1,4 @@
-import { buildFontFamily } from '@/components/terminal-pane/layout-serialization'
+import { buildFontFamily } from '@/lib/monospace-font-family'
 
 const EDITOR_FONT_ZOOM_MIN = -6
 const EDITOR_FONT_ZOOM_MAX = 18
