@@ -130,6 +130,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 // Why: a request made before the held page is drawn never resolves, and an offscreen drawn page can
 // skip one, so re-ask until a frame arrives. Earlier requests stay live so a slow full-page capture
 // can still win. Resolves null when no frame arrives by the deadline; a CDP error is an answer.
+// Unanswered requests settle together on the page's next frame, or reject on detach.
 function captureUntilDrawn(
   webContents: WebContents,
   params: Record<string, unknown>
