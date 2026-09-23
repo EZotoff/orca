@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { monaco } from '@/lib/monaco-setup'
 import { computeEditorFontSize, resolveEditorFontFamily } from '@/lib/editor-font-zoom'
-import { resolveDocumentTheme } from '@/lib/document-theme'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
+import { useDocumentDarkTheme } from './use-document-dark-theme'
 
 let pythonLanguageRegistrationPromise: Promise<void> | null = null
 
@@ -32,8 +32,7 @@ async function ensureColorizationLanguage(language: string): Promise<void> {
 
 /** Monaco token HTML per line; loads lazy tokenizers (e.g. Python) before colorizing. */
 export function useMonacoColorizedLines(lines: string[], language: string): string[] {
-  const settings = useAppStore((s) => s.settings)
-  const isDark = resolveDocumentTheme(settings?.theme ?? 'system')
+  const isDark = useDocumentDarkTheme()
   const code = useMemo(() => lines.join('\n'), [lines])
   const [htmlLines, setHtmlLines] = useState<string[]>(() => lines.map(() => ''))
 
