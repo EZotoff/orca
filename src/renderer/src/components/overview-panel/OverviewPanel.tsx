@@ -15,6 +15,7 @@ import { bucketLabel } from '../dashboard-popout/AgentKanbanBoard'
 import { formatDashboardCardTime } from '../dashboard-popout/AgentKanbanCard'
 import { applyProbeFilter } from './probe-card-filter'
 import { buildOverviewBands } from './overview-bands'
+import { buildOverviewCountChips, cardLabelsOf } from './overview-counts'
 import { buildOverviewRailEntries, type OverviewRailEntry } from './overview-rail-entries'
 import { OverviewRail } from './OverviewRail'
 
@@ -53,8 +54,17 @@ function OverviewCardRow({
         <span className="text-muted-foreground">{card.repoName || card.worktreeName}</span>
         {' · '}
         <span className={card.unseen ? 'font-semibold' : undefined}>
-          {card.conversationName ?? card.task}
+          {cardLabelsOf(card).title}
         </span>
+        {card.subagents && card.subagents.length > 0 && (
+          <span
+            data-overview-subagents={card.paneKey}
+            className="shrink-0 truncate text-[10px] text-muted-foreground/80"
+            title={card.subagents.map((subagent) => subagent.name).join(', ')}
+          >
+            {`+${card.subagents.length}`}
+          </span>
+        )}
       </span>
       <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
         {formatDashboardCardTime(card, now)}
@@ -176,6 +186,21 @@ export function OverviewPanel(): React.JSX.Element {
               {translate('dashboardPopout.total', '{{count}} total', {
                 count: filtered.cards.length
               })}
+            </span>
+            <span
+              data-overview-counts=""
+              className="ml-auto flex items-center gap-1.5 pr-1 text-[11px] tabular-nums text-muted-foreground"
+            >
+              {buildOverviewCountChips(filtered).map((chip) => (
+                <span
+                  key={chip.bucket}
+                  data-overview-count={chip.bucket}
+                  title={bucketLabel(chip.bucket)}
+                  className={chip.bucket === 'attention' && chip.count > 0 ? 'font-semibold text-agent-question-text' : undefined}
+                >
+                  {chip.count}
+                </span>
+              ))}
             </span>
           </header>
           <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto pb-2">

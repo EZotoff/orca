@@ -183,4 +183,32 @@ describe('OverviewPanel', () => {
     expect(container.querySelector('[data-overview-card="probe"]')).toBeNull()
     expect(container.querySelector('[data-overview-rail-project="alpha"]')).not.toBeNull()
   })
+
+  it('renders the fixed bucket-count chips (Needs You / Working / Done / Idle)', () => {
+    const { container } = render(<OverviewPanel />)
+    const chips = [...container.querySelectorAll('[data-overview-count]')]
+    expect(chips.map((chip) => chip.getAttribute('data-overview-count'))).toEqual([
+      'attention',
+      'working',
+      'done',
+      'idle'
+    ])
+    expect(chips.map((chip) => chip.textContent)).toEqual(['2', '1', '0', '0'])
+  })
+
+  it('shows a live subagent count on cards that spawned subagents', () => {
+    mocks.snapshot = snapshotWith([
+      card({
+        paneKey: 'sub',
+        repoName: 'alpha',
+        conversationName: 'Fix login',
+        subagents: [
+          { id: '1', name: 'explore', dotState: 'working' },
+          { id: '2', name: 'oracle', dotState: 'blocked' }
+        ]
+      })
+    ])
+    const { container } = render(<OverviewPanel />)
+    expect(container.querySelector('[data-overview-subagents="sub"]')?.textContent).toBe('+2')
+  })
 })
