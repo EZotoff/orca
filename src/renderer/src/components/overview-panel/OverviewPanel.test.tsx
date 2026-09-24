@@ -38,6 +38,10 @@ vi.mock('../dashboard-popout/AgentKanbanCard', () => ({
   formatDashboardCardTime: () => 'just now'
 }))
 
+vi.mock('../supervisor-relay/SupervisorRelayView', () => ({
+  SupervisorRelayView: () => <section data-supervisor-relay-stub="" />
+}))
+
 import { OverviewPanel } from './OverviewPanel'
 
 function card(overrides: Partial<DashboardCard> & { paneKey: string }): DashboardCard {
@@ -182,6 +186,11 @@ describe('OverviewPanel', () => {
     expect(container.querySelector('[data-overview-rail-project="probeville"]')).toBeNull()
     expect(container.querySelector('[data-overview-card="probe"]')).toBeNull()
     expect(container.querySelector('[data-overview-rail-project="alpha"]')).not.toBeNull()
+  })
+
+  it('embeds the Supervisor escalation section (widget 3) above the agent bands', () => {
+    const { container } = render(<OverviewPanel />)
+    expect(container.querySelector('[data-overview-supervisor] [data-supervisor-relay-stub]')).not.toBeNull()
   })
 
   it('renders the fixed bucket-count chips (Needs You / Working / Done / Idle)', () => {

@@ -18,13 +18,15 @@ import { buildOverviewBands } from './overview-bands'
 import { buildOverviewCountChips, cardLabelsOf } from './overview-counts'
 import { buildOverviewRailEntries, type OverviewRailEntry } from './overview-rail-entries'
 import { OverviewRail } from './OverviewRail'
+import { SupervisorRelayView } from '../supervisor-relay/SupervisorRelayView'
 
 /**
  * First-party overview panel + persistent project rail (orca-transition Task 10,
  * G2 geometry decision: dense vertical list with priority bands, retaining the
  * AgentKanbanBoard status derivation). The rail stays visible when the panel is
- * collapsed so per-project Needs You counts never leave the screen. Orca
- * agent-status only — Supervisor escalation layering arrives with Task 13.
+ * collapsed so per-project Needs You counts never leave the screen. Widget 3
+ * layers the Task-12 Supervisor relay (validated scalar card shape only) on
+ * top; Orca agent-status buckets stay independent of Supervisor decisions.
  */
 
 const OVERVIEW_PANEL_MIN_WIDTH = 200
@@ -203,6 +205,9 @@ export function OverviewPanel(): React.JSX.Element {
               ))}
             </span>
           </header>
+          <div data-overview-supervisor="" className="shrink-0 border-b border-border">
+            <SupervisorRelayView />
+          </div>
           <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto pb-2">
             {filtered.cards.length === 0 ? (
               <p className="px-3 py-2 text-[11px] text-muted-foreground">
