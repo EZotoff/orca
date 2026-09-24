@@ -25,7 +25,7 @@ async function click(x, y) {
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 })
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 })
 }
-const pageEval = (expression) => send('Runtime.evaluate', { expression, returnByValue: true }).then((r) => r.result.value)
+const pageEval = (expression) => send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }).then((r) => r.result.value)
 const fn = new Function('send', 'click', 'page', 'sleep', 'return (async () => {' + expr + '})()')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const out = await fn(send, click, pageEval, sleep)

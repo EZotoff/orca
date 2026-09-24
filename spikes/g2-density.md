@@ -45,9 +45,24 @@ Those are Task 8 navigation numbers, not G2 panel-jump numbers.
 The synthetic escalation never rendered (no board paint), so time-to-spot
 without scrolling/fullscreen was not observed.
 
-### Narrow-window / CJK — **GAP: NOT MEASURED**
+### Board render (live, third worker's captures g2-14/g2-15, ~05:46)
 
-Fixture includes CJK + long names (see above), but no render evidence exists.
+The third worker's run DID render the armed board at a narrowed panel
+(~337 px on-screen, narrow-window case) before its stdout was lost — the
+screenshots carry the numbers:
+
+- **Only 2 of 4 status columns visible** (NEEDS YOU, WORKING) with a
+  horizontal scrollbar — the board branch's 'all four columns without
+  scroll' condition FAILS at real width, confirming the static geometry
+  (4 × min-w-264px ≫ panel width).
+- **8 of 22 cards below the fold** (header '22 total', 14 visible) — the
+  board hides rows at real density; hidden-rows ≠ 0.
+- **Escalation-spot criterion MET**: the synthetic Supervisor escalation is
+  the top NEEDS YOU card, fully visible with zero scrolling (g2-14/15).
+- **CJK renders correctly** (Korean session titles, no tofu); the 39-char
+  long project name truncates with ellipsis as designed (g2-15).
+
+CJK + long-name rendering is therefore verified live, not a GAP.
 
 ### Fast-switch (G2b) — measured against the prototype store seam
 
@@ -113,10 +128,13 @@ Tasks 10/11 consume this decision.
 ## Task 9 criterion verdict
 
 - All projects discoverable in one keyboard search / always-visible rail:
-  geometry chosen so, but **not demonstrated live — GAP**.
-- Top escalation visible without opening another surface: **GAP** (board
-  render metrics from the third worker's run went to uncaptured stdout).
-- No project silently absent: **GAP** (same uncaptured board metrics).
+  geometry chosen so; the board's 8-hidden-cards failure (g2-15) is what
+  the dense vertical list fixes (one rail row per project; keyboard search).
+  List-mode render itself not yet screenshotted — minor GAP.
+- Top escalation visible without opening another surface: **MET** — top
+  NEEDS YOU card, zero scroll (g2-14/g2-15).
+- No project silently absent: board mode FAILED this (8/22 below fold,
+  g2-15); decision routes to the list geometry which cannot hide projects.
 - Terminal usable at favored width: n/a this task (T8 pass evidence stands).
 - Fast-switch gate (≥20 jumps ≤1 s): **met at the prototype seam** — 24/24
   verified, max 20 ms — with the single-tab coverage caveat above; the formal
