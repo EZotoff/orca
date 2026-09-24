@@ -51,6 +51,11 @@ export type TerminalShortcutAction =
   | { type: 'toggleSearch' }
   | { type: 'clearActivePane' }
   | { type: 'focusPane'; direction: 'next' | 'previous' }
+  | {
+      type: 'focusPaneDirection'
+      direction: 'left' | 'right' | 'up' | 'down'
+      tabFallback: boolean
+    }
   | { type: 'equalizePaneSizes' }
   | { type: 'toggleExpandActivePane' }
   | { type: 'setTitle' }
@@ -125,6 +130,27 @@ export function resolveTerminalShortcutAction(
 
     if (keybindingMatchesAction('terminal.focusNextPane', event, platform, keybindings)) {
       return { type: 'focusPane', direction: 'next' }
+    }
+
+    // Why: zellij MoveFocusOrTab parity — these branches must precede the Alt+Arrow
+    // readline word-nav translation below, so the chord is consumed for navigation
+    // and never leaks meta bytes into the PTY. IME composition owns the key instead.
+    if (!event.isComposing) {
+      if (keybindingMatchesAction('terminal.focusPaneOrTabLeft', event, platform, keybindings)) {
+        return { type: 'focusPaneDirection', direction: 'left', tabFallback: true }
+      }
+
+      if (keybindingMatchesAction('terminal.focusPaneOrTabRight', event, platform, keybindings)) {
+        return { type: 'focusPaneDirection', direction: 'right', tabFallback: true }
+      }
+
+      if (keybindingMatchesAction('terminal.focusPaneUp', event, platform, keybindings)) {
+        return { type: 'focusPaneDirection', direction: 'up', tabFallback: false }
+      }
+
+      if (keybindingMatchesAction('terminal.focusPaneDown', event, platform, keybindings)) {
+        return { type: 'focusPaneDirection', direction: 'down', tabFallback: false }
+      }
     }
 
     if (keybindingMatchesAction('terminal.equalizePaneSizes', event, platform, keybindings)) {
