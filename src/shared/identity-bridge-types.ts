@@ -107,6 +107,13 @@ export type ReconciliationResult = {
   readonly rejected: readonly RejectedRecord[]
 }
 
+/** Why a resolve failed: reconcile rejection classes plus the resolver's own outcomes (no record at all, more than one active leaf). */
+export type ResolveRejectionReason = IdentityBridgeRejectionReason | 'not-hosted' | 'ambiguous-session'
+
+export type ResolveOutcome =
+  | { readonly status: 'verified'; readonly leaf: ResolvedLeaf }
+  | { readonly status: 'rejected'; readonly reason: ResolveRejectionReason }
+
 /** Stable string key for a mapping. NUL-separated so no field can forge a boundary. */
 export function identityBridgeKey(key: IdentityBridgeKey): string {
   return [key.executionHostId, key.canonicalRoot, key.sessionID, key.launchToken]

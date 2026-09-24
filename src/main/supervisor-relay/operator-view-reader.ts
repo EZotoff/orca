@@ -8,6 +8,7 @@
 // clocks) so the module unit-tests under a fake clock.
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
+import { parseExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
 
 /** Contract: stale = producedAt older than 30 s at receipt. */
 export const READ_STALE_AGE_MS = 30_000
@@ -21,6 +22,13 @@ export const READ_MAX_POLL_MS = 5_000
 export const READER_MAX_CARDS = 20
 
 /** The parsed (validated) read-model image as published by the Supervisor. */
+/** Trusted main-side session identity for a card's jump target (design §5). NEVER forwarded to renderers — redaction drops it. */
+export type OperatorViewCardSessionRef = {
+  readonly executionHostId: ExecutionHostId
+  readonly canonicalRoot: string
+  readonly sessionID: string
+}
+
 export type OperatorViewCard = {
   readonly id: string
   readonly rootLabel: string
@@ -30,6 +38,8 @@ export type OperatorViewCard = {
   readonly ageSeconds: number
   readonly severity: 'A' | 'B' | 'C' | 'D'
   readonly jumpAvailable: true
+  /** Optional: present only when the Supervisor can name the session's host-qualified identity; absent ⇒ Orca renders the card unhosted. */
+  readonly sessionRef?: OperatorViewCardSessionRef
 }
 
 export type OperatorView = {
@@ -40,6 +50,18 @@ export type OperatorView = {
   readonly cards: readonly OperatorViewCard[]
 }
 
+const executionHostIdSchema = z
+  .string()
+  .min(1)
+  .refine((value) => parseExecutionHostId(value) !== null, 'Invalid execution host id')
+  .transform((value) => value as ExecutionHostId)
+
+const sessionRefSchema = z.strictObject({
+  executionHostId: executionHostIdSchema,
+  canonicalRoot: z.string().min(1),
+  sessionID: z.string().min(1)
+})
+
 const cardSchema = z.strictObject({
   id: z.string().min(1),
   rootLabel: z.string(),
@@ -48,7 +70,8 @@ const cardSchema = z.strictObject({
   premiseTexts: z.array(z.string()),
   ageSeconds: z.number().finite().nonnegative(),
   severity: z.enum(['A', 'B', 'C', 'D']),
-  jumpAvailable: z.literal(true)
+  jumpAvailable: z.literal(true),
+  sessionRef: sessionRefSchema.optional()
 })
 
 const viewSchema = z.strictObject({

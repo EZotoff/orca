@@ -3,10 +3,10 @@
 // escaped text-node rendering, stale/grey + disabled jump, neutral error card,
 // v1 unavailable actions note, and the probe-noise invariant at the view level
 // (a burst of identical live payloads never changes what is rendered).
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, test } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { SupervisorRelayCards } from './SupervisorRelayView'
-import type { SupervisorRelayPayload } from '../../../../shared/supervisor-relay-types'
+import type { SupervisorRelayFocusOutcome, SupervisorRelayPayload } from '../../../../shared/supervisor-relay-types'
 
 const payload = (overrides: Partial<SupervisorRelayPayload> = {}): SupervisorRelayPayload => ({
   schemaVersion: 1,
@@ -28,6 +28,25 @@ const payload = (overrides: Partial<SupervisorRelayPayload> = {}): SupervisorRel
   ],
   ...overrides
 })
+
+const unhostedPayload = (
+  reason: 'not-hosted' | 'stale-handle' | 'ambiguous-session'
+): SupervisorRelayPayload =>
+  payload({
+    cards: [
+      {
+        id: 'att_1',
+        rootLabel: 'proj',
+        sessionLabel: 'ses-a',
+        reasonText: 'Deploy to prod?',
+        premiseTexts: [],
+        age: 42,
+        severity: 'B',
+        jumpAvailable: false,
+        unhostedReason: reason
+      }
+    ]
+  })
 
 afterEach(cleanup)
 
@@ -95,5 +114,70 @@ describe('SupervisorRelayCards', () => {
     const cards = screen.getAllByText('Deploy to prod?')
     expect(cards).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Jump' }).getAttribute('data-card-id')).toBe('att_1')
+  })
+})
+
+describe('SupervisorRelayCards focus action (Task 14)', () => {
+  test('unhosted card renders its neutral label with the jump disabled', () => {
+    const { container } = render(<SupervisorRelayCards payload={unhostedPayload('not-hosted')} />)
+    expect(screen.getByText('Not open in Orca')).toBeDefined()
+    const jump = screen.getByRole('button', { name: 'Jump' }) as HTMLButtonElement
+    expect(jump.disabled).toBe(true)
+    expect(container.querySelector('.supervisor-relay-card--unhosted')).not.toBeNull()
+    expect(container.querySelector('[data-card-id="att_1"]')?.getAttribute('data-unhosted')).toBe(
+      'not-hosted'
+    )
+  })
+
+  test('each unhosted rejection class maps to a fixed neutral label, never raw error text', () => {
+    const cases: readonly [string, string][] = [
+      ['stale-handle', 'Session pane no longer exists'],
+      ['ambiguous-session', 'Session location ambiguous']
+    ]
+    for (const [reason, label] of cases) {
+      cleanup()
+      render(<SupervisorRelayCards payload={unhostedPayload(reason as 'stale-handle')} />)
+      expect(screen.getByText(label)).toBeDefined()
+      expect(
+        (screen.getByRole('button', { name: 'Jump' }) as HTMLButtonElement).disabled
+      ).toBe(true)
+    }
+  })
+
+  test('successful jump focuses: the card shows the focused affordance', async () => {
+    const focusCard = vi.fn().mockResolvedValue({ status: 'focused' } satisfies SupervisorRelayFocusOutcome)
+    const { container } = render(<SupervisorRelayCards payload={payload()} focusCard={focusCard} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump' }))
+    expect(focusCard).toHaveBeenCalledWith('att_1')
+    await waitFor(() => {
+      expect(container.querySelector('.supervisor-relay-card--focused')).not.toBeNull()
+    })
+  })
+
+  test('jump returning unhosted re-renders the card unhosted with the neutral label', async () => {
+    const focusCard = vi.fn().mockResolvedValue({
+      status: 'unhosted',
+      reason: 'reused-terminal'
+    } satisfies SupervisorRelayFocusOutcome)
+    const { container } = render(<SupervisorRelayCards payload={payload()} focusCard={focusCard} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump' }))
+    await waitFor(() => {
+      expect(screen.getByText('Terminal was reused')).toBeDefined()
+    })
+    expect(
+      (screen.getByRole('button', { name: 'Jump' }) as HTMLButtonElement).disabled
+    ).toBe(true)
+    expect(container.querySelector('.supervisor-relay-card--unhosted')).not.toBeNull()
+  })
+
+  test('focus-API failure shows a neutral note and the card stays actionable', async () => {
+    const focusCard = vi.fn().mockResolvedValue({ status: 'failed' } satisfies SupervisorRelayFocusOutcome)
+    render(<SupervisorRelayCards payload={payload()} focusCard={focusCard} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump' }))
+    await waitFor(() => {
+      expect(screen.getByText('Could not focus this session')).toBeDefined()
+    })
+    expect(screen.getByText('Deploy to prod?')).toBeDefined()
+    expect((screen.getByRole('button', { name: 'Jump' }) as HTMLButtonElement).disabled).toBe(false)
   })
 })

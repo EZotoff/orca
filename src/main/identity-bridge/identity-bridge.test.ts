@@ -229,4 +229,43 @@ describe('IdentityBridge', () => {
       await bridge.resolve({ executionHostId: 'local', canonicalRoot: '/repo', sessionID: 'ses-1' })
     ).toBeNull()
   })
+
+  test('resolveOutcome classifies an unknown session as not-hosted', async () => {
+    correlations.correlations = []
+    const bridge = makeBridge()
+    await bridge.recordCorrelation(correlation())
+    expect(
+      await bridge.resolveOutcome({
+        executionHostId: 'local',
+        canonicalRoot: '/repo',
+        sessionID: 'ses-other'
+      })
+    ).toEqual({ status: 'rejected', reason: 'not-hosted' })
+  })
+
+  test('resolveOutcome verifies a hosted session and returns the leaf', async () => {
+    const bridge = makeBridge()
+    await bridge.recordCorrelation(correlation())
+    expect(
+      await bridge.resolveOutcome({
+        executionHostId: 'local',
+        canonicalRoot: '/repo',
+        sessionID: 'ses-1'
+      })
+    ).toMatchObject({ status: 'verified', leaf: { terminalHandle: 'term-1' } })
+  })
+
+  test('resolveOutcome surfaces the reconcile rejection reason for a stale handle', async () => {
+    const bridge = makeBridge()
+    await bridge.recordCorrelation(correlation())
+    inventory.inventory = { terminals: [], connectedHosts: ['local'] }
+    correlations.correlations = []
+    expect(
+      await bridge.resolveOutcome({
+        executionHostId: 'local',
+        canonicalRoot: '/repo',
+        sessionID: 'ses-1'
+      })
+    ).toEqual({ status: 'rejected', reason: 'stale-handle' })
+  })
 })
