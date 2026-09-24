@@ -1,0 +1,60 @@
+{
+  "version": 3,
+  "settings": {
+    "model": "\"gpt-6-astra\"",
+    "model_reasoning_effort": "\"low\"",
+    "approval_policy": "\"never\"",
+    "sandbox_mode": "\"danger-full-access\"",
+    "tui.status_line": null,
+    "tui.status_line_use_colors": null,
+    "tui.terminal_title": null,
+    "tui.theme": null
+  },
+  "registrations": {
+    "plugins:google-calendar@openai-curated": {
+      "enabled": "true"
+    },
+    "plugins:gmail@openai-curated": {
+      "enabled": "true"
+    },
+    "plugins:github@openai-curated": {
+      "enabled": "true"
+    },
+    "marketplaces:sisyphuslabs": {},
+    "marketplaces:openai-bundled": {},
+    "marketplaces:openai-primary-runtime": {},
+    "plugins:omo@sisyphuslabs": {
+      "enabled": "true"
+    },
+    "plugins:computer-use@openai-bundled": {
+      "enabled": "true"
+    },
+    "plugins:slack@openai-curated": {
+      "enabled": "true"
+    },
+    "plugins:documents@openai-primary-runtime": {
+      "enabled": "true"
+    },
+    "plugins:pdf@openai-primary-runtime": {
+      "enabled": "true"
+    },
+    "plugins:spreadsheets@openai-primary-runtime": {
+      "enabled": "true"
+    },
+    "plugins:presentations@openai-primary-runtime": {
+      "enabled": "true"
+    },
+    "plugins:template-creator@openai-primary-runtime": {
+      "enabled": "true"
+    },
+    "plugins:browser@openai-bundled": {
+      "enabled": "true"
+    },
+    "plugins:visualize@openai-bundled": {
+      "enabled": "true"
+    },
+    "plugins:sites@openai-bundled": {
+      "enabled": "true"
+    }
+  }
+}

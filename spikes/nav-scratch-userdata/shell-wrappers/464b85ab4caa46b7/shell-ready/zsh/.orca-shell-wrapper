@@ -1,0 +1,3 @@
+# Orca-generated zsh startup wrapper directory.
+# Its presence is how Orca recognises its own wrapper dir instead of treating it
+# as the user's ZDOTDIR. Do not edit; the whole directory is regenerated.

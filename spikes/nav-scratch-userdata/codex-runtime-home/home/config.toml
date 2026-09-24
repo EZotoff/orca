@@ -1,0 +1,204 @@
+model = "gpt-6-astra"
+model_reasoning_effort = "low"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+network_access = "enabled"
+
+[plugins."google-calendar@openai-curated"]
+enabled = true
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[features]
+goals = true
+unified_exec = true
+child_agents_md = true
+multi_agent = true
+plugin_hooks = true
+plugins = true
+js_repl = false
+
+[features.multi_agent_v2]
+max_concurrent_threads_per_session = 1000
+
+[notice]
+hide_world_writable_warning = true
+hide_full_access_warning = true
+
+[marketplaces.sisyphuslabs]
+last_updated = "2026-08-13T16:24:17Z"
+source_type = "local"
+source = "/home/ezotoff/.codex/plugins/cache/sisyphuslabs"
+
+[marketplaces.openai-bundled]
+source_type = "local"
+source = "/home/ezotoff/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+source_type = "local"
+source = "/home/ezotoff/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[plugins."omo@sisyphuslabs"]
+enabled = true
+
+[plugins."omo@sisyphuslabs".mcp_servers.context7]
+enabled = true
+
+[plugins."omo@sisyphuslabs".mcp_servers.git_bash]
+enabled = false
+
+[agents.explorer]
+config_file = '/home/ezotoff/.codex/agents/explorer.toml'
+
+[agents.librarian]
+config_file = '/home/ezotoff/.codex/agents/librarian.toml'
+
+[agents.metis]
+config_file = '/home/ezotoff/.codex/agents/metis.toml'
+
+[agents.momus]
+config_file = '/home/ezotoff/.codex/agents/momus.toml'
+
+[agents.plan]
+config_file = '/home/ezotoff/.codex/agents/plan.toml'
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[plugins."omo@sisyphuslabs".mcp_servers.codegraph]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."slack@openai-curated"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."sites@openai-bundled"]
+enabled = true
+
+[agents.lazycodex-clone-fidelity-reviewer]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-clone-fidelity-reviewer.toml'
+
+[agents.lazycodex-code-reviewer]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-code-reviewer.toml'
+
+[agents.lazycodex-executor]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-executor.toml'
+
+[agents.lazycodex-gate-reviewer]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-gate-reviewer.toml'
+
+[agents.lazycodex-qa-executor]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-qa-executor.toml'
+
+[desktop]
+conversationDetailMode = "STEPS_PROSE"
+ambient-suggestions-enabled = true
+followUpQueueMode = "queue"
+
+[agents]
+
+[agents.lazycodex-worker-high]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-worker-high.toml'
+
+[agents.lazycodex-worker-low]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-worker-low.toml'
+
+[agents.lazycodex-worker-medium]
+config_file = '/home/ezotoff/.codex/agents/lazycodex-worker-medium.toml'
+
+[mcp_servers.node_repl]
+args = []
+command = "/opt/codex-desktop/resources/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = ""
+NODE_REPL_NODE_PATH = "/opt/codex-desktop/resources/node-runtime/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/home/ezotoff/.codex"
+CODEX_HOME = "/home/ezotoff/.codex"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "6d25aa7656feac858f3a3bdaea5bcbab0dbfd426c9de8e6931ce90c399ee8e4f,7abc8b22abade944bcd80135500416c7aee60c0e94290c7d644b54428a0013ab,f9e12b228acedcfa9b167addf265c4af634c30ddd94753d812510cd6c4587095,be7ccd874891c056023242e4428b1c10a5f9efdae28aa1972e716167e5ad356a"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.707.91948"
+
+[mcp_servers.node_repl.tools]
+
+[mcp_servers.node_repl.tools.js]
+approval_mode = "approve"
+
+[projects."/home/ezotoff/ez-omo-config"]
+trust_level = "trusted"
+
+[projects."/home/ezotoff/AI_projects/veran"]
+trust_level = "trusted"
+
+[projects."/home/ezotoff/Documents/Codex/2026-08-13/we"]
+trust_level = "trusted"
+
+[projects."/home/ezotoff/Documents/Codex/2026-08-13/invalid-value-tools-function-collaboration-spawn"]
+trust_level = "trusted"
+
+[projects."/home/ezotoff/Documents/Codex/2026-08-13/invalid-value-tools-function-collaboration-spawn-2"]
+trust_level = "trusted"
+
+[projects."/home/ezotoff/Documents/Codex/2026-08-13/we-have-this-project-proposal-that"]
+trust_level = "trusted"
+
+[projects."/home/ezotoff/Documents/RDI"]
+trust_level = "trusted"
+
+[hooks.state]
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:110edc0ebacbe8e67a317f941a357a10fcae3bb613adb17455ea27b63083f90a"
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:permission_request:0:0"]
+trusted_hash = "sha256:d6071665b08b57d2a5fcbf0030299b4a4e08103f0259ba598325b20b42f25d75"
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:4d56fed8dc63b72ad4de5bf80594460f86a7b035454256414f9664e3c8cd35ca"
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:ef48b2182b2133e3ab5cebf769758ce05d2a53331134e133b461f81fb43f8624"
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:user_prompt_submit:0:0"]
+trusted_hash = "sha256:f9c2ba362ed376ef2e14baf47701f37e236704045eb3242cba45121532df7eae"
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:subagent_start:0:0"]
+trusted_hash = "sha256:ffc1c126afff9bc6e1751d7a8c75862861473944265af1fd04942014b50d0a23"
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:subagent_stop:0:0"]
+trusted_hash = "sha256:9116ccbfef92777ee6e884e72b3eaa9298a6845ef81980d217d80a466ce8fe54"
+
+[hooks.state."/home/ezotoff/src/orca-nav/spikes/nav-scratch-userdata/codex-runtime-home/home/hooks.json:stop:0:0"]
+trusted_hash = "sha256:ce19416ad81352bb1fffa0249142cb6ef75f9e4ea4f719bd8106f973077803d3"
