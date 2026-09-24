@@ -26,6 +26,7 @@ const terminal = (overrides: Partial<LiveTerminalHandle> = {}): LiveTerminalHand
 })
 
 const correlation = (overrides: Partial<HookCorrelation> = {}): HookCorrelation => ({
+  executionHostId: 'local',
   tabId: 'tab-1',
   leafId: LEAF_A,
   launchToken: 'tok-1',
@@ -79,7 +80,9 @@ describe('IdentityBridge', () => {
     correlations.correlations = []
     const bridge = makeBridge()
     await bridge.load()
-    expect(await bridge.resolve({ executionHostId: 'local', canonicalRoot: '/repo', sessionID: 'ses-1' })).toBeNull()
+    expect(
+      await bridge.resolve({ executionHostId: 'local', canonicalRoot: '/repo', sessionID: 'ses-1' })
+    ).toBeNull()
   })
 
   test('recordCorrelation persists a verified mapping that resolve returns', async () => {
@@ -91,7 +94,11 @@ describe('IdentityBridge', () => {
       canonicalRoot: '/repo',
       sessionID: 'ses-1'
     })
-    expect(resolved).toMatchObject({ leafId: LEAF_A, terminalHandle: 'term-1', launchToken: 'tok-1' })
+    expect(resolved).toMatchObject({
+      leafId: LEAF_A,
+      terminalHandle: 'term-1',
+      launchToken: 'tok-1'
+    })
   })
 
   test('resolve returns null when no hook correlation exists (pre-Task 16)', async () => {
@@ -119,6 +126,77 @@ describe('IdentityBridge', () => {
     expect(
       await bridge.resolve({ executionHostId: 'local', canonicalRoot: '/repo', sessionID: 'ses-1' })
     ).toBeNull()
+  })
+
+  test('a replayed correlation cannot reactivate a released mapping', async () => {
+    const bridge = makeBridge()
+    await bridge.recordCorrelation(correlation())
+    await bridge.releaseByTerminal('term-1')
+    expect(await bridge.recordCorrelation(correlation())).toBeNull()
+    expect(
+      await bridge.resolve({ executionHostId: 'local', canonicalRoot: '/repo', sessionID: 'ses-1' })
+    ).toBeNull()
+  })
+
+  test('a new launch correlation rebinds a released session', async () => {
+    const bridge = makeBridge()
+    await bridge.recordCorrelation(correlation())
+    await bridge.releaseByTerminal('term-1')
+    inventory.inventory = {
+      terminals: [terminal({ terminalHandle: 'term-2', launchToken: 'tok-2' })],
+      connectedHosts: ['local']
+    }
+    correlations.correlations = [correlation({ launchToken: 'tok-2' })]
+    expect(await bridge.recordCorrelation(correlation({ launchToken: 'tok-2' }))).toMatchObject({
+      lifecycle: 'active'
+    })
+    expect(
+      await bridge.resolve({ executionHostId: 'local', canonicalRoot: '/repo', sessionID: 'ses-1' })
+    ).toMatchObject({ terminalHandle: 'term-2' })
+  })
+
+  test('a duplicate live terminal on the same leaf cannot be selected by inventory order', async () => {
+    inventory.inventory = {
+      terminals: [terminal(), terminal({ terminalHandle: 'second' })],
+      connectedHosts: ['local']
+    }
+    const bridge = makeBridge()
+    expect(await bridge.recordCorrelation(correlation())).toBeNull()
+  })
+
+  test('same leaf on a second host cannot adopt a local correlation', async () => {
+    inventory.inventory = {
+      terminals: [terminal({ executionHostId: 'ssh:box', terminalHandle: 'remote' })],
+      connectedHosts: ['local', 'ssh:box']
+    }
+    const bridge = makeBridge()
+    expect(await bridge.recordCorrelation(correlation())).toBeNull()
+    expect(
+      await bridge.resolve({
+        executionHostId: 'ssh:box',
+        canonicalRoot: '/repo',
+        sessionID: 'ses-1'
+      })
+    ).toBeNull()
+  })
+
+  test('a disconnected remote host retains its mapping without resolving', async () => {
+    inventory.inventory = {
+      terminals: [terminal({ executionHostId: 'ssh:box' })],
+      connectedHosts: ['ssh:box']
+    }
+    correlations.correlations = [correlation({ executionHostId: 'ssh:box' })]
+    const bridge = makeBridge()
+    await bridge.recordCorrelation(correlations.correlations[0])
+    inventory.inventory = { terminals: [], connectedHosts: ['local'] }
+    expect(
+      await bridge.resolve({
+        executionHostId: 'ssh:box',
+        canonicalRoot: '/repo',
+        sessionID: 'ses-1'
+      })
+    ).toBeNull()
+    expect((await bridge.reconcile()).verified).toMatchObject([{ lifecycle: 'stale' }])
   })
 
   test('pruneReleased drops released mappings past retention', async () => {

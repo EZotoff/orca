@@ -76,13 +76,16 @@ export class IdentityBridge {
       await this.load()
     }
     const inventory = await this.inventory.listInventory()
-    const terminal = inventory.terminals.find(
+    const terminals = inventory.terminals.filter(
       (candidate) =>
-        candidate.tabId === correlation.tabId && candidate.leafId === correlation.leafId
+        candidate.executionHostId === correlation.executionHostId &&
+        candidate.tabId === correlation.tabId &&
+        candidate.leafId === correlation.leafId
     )
-    if (!terminal) {
+    if (terminals.length !== 1 || !inventory.connectedHosts.includes(correlation.executionHostId)) {
       return null
     }
+    const terminal = terminals[0]
     if (terminal.launchToken !== undefined && terminal.launchToken !== correlation.launchToken) {
       return null
     }
@@ -93,6 +96,9 @@ export class IdentityBridge {
       launchToken: correlation.launchToken
     })
     const existing = this.records.find((candidate) => identityBridgeKey(candidate) === key)
+    if (existing?.lifecycle === 'released') {
+      return null
+    }
     const record: IdentityBridgeRecord = {
       executionHostId: terminal.executionHostId,
       canonicalRoot: correlation.canonicalRoot,
@@ -107,7 +113,16 @@ export class IdentityBridge {
       lifecycle: 'active'
     }
     this.records = [
-      ...this.records.filter((candidate) => identityBridgeKey(candidate) !== key),
+      ...this.records
+        .filter((candidate) => identityBridgeKey(candidate) !== key)
+        .map((candidate) =>
+          candidate.lifecycle === 'active' &&
+          candidate.executionHostId === terminal.executionHostId &&
+          candidate.canonicalRoot === correlation.canonicalRoot &&
+          candidate.sessionID === correlation.sessionID
+            ? { ...candidate, lifecycle: 'released' as const, lastSeenAt: this.now() }
+            : candidate
+        ),
       record
     ]
     await this.store.save(this.records)
@@ -117,16 +132,17 @@ export class IdentityBridge {
   /** Reconcile, then return the verified leaf for a session — or null when unverified. */
   async resolve(query: SessionQuery): Promise<ResolvedLeaf | null> {
     const result = await this.reconcile()
-    const match = result.verified.find(
+    const matches = result.verified.filter(
       (record) =>
         record.lifecycle === 'active' &&
         record.executionHostId === query.executionHostId &&
         record.canonicalRoot === query.canonicalRoot &&
         record.sessionID === query.sessionID
     )
-    if (!match) {
+    if (matches.length !== 1) {
       return null
     }
+    const match = matches[0]
     return {
       executionHostId: match.executionHostId,
       canonicalRoot: match.canonicalRoot,

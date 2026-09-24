@@ -27,7 +27,8 @@ Orca-side launch identity (actual fork field names):
 | Launch | `launchToken` | ephemeral token stamped into the PTY env, echoed by the hook |
 
 OpenCode-side identity comes from the authenticated hook (Task 16): `sessionID`
-and `canonicalRoot`.
+and `canonicalRoot`. Correlations also carry the execution host; a matching
+tab/leaf on another host cannot authenticate the session.
 
 ## Persistence
 
@@ -52,7 +53,7 @@ rejects a record for exactly one reason:
 | `host-mismatch` | the live terminal is on a different execution host |
 | `reused-terminal` | the live terminal's launch token differs (the PTY was reused) |
 | `unverified` | no authenticated hook correlation confirms this session/root |
-| `duplicate-root` | the same session maps to the same leaf more than once (newest revision wins) |
+| `duplicate-root` | the same session maps to the same leaf more than once (all rejected) |
 | `ambiguous-leaf` | the same session correlates to more than one live leaf (all rejected) |
 
 A disconnected remote host is **not** evidence of death (SSH boundary): its
@@ -68,10 +69,14 @@ correlation creates a fresh record.
 - **Project/worktree removal** → `releaseByWorktree(worktreeIdentity)`.
 - Released mappings are preserved (never re-activated by reconciliation) and
   dropped by `pruneReleased(olderThanMs)` once past the retention window.
+- Replaying the same launch correlation through `recordCorrelation()` does not
+  re-activate a released key; a new launch identity must be verified first.
 
 ## Sequence note
 
 The authenticated hook lands in Task 16. This task ships the persistence and
 reconciliation skeleton plus the injectable `HookCorrelationSource` seam; the
-end-to-end correlation tests are deferred (`identity-bridge-e2e-correlation.test.ts`)
-and run after Task 16. Task 14's focus action consumes `resolve()`.
+end-to-end correlation tests are four explicit `test.todo` cases
+(`identity-bridge-e2e-correlation.test.ts`) until Task 16's authenticated
+hook is wired to this bridge and exercised through a real PTY. Task 14's focus
+action consumes the stable `resolve(query)` API.
