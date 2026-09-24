@@ -1,0 +1,13 @@
+APP_PID=3899068
+CDP_READY=1 after 2s
+WATCH_PID=3899337
+COMPOSER {"x":1246,"y":1495,"w":882,"h":48,"aria":"Send a message…"}
+FOCUSED true
+DRAFT "G4PROBE_L1\nG4PROBE_L2"
+PTY_AFTER_SEND "1790224363475 [\"34ca26ee-7da3-471a-98ba-c47b77dc318a::/home/ezotoff/orca/workspaces/g4-project/g4-claude-spike@@1a0889b9\",\"\\u0015\"]\n1790224363484 [\"34ca26ee-7da3-471a-98ba-c47b77dc318a::/home/ezotoff/orca/workspaces/g4-project/g4-claude-spike@@1a0889b9\",\"\\u001b[200~G4PROBE_L1\\rG4PROBE_L2\\u001b[201~\"]\n1790224363991 [\"34ca26ee-7da3-471a-98ba-c47b77dc318a::/home/ezotoff/orca/workspaces/g4-project/g4-claude-spike@@1a0889b9\",\"\\r\"]\n"
+PTY_AFTER_ESC "1790224366209 [\"34ca26ee-7da3-471a-98ba-c47b77dc318a::/home/ezotoff/orca/workspaces/g4-project/g4-claude-spike@@1a0889b9\",\"\\u001b\"]\n"
+DONE
+NODE_EXIT=0
+REMAINING_ORCA=0
+0
+PROBE_COMPLETE
