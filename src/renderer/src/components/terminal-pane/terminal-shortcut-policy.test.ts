@@ -520,66 +520,6 @@ describe('resolveTerminalShortcutAction', () => {
     ).toBeNull()
   })
 
-  it('translates alt+arrow to readline word-nav escapes on both platforms', () => {
-    // macOS: option+←/→ → \eb / \ef (readline backward-word / forward-word)
-    expect(
-      resolveTerminalShortcutAction(
-        event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }),
-        true
-      )
-    ).toEqual({ type: 'sendInput', data: '\x1bb' })
-    expect(
-      resolveTerminalShortcutAction(
-        event({ key: 'ArrowRight', code: 'ArrowRight', altKey: true }),
-        true
-      )
-    ).toEqual({ type: 'sendInput', data: '\x1bf' })
-
-    // Linux/Windows: alt+←/→ produces the same escapes (platform-agnostic chord)
-    expect(
-      resolveTerminalShortcutAction(
-        event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }),
-        false
-      )
-    ).toEqual({ type: 'sendInput', data: '\x1bb' })
-    expect(
-      resolveTerminalShortcutAction(
-        event({ key: 'ArrowRight', code: 'ArrowRight', altKey: true }),
-        false
-      )
-    ).toEqual({ type: 'sendInput', data: '\x1bf' })
-
-    // alt+shift+arrow is a different chord (select-word in some shells) — don't
-    // intercept, let xterm.js / the shell handle it.
-    expect(
-      resolveTerminalShortcutAction(
-        event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, shiftKey: true }),
-        true
-      )
-    ).toBeNull()
-
-    // alt+ctrl+arrow is a different chord entirely — passthrough.
-    expect(
-      resolveTerminalShortcutAction(
-        event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, ctrlKey: true }),
-        true
-      )
-    ).toBeNull()
-
-    // Ctrl+Alt+Arrow (Linux workspace switching on some desktops) must pass through on non-Mac.
-    expect(
-      resolveTerminalShortcutAction(
-        event({ key: 'ArrowLeft', code: 'ArrowLeft', ctrlKey: true, altKey: true }),
-        false
-      )
-    ).toBeNull()
-
-    // Regression guard: plain ArrowLeft must still pass through untouched.
-    expect(
-      resolveTerminalShortcutAction(event({ key: 'ArrowLeft', code: 'ArrowLeft' }), true)
-    ).toBeNull()
-  })
-
   it('translates macOS Option+B/F/D to readline escape sequences in compose mode', () => {
     // With macOptionAsAlt='false' (compose), xterm.js doesn't translate these.
     // Matches on event.code because macOS composition replaces event.key.
@@ -840,15 +780,50 @@ describe('kitty keyboard protocol panes', () => {
     })
   })
 
-  it('yields Alt+Arrow and Alt+Backspace to xterm kitty encoding', () => {
-    expect(resolveKitty(event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }))).toBeNull()
-    expect(resolveKitty(event({ key: 'Backspace', code: 'Backspace', altKey: true }))).toBeNull()
-    // Without kitty, the readline translations still apply.
+  it('yields Alt+Arrow and Alt+Backspace to xterm kitty encoding only when navigation is unbound', () => {
+    // Bound navigation (Linux/Windows default, or an explicit override) owns Alt+Arrow
+    // even in kitty-protocol panes; unbound (macOS default) preserves the kitty yield.
+    const navBound = { 'terminal.focusPaneOrTabLeft': ['Alt+ArrowLeft'] }
     expect(
-      resolveKitty(
+      resolveTerminalShortcutAction(
         event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }),
+        true,
         'false',
         0,
+        false,
+        navBound,
+        undefined,
+        kittyActive
+      )
+    ).toEqual({ type: 'focusPaneDirection', direction: 'left', tabFallback: true })
+    expect(resolveKitty(event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }))).toBeNull()
+    expect(resolveKitty(event({ key: 'Backspace', code: 'Backspace', altKey: true }))).toBeNull()
+    // With navigation unbound, the kitty yield and legacy translations still apply.
+    const unbound = {
+      'terminal.focusPaneOrTabLeft': [] as string[],
+      'terminal.focusPaneOrTabRight': [] as string[]
+    }
+    expect(
+      resolveTerminalShortcutAction(
+        event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }),
+        true,
+        'false',
+        0,
+        false,
+        unbound,
+        undefined,
+        kittyActive
+      )
+    ).toBeNull()
+    expect(
+      resolveTerminalShortcutAction(
+        event({ key: 'ArrowLeft', code: 'ArrowLeft', altKey: true }),
+        true,
+        'false',
+        0,
+        false,
+        unbound,
+        undefined,
         kittyInactive
       )
     ).toEqual({ type: 'sendInput', data: '\x1bb' })

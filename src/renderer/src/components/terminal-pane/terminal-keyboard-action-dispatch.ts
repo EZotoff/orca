@@ -1,4 +1,7 @@
 import type { ManagedPane, PaneManager } from '@/lib/pane-manager/pane-manager'
+import { isPtyLocked } from '@/lib/pane-manager/mobile-driver-state'
+import { dispatchWorkspaceTabCommand } from '@/lib/workspace-tab-commands'
+import { findDirectionalPaneCandidate } from './terminal-pane-directional-focus'
 import type { PaneCwdMap } from './resolve-split-cwd'
 import type { PtyTransport } from './pty-transport'
 import { copyTerminalSelection } from './terminal-selection-copy'
@@ -154,6 +157,44 @@ export function dispatchTerminalShortcutAction(
     manager.setActivePane(panes[(currentIdx + dir + panes.length) % panes.length].id, {
       focus: true
     })
+    return
+  }
+  if (action.type === 'focusPaneDirection') {
+    const panes = manager.getPanes()
+    const activePane = manager.getActivePane() ?? panes[0]
+    if (!activePane) {
+      return
+    }
+    // Why: a locked/pass-through PTY owns its keys — hand the chord to the
+    // terminal untouched (no consume) so observation-mode panes stay lossless.
+    const activePtyId = paneTransportsRef.current.get(activePane.id)?.getPtyId()
+    if (activePtyId && isPtyLocked(activePtyId)) {
+      return
+    }
+    // Why: consume unconditionally — even at the outer tab edge the chord must
+    // never leak meta/escape bytes into the PTY.
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    if (expandedPaneIdRef.current !== null) {
+      setExpandedPane(null)
+      restoreExpandedLayout()
+      refreshPaneSizes(true)
+      persistLayoutSnapshot()
+    }
+    const candidate = findDirectionalPaneCandidate(panes, activePane.id, action.direction)
+    if (candidate) {
+      manager.setActivePane(candidate.id, { focus: true })
+      return
+    }
+    if (action.tabFallback) {
+      // MoveFocusOrTab: fall through to the adjacent terminal tab only at the
+      // outer split edge; each tab keeps its own remembered active pane.
+      dispatchWorkspaceTabCommand({
+        type: 'switch',
+        direction: action.direction === 'left' ? -1 : 1,
+        scope: 'terminal'
+      })
+    }
     return
   }
   if (action.type === 'equalizePaneSizes') {
