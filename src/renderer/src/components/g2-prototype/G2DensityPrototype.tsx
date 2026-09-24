@@ -29,10 +29,18 @@ type G2JumpResult = {
   verified: boolean
 }
 
+type G2Target = {
+  tabId: string
+  worktreeId: string
+  leafIds: string[]
+  activeLeafId: string | null
+}
+
 type G2Api = {
   setSnapshot: (snapshot: unknown) => void
   clearSnapshot: () => void
   jump: (tabId: string, leafId: string | null) => Promise<G2JumpResult>
+  listTargets: () => G2Target[]
   state: () => Record<string, unknown>
 }
 
@@ -111,6 +119,36 @@ export function G2DensityPrototype(): React.JSX.Element | null {
           snapshotRef.current = next
           setSnapshot(next)
         }
+      },
+      listTargets: () => {
+        const s = useAppStore.getState()
+        const targets: G2Target[] = []
+        for (const tabs of Object.values(s.tabsByWorktree)) {
+          for (const tab of tabs) {
+            const layout = s.terminalLayoutsByTabId[tab.id]
+            const leafIds: string[] = []
+            const walk = (node: unknown): void => {
+              if (!(node instanceof Object) || node === null) {
+                return
+              }
+              const n = node as { type?: string; leafId?: string; first?: unknown; second?: unknown }
+              if (n.type === 'leaf' && typeof n.leafId === 'string') {
+                leafIds.push(n.leafId)
+              } else {
+                walk(n.first)
+                walk(n.second)
+              }
+            }
+            walk(layout?.root ?? null)
+            targets.push({
+              tabId: tab.id,
+              worktreeId: tab.worktreeId,
+              leafIds,
+              activeLeafId: layout?.activeLeafId ?? null
+            })
+          }
+        }
+        return targets
       },
       clearSnapshot: () => {
         snapshotRef.current = null
