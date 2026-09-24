@@ -9,6 +9,7 @@ import { TerminalWorkbenchContainer } from '../components/TerminalWorkbenchConta
 import type { VirtualizedScrollAnchor } from '../hooks/useVirtualizedScrollAnchor'
 import { TitlebarLeftControls } from './TitlebarLeftControls'
 import { RightSidebarToggle, TitlebarMainStrip } from './TitlebarMainStrip'
+import { G2DensityPrototype } from '../components/g2-prototype/G2DensityPrototype'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 import type { FloatingWorkspacePanelState } from './use-floating-workspace-panel'
 
@@ -220,6 +221,8 @@ export function AppWorkspaceShell(props: {
                     onToggle={() => floatingWorkspace.setOpenWithFocus((open) => !open)}
                   />
                 ) : null}
+                {/* G2 density prototype (Task 9 spike): right-side panel beside the workbench; renders null unless localStorage-gated. */}
+                <G2DensityPrototype />
               </div>
             </div>
           </div>
