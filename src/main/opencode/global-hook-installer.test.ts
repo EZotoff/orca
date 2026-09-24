@@ -27,6 +27,7 @@ import {
   parseMarkedGlobalHookContent
 } from './global-hook-marker'
 import { GLOBAL_HOOK_STATE_DIR_ENV, getGlobalHookPluginBody } from './global-hook-plugin-source'
+import { GLOBAL_HOOK_IDENTITY_TOKEN_ENV, createGlobalHookIdentityToken } from './global-hook-env'
 
 const FIXED_NOW = new Date('2026-09-24T01:02:03.456Z')
 
@@ -357,11 +358,14 @@ describe('global hook plugin body', () => {
 
   let tempDir: string
   let savedStateDir: string | undefined
+  let savedToken: string | undefined
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'orca-global-hook-body-'))
     savedStateDir = process.env[GLOBAL_HOOK_STATE_DIR_ENV]
+    savedToken = process.env[GLOBAL_HOOK_IDENTITY_TOKEN_ENV]
     delete process.env[GLOBAL_HOOK_STATE_DIR_ENV]
+    delete process.env[GLOBAL_HOOK_IDENTITY_TOKEN_ENV]
   })
 
   afterEach(() => {
@@ -369,6 +373,11 @@ describe('global hook plugin body', () => {
       delete process.env[GLOBAL_HOOK_STATE_DIR_ENV]
     } else {
       process.env[GLOBAL_HOOK_STATE_DIR_ENV] = savedStateDir
+    }
+    if (savedToken === undefined) {
+      delete process.env[GLOBAL_HOOK_IDENTITY_TOKEN_ENV]
+    } else {
+      process.env[GLOBAL_HOOK_IDENTITY_TOKEN_ENV] = savedToken
     }
     rmSync(tempDir, { recursive: true, force: true })
   })
@@ -406,6 +415,7 @@ describe('global hook plugin body', () => {
   it('drops session identity on session.created when provisioned', async () => {
     const stateDir = join(tempDir, 'state')
     process.env[GLOBAL_HOOK_STATE_DIR_ENV] = stateDir
+    process.env[GLOBAL_HOOK_IDENTITY_TOKEN_ENV] = createGlobalHookIdentityToken()
     const module = await loadPluginBody()
 
     const hooks = await module.default({ worktree: '/canonical/root' })
@@ -435,6 +445,7 @@ describe('global hook plugin body', () => {
   it('drops session identity on session.updated and records parentID', async () => {
     const stateDir = join(tempDir, 'state')
     process.env[GLOBAL_HOOK_STATE_DIR_ENV] = stateDir
+    process.env[GLOBAL_HOOK_IDENTITY_TOKEN_ENV] = createGlobalHookIdentityToken()
     const module = await loadPluginBody()
 
     const hooks = await module.default({ worktree: '/wt' })
@@ -461,17 +472,14 @@ describe('global hook plugin body', () => {
     expect(existsSync(join(stateDir, 'opencode-sessions'))).toBe(false)
   })
 
-  it('never throws when the drop cannot be written', async () => {
+  it('fails closed (never throws) when the state dir is unusable', async () => {
     const stateDir = join(tempDir, 'state-as-file')
     writeFileSync(stateDir, 'not a directory\n')
     process.env[GLOBAL_HOOK_STATE_DIR_ENV] = stateDir
+    process.env[GLOBAL_HOOK_IDENTITY_TOKEN_ENV] = createGlobalHookIdentityToken()
     const module = await loadPluginBody()
 
-    const hooks = await module.default({ worktree: '/wt' })
-    await expect(
-      hooks.event?.({
-        event: { type: 'session.created', properties: { info: { id: 'ses_x', projectID: 'p', directory: '/c' } } }
-      })
-    ).resolves.toBeUndefined()
+    // An unusable state dir deactivates the plugin instead of degrading to partial activation.
+    await expect(module.default({ worktree: '/wt' })).resolves.toEqual({})
   })
 })

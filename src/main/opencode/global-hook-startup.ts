@@ -11,6 +11,10 @@ import {
   verifyGlobalOpenCodeHook,
   type GlobalHookVerifyStatus
 } from './global-hook-installer'
+import {
+  buildGlobalHookChildEnv,
+  createGlobalHookIdentityToken
+} from './global-hook-env'
 
 const ENABLE_ENV = 'ORCA_ENABLE_GLOBAL_HOOK_INSTALL'
 const STATE_DIR_NAME = 'opencode-global-hook'
@@ -23,6 +27,27 @@ export function globalHookPathsFor(homeDir: string, userDataDir: string) {
   return {
     pluginsDir: join(homeDir, '.config', 'opencode', 'plugins'),
     stateDir: join(userDataDir, STATE_DIR_NAME)
+  }
+}
+
+/**
+ * Provision the process-local identity env for a direct Orca→OpenCode child PTY:
+ * a fresh single-purpose token plus the state dir, with every other ORCA_* var
+ * stripped (design §6). Nested shells never inherit the identity — the PTY env
+ * assembler deletes ORCA_HOOK_STATE_DIR/ORCA_HOOK_IDENTITY_TOKEN for non-direct
+ * children (AGENT_HOOK_RUNTIME_ENV_KEYS). Throws on malformed provisioning so a
+ * bad identity can never ship as partial Orca state.
+ */
+export function provisionGlobalHookChildEnv(args: {
+  readonly parentEnv: Record<string, string | undefined>
+  readonly homeDir: string
+  readonly userDataDir: string
+}): { readonly identityToken: string; readonly env: Record<string, string> } {
+  const { stateDir } = globalHookPathsFor(args.homeDir, args.userDataDir)
+  const identityToken = createGlobalHookIdentityToken()
+  return {
+    identityToken,
+    env: buildGlobalHookChildEnv(args.parentEnv, { stateDir, identityToken })
   }
 }
 

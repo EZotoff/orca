@@ -8,6 +8,9 @@ export const AGENT_HOOK_RUNTIME_ENV_KEYS = [
   // Why (Task 16): state dir provisioning the global OpenCode plugin's file drops;
   // strip from nested shells so non-Orca children stay inert (design §6).
   'ORCA_HOOK_STATE_DIR',
+  // Why (Task 17): the per-PTY identity token is a hook credential; nested shells must
+  // never inherit it or a nested OpenCode would re-activate the global plugin (design §6).
+  'ORCA_HOOK_IDENTITY_TOKEN',
   // Why: PR 2778 briefly exported this path; keep deleting stale inherited values so older PTYs can't leak the reverted path.
   'ORCA_CLAUDE_AGENT_STATUS_SETTINGS'
 ] as const
