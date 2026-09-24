@@ -44,7 +44,12 @@ function formatStartedAgo(startedAt: number, now: number): string {
 /** The timestamp the card's time column counts from: since it finished when the
  *  agent has completed, else since it started — parity with the worktree sidebar. */
 function displayTimestamp(card: DashboardCard): number {
-  return card.finishedAt ?? card.startedAt
+return card.finishedAt ?? card.startedAt
+}
+
+/** The card's glanceable time column; shared with the overview panel's dense rows. */
+export function formatDashboardCardTime(card: DashboardCard, now: number): string {
+  return formatStartedAgo(displayTimestamp(card), now)
 }
 
 function formatSubagentCount(count: number): string {

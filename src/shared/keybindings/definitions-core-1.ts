@@ -142,6 +142,27 @@ export const KEYBINDING_DEFINITION_CORE_1: readonly KeybindingDefinition[] = [
     allowInTerminal: true
   },
   {
+    id: 'overviewPanel.toggle',
+    title: 'Toggle Overview Panel',
+    group: 'Global',
+    scope: 'global',
+    searchKeywords: [
+      'shortcut',
+      'global',
+      'overview',
+      'panel',
+      'rail',
+      'projects',
+      'agents',
+      'collapse',
+      'expand'
+    ],
+    // Why: Alt+O is unclaimed in readline/zsh defaults; darwin stays unbound because
+    // Option+letter is text composition (same rule as terminal.focusPaneOrTab*).
+    defaultBindings: { darwin: [], linux: ['Alt+O'], win32: ['Alt+O'] },
+    allowInTerminal: true
+  },
+  {
     id: 'workspace.selectByIndex',
     title: 'Select Workspace 1–9',
     group: 'Global',

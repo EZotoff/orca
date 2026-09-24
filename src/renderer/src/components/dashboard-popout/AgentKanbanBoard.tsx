@@ -35,7 +35,7 @@ function revealAgentViaPopoutRelay(args: AgentRevealArgs): void {
   void window.api.dashboard.revealAgent?.(args)
 }
 
-function bucketLabel(bucket: DashboardBucket): string {
+export function bucketLabel(bucket: DashboardBucket): string {
   switch (bucket) {
     case 'attention':
       return translate('dashboardPopout.bucket.attention', 'Needs You')

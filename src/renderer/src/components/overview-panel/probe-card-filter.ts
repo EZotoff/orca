@@ -1,11 +1,11 @@
 import type { DashboardCard, DashboardSnapshot } from '../../../../shared/dashboard-snapshot'
 
 /**
- * Probe/throwaway classification for the G2 prototype's snapshot injection —
- * mirrors the Supervisor read-model contract clause (f): sessions classified
- * as autonomous probe/throwaway traffic (the omo-focus "PROBE-OK" class) are
- * excluded BEFORE card computation, so a probe burst neither surfaces a
- * Needs You card nor displaces a real one, and never becomes a jump target.
+ * Probe/throwaway classification for the overview panel — mirrors the
+ * Supervisor read-model contract clause (f): sessions classified as
+ * autonomous probe/throwaway traffic (the omo-focus "PROBE-OK" class) are
+ * excluded BEFORE card derivation, so a probe burst neither surfaces a
+ * Needs You row nor displaces a real one, and never becomes a jump target.
  */
 
 const PROBE_TITLE_PATTERNS: readonly RegExp[] = [

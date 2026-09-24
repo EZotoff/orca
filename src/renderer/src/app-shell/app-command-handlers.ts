@@ -167,6 +167,14 @@ export function createAppCommandHandlers(
     ],
     ['sidebar.left.toggle', () => claim('sidebar.left.toggle', () => actions.toggleSidebar())],
     [
+      'overviewPanel.toggle',
+      () =>
+        claim('overviewPanel.toggle', () => {
+          const store = useAppStore.getState()
+          store.setOverviewPanelCollapsed(!store.overviewPanelCollapsed)
+        })
+    ],
+    [
       'sidebar.sleepingWorkspaces.toggle',
       () =>
         claim('sidebar.sleepingWorkspaces.toggle', () => {
