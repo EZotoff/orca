@@ -83,6 +83,7 @@ import { e2eApi } from './api/e2e-bridge'
 import { mobileApi } from './api/mobile-bridge'
 import { agentStatusApi } from './api/agent-status-bridge'
 import { supervisorRelayApi } from './api/supervisor-relay-bridge'
+import { fileShareApi } from './api/fileshare-bridge'
 import { speechApi } from './api/speech-bridge'
 
 installNativeFileDropHandlers()
@@ -182,6 +183,7 @@ const api = {
   mobile: mobileApi,
   agentStatus: agentStatusApi,
   supervisorRelay: supervisorRelayApi,
+  fileShare: fileShareApi,
   speech: speechApi
 } satisfies PreloadApi
 

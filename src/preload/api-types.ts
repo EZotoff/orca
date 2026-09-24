@@ -55,6 +55,7 @@ import type { ShellApi } from './api/shell-api'
 import type { SpeechApi } from './api/speech-api'
 import type { SshApi } from './api/ssh-api'
 import type { SupervisorRelayApi } from './api/supervisor-relay-api'
+import type { FileShareApi } from './api/fileshare-api'
 import type { DiagnosticsApi, MemoryApi, StatsApi, TelemetryApi } from './api/telemetry-api'
 import type { UiCommandEventApi } from './api/ui-command-event-api'
 import type { UiWindowApi } from './api/ui-window-api'
@@ -150,10 +151,12 @@ export type PreloadApi = {
   plugins: PluginsApi
   agentStatus: AgentStatusApi
   supervisorRelay: SupervisorRelayApi
+  fileShare: FileShareApi
   mobile: MobileApi
   speech: SpeechApi
 }
 
+export type { FileShareApi } from './api/fileshare-api'
 export type { ClaudeUsageApi, CodexUsageApi, OpenCodeUsageApi } from './api/agent-usage-api'
 export type { AiVaultApi } from './api/ai-vault-api'
 export type { AutomationsApi, ExternalAutomationManagerResult } from './api/automation-api'
