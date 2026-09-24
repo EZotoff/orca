@@ -42,6 +42,13 @@ vi.mock('../supervisor-relay/SupervisorRelayView', () => ({
   SupervisorRelayView: () => <section data-supervisor-relay-stub="" />
 }))
 
+vi.mock('@/store/selectors', () => ({
+  useWorktreeById: (worktreeId: string | null) =>
+    worktreeId === 'w'
+      ? { id: 'w', branch: 'refs/heads/main', head: 'abc1234', worktreeName: 'wt' }
+      : null
+}))
+
 import { OverviewPanel } from './OverviewPanel'
 
 function card(overrides: Partial<DashboardCard> & { paneKey: string }): DashboardCard {
@@ -86,7 +93,11 @@ function snapshotWith(cards: DashboardCard[]): DashboardSnapshot {
 const initialState = useAppStore.getInitialState()
 
 beforeEach(() => {
-  useAppStore.setState({ ...initialState, overviewPanelCollapsed: false }, true)
+  useAppStore.setState({
+    ...initialState,
+    overviewPanelCollapsed: false,
+    gitStatusByWorktree: { w: [{ path: 'src/a.ts', status: 'modified', area: 'unstaged' }] }
+  }, true)
   mocks.snapshot = snapshotWith([
     card({
       paneKey: 'a1',
@@ -191,6 +202,14 @@ describe('OverviewPanel', () => {
   it('embeds the Supervisor escalation section (widget 3) above the agent bands', () => {
     const { container } = render(<OverviewPanel />)
     expect(container.querySelector('[data-overview-supervisor] [data-supervisor-relay-stub]')).not.toBeNull()
+  })
+
+  it('shows the branch label and dirty dot on the rail (widget 4)', () => {
+    const { container } = render(<OverviewPanel />)
+    expect(container.querySelector('[data-overview-rail-git="alpha"]')?.textContent).toContain('main')
+    expect(container.querySelector('[data-overview-rail-dirty="alpha"]')).not.toBeNull()
+    // Cardless project without git identity renders no indicator.
+    expect(container.querySelector('[data-overview-rail-git="quiet"]')).toBeNull()
   })
 
   it('renders the fixed bucket-count chips (Needs You / Working / Done / Idle)', () => {
