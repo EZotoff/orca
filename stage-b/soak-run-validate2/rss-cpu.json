@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-09-24T05:22:49.835026+00:00",
+  "window": {
+    "start": "2026-09-24T07:20:13+02:00",
+    "end": "2026-09-24T07:22:49+02:00",
+    "samples": 16,
+    "valid": 16,
+    "invalid": 0
+  },
+  "budgets": {
+    "rss_over_baseline_bytes": 1073741824,
+    "rss_over_baseline_note": "aggregate Orca-owned RSS must stay below the start-of-full-load baseline + 1 GiB",
+    "final4h_growth_bytes_per_hour": 104857600,
+    "final4h_growth_note": "growth over the final four active hours below 100 MiB/hour",
+    "idle_cpu_cores_15min_avg": 0.2,
+    "idle_cpu_note": "idle-period aggregate CPU averages below 20% of one core over 15-minute windows",
+    "cpu_sustained_cores": 1.0,
+    "cpu_sustained_window_sec": 300,
+    "cpu_sustained_note": "never sustain above one core for five minutes absent a known job"
+  },
+  "perPid": {
+    "4034721": {
+      "class": "orcad",
+      "starttime": "28843024",
+      "max_rss_bytes": 220065792,
+      "samples": 16
+    },
+    "4155258": {
+      "class": "electron-main",
+      "starttime": "28942865",
+      "max_rss_bytes": 347201536,
+      "samples": 2
+    },
+    "4155263": {
+      "class": "electron-zygote",
+      "starttime": "28942870",
+      "max_rss_bytes": 55992320,
+      "samples": 2
+    },
+    "4155264": {
+      "class": "electron-zygote",
+      "starttime": "28942870",
+      "max_rss_bytes": 55988224,
+      "samples": 2
+    },
+    "4155387": {
+      "class": "orca-helper",
+      "starttime": "28942938",
+      "max_rss_bytes": 4153344,
+      "samples": 2
+    },
+    "4155475": {
+      "class": "electron-gpu",
+      "starttime": "28942956",
+      "max_rss_bytes": 145158144,
+      "samples": 2
+    },
+    "4155482": {
+      "class": "electron-utility",
+      "starttime": "28942957",
+      "max_rss_bytes": 85118976,
+      "samples": 2
+    },
+    "4155524": {
+      "class": "electron-renderer",
+      "starttime": "28942977",
+      "max_rss_bytes": 290586624,
+      "samples": 2
+    },
+    "4155602": {
+      "class": "electron-main",
+      "starttime": "28942996",
+      "max_rss_bytes": 95219712,
+      "samples": 2
+    },
+    "4157502": {
+      "class": "electron-main",
+      "starttime": "28945555",
+      "max_rss_bytes": 343580672,
+      "samples": 14
+    },
+    "4157509": {
+      "class": "electron-zygote",
+      "starttime": "28945558",
+      "max_rss_bytes": 57188352,
+      "samples": 14
+    },
+    "4157510": {
+      "class": "electron-zygote",
+      "starttime": "28945558",
+      "max_rss_bytes": 57049088,
+      "samples": 14
+    },
+    "4157568": {
+      "class": "orca-helper",
+      "starttime": "28945596",
+      "max_rss_bytes": 4292608,
+      "samples": 14
+    },
+    "4157596": {
+      "class": "electron-gpu",
+      "starttime": "28945601",
+      "max_rss_bytes": 179175424,
+      "samples": 14
+    },
+    "4157610": {
+      "class": "electron-utility",
+      "starttime": "28945602",
+      "max_rss_bytes": 85389312,
+      "samples": 14
+    },
+    "4157656": {
+      "class": "electron-renderer",
+      "starttime": "28945612",
+      "max_rss_bytes": 322146304,
+      "samples": 14
+    },
+    "4157693": {
+      "class": "electron-main",
+      "starttime": "28945628",
+      "max_rss_bytes": 95989760,
+      "samples": 14
+    }
+  },
+  "rss": {
+    "baseline_bytes": 1189232640,
+    "baseline_source": "operator-recorded",
+    "max_bytes": 1276624896,
+    "final_bytes": 767680512,
+    "max_over_baseline_bytes": 87392256,
+    "final_over_baseline_bytes": -421552128
+  },
+  "final4h": {
+    "hours": 0.041883333325386046,
+    "growth_bytes": -445919232,
+    "growth_bytes_per_hour": -10646698736.600374
+  },
+  "cpu": {
+    "windows_15min": [
+      {
+        "start": 1790227214.148,
+        "avg_cores": 0.3469375,
+        "n": 16
+      }
+    ],
+    "sustained_over_1core_sec": 0.0
+  },
+  "evaluation": [
+    {
+      "budget": "rss_over_baseline",
+      "limit_bytes": 1073741824,
+      "observed_bytes": 87392256,
+      "pass": true
+    },
+    {
+      "budget": "final4h_growth",
+      "limit_bytes_per_hour": 104857600,
+      "observed_bytes_per_hour": -10646698736.600374,
+      "pass": true
+    },
+    {
+      "budget": "idle_cpu_15min_avg",
+      "limit_cores": 0.2,
+      "observed_worst_cores": 0.3469375,
+      "pass": false
+    },
+    {
+      "budget": "cpu_sustained",
+      "limit_sec": 300,
+      "observed_sec": 0.0,
+      "pass": true
+    }
+  ],
+  "allPass": false
+}

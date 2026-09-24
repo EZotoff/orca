@@ -1,0 +1,16 @@
+{
+  "restart": 1790227406,
+  "paneCountBefore": 3,
+  "paneCountAfter": 3,
+  "panesRestored": true,
+  "beforeTails": [
+    "SOAK-SENTINEL-manual2-P0-END |  \uf17c  \uf07c ~/or/p/soak-synth-1  \uf1d3 \uf126 master                     \u2714  07:22:35  \uf017 ",
+    " \uf17c  \uf07c ~/or/p/soak-synth-1  \uf1d3 \uf126 maste | r                   \u2714  07:23:15  \uf017 ",
+    " \uf17c  \uf07c ~/or/p/soak-synth-1  \uf1d3 \uf126 maste | r                   \u2714  07:22:36  \uf017 "
+  ],
+  "afterTails": [
+    "SOAK-SENTINEL-r1790227406-P0-END |  \uf17c  \uf07c ~/or/p/soak-synth-1  \uf1d3 \uf126 master                     \u2714  07:23:27  \uf017 ",
+    " \uf17c  \uf07c ~/or/p/soak-synth-1  \uf1d3 \uf126 maste | r                   \u2714  07:23:28  \uf017 ",
+    " \uf17c  \uf07c ~/or/p/soak-synth-1  \uf1d3 \uf126 maste | r                   \u2714  07:23:29  \uf017 "
+  ]
+}

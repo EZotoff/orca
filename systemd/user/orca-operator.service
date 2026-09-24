@@ -10,7 +10,12 @@ Type=simple
 Environment=DISPLAY=:1
 Environment=XDG_SESSION_TYPE=x11
 WorkingDirectory=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7
-ExecStart=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/orca-ide --no-sandbox --user-data-dir=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/scratch-userdata
+# Soak (Task 25): --disable-gpu avoids the GPU-process crash seen in the G4
+# spike; --remote-debugging-port=0 lets Electron pick a free port and write
+# it to <user-data-dir>/DevToolsActivePort. A fixed port is held by the
+# detached orcad daemon + surviving PTY shells across a restart, which
+# breaks the new instance's CDP; the harness reads the actual port.
+ExecStart=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/orca-ide --no-sandbox --disable-gpu --remote-debugging-port=0 --user-data-dir=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/scratch-userdata
 Restart=on-failure
 RestartSec=2
 # wrapper discipline: no KillMode changes, no cgroup blanket-kill tweaks

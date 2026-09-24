@@ -1,0 +1,96 @@
+{
+  "ts": "2026-09-24T07:23:25.025",
+  "valid": true,
+  "cgroup_pids": [
+    4157509,
+    4157510,
+    4157568,
+    4157596,
+    4157610,
+    4157656
+  ],
+  "scope_pids": {
+    "4034721": "app-orca-4034503.scope",
+    "4157502": "app-orca-4157502.scope",
+    "4157693": "app-orca-4157502.scope"
+  },
+  "counts": {
+    "orca-helper": 1,
+    "orcad": 1,
+    "electron-gpu": 1,
+    "electron-zygote": 2,
+    "electron-utility": 1,
+    "electron-renderer": 1,
+    "electron-main": 2
+  },
+  "excluded_agent_ptys": [],
+  "per_pid": {
+    "4034721": {
+      "class": "orcad",
+      "state": "S",
+      "starttime": "28843024",
+      "ppid": 1676,
+      "rss_bytes": 157974528
+    },
+    "4157502": {
+      "class": "electron-main",
+      "state": "S",
+      "starttime": "28945555",
+      "ppid": 1676,
+      "rss_bytes": 169377792
+    },
+    "4157509": {
+      "class": "electron-zygote",
+      "state": "S",
+      "starttime": "28945558",
+      "ppid": 4157502,
+      "rss_bytes": 16826368
+    },
+    "4157510": {
+      "class": "electron-zygote",
+      "state": "S",
+      "starttime": "28945558",
+      "ppid": 4157502,
+      "rss_bytes": 17891328
+    },
+    "4157568": {
+      "class": "orca-helper",
+      "state": "S",
+      "starttime": "28945596",
+      "ppid": 1676,
+      "rss_bytes": 2772992
+    },
+    "4157596": {
+      "class": "electron-gpu",
+      "state": "S",
+      "starttime": "28945601",
+      "ppid": 4157509,
+      "rss_bytes": 88293376
+    },
+    "4157610": {
+      "class": "electron-utility",
+      "state": "S",
+      "starttime": "28945602",
+      "ppid": 4157502,
+      "rss_bytes": 26763264
+    },
+    "4157656": {
+      "class": "electron-renderer",
+      "state": "S",
+      "starttime": "28945612",
+      "ppid": 4157510,
+      "rss_bytes": 181911552
+    },
+    "4157693": {
+      "class": "electron-main",
+      "state": "S",
+      "starttime": "28945628",
+      "ppid": 4157502,
+      "rss_bytes": 34381824
+    }
+  },
+  "rss_total_bytes": 696193024,
+  "cpu_cores_est": 0.198,
+  "escaped_daemons": [],
+  "missing_daemons": []
+}

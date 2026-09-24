@@ -1,0 +1,175 @@
+{
+  "generatedAt": "2026-09-24T05:25:24.107706+00:00",
+  "window": {
+    "start": "2026-09-24T07:23:15+02:00",
+    "end": "2026-09-24T07:25:24+02:00",
+    "samples": 12,
+    "valid": 12,
+    "invalid": 0
+  },
+  "budgets": {
+    "rss_over_baseline_bytes": 1073741824,
+    "rss_over_baseline_note": "aggregate Orca-owned RSS must stay below the start-of-full-load baseline + 1 GiB",
+    "final4h_growth_bytes_per_hour": 104857600,
+    "final4h_growth_note": "growth over the final four active hours below 100 MiB/hour",
+    "idle_cpu_cores_15min_avg": 0.2,
+    "idle_cpu_note": "idle-period aggregate CPU averages below 20% of one core over 15-minute windows",
+    "cpu_sustained_cores": 1.0,
+    "cpu_sustained_window_sec": 300,
+    "cpu_sustained_note": "never sustain above one core for five minutes absent a known job"
+  },
+  "perPid": {
+    "4034721": {
+      "class": "orcad",
+      "starttime": "28843024",
+      "max_rss_bytes": 187523072,
+      "samples": 12
+    },
+    "4157502": {
+      "class": "electron-main",
+      "starttime": "28945555",
+      "max_rss_bytes": 169377792,
+      "samples": 1
+    },
+    "4157509": {
+      "class": "electron-zygote",
+      "starttime": "28945558",
+      "max_rss_bytes": 16826368,
+      "samples": 1
+    },
+    "4157510": {
+      "class": "electron-zygote",
+      "starttime": "28945558",
+      "max_rss_bytes": 17891328,
+      "samples": 1
+    },
+    "4157568": {
+      "class": "orca-helper",
+      "starttime": "28945596",
+      "max_rss_bytes": 2772992,
+      "samples": 1
+    },
+    "4157596": {
+      "class": "electron-gpu",
+      "starttime": "28945601",
+      "max_rss_bytes": 88293376,
+      "samples": 1
+    },
+    "4157610": {
+      "class": "electron-utility",
+      "starttime": "28945602",
+      "max_rss_bytes": 26763264,
+      "samples": 1
+    },
+    "4157656": {
+      "class": "electron-renderer",
+      "starttime": "28945612",
+      "max_rss_bytes": 181911552,
+      "samples": 1
+    },
+    "4157693": {
+      "class": "electron-main",
+      "starttime": "28945628",
+      "max_rss_bytes": 34381824,
+      "samples": 1
+    },
+    "4173433": {
+      "class": "electron-main",
+      "starttime": "28964144",
+      "max_rss_bytes": 345821184,
+      "samples": 11
+    },
+    "4173445": {
+      "class": "electron-zygote",
+      "starttime": "28964148",
+      "max_rss_bytes": 56545280,
+      "samples": 11
+    },
+    "4173446": {
+      "class": "electron-zygote",
+      "starttime": "28964148",
+      "max_rss_bytes": 56426496,
+      "samples": 11
+    },
+    "4173484": {
+      "class": "orca-helper",
+      "starttime": "28964201",
+      "max_rss_bytes": 4239360,
+      "samples": 11
+    },
+    "4173532": {
+      "class": "electron-gpu",
+      "starttime": "28964241",
+      "max_rss_bytes": 119287808,
+      "samples": 10
+    },
+    "4173537": {
+      "class": "electron-utility",
+      "starttime": "28964242",
+      "max_rss_bytes": 84791296,
+      "samples": 10
+    },
+    "4173561": {
+      "class": "electron-renderer",
+      "starttime": "28964261",
+      "max_rss_bytes": 276537344,
+      "samples": 10
+    },
+    "4173623": {
+      "class": "electron-main",
+      "starttime": "28964278",
+      "max_rss_bytes": 95596544,
+      "samples": 10
+    }
+  },
+  "rss": {
+    "baseline_bytes": 696193024,
+    "baseline_source": "operator-recorded",
+    "max_bytes": 1191911424,
+    "final_bytes": 823812096,
+    "max_over_baseline_bytes": 495718400,
+    "final_over_baseline_bytes": 127619072
+  },
+  "final4h": {
+    "hours": 0.03063416666454739,
+    "growth_bytes": 127619072,
+    "growth_bytes_per_hour": 4165906433.7366896
+  },
+  "cpu": {
+    "windows_15min": [
+      {
+        "start": 1790227405.025,
+        "avg_cores": -0.07208333333333329,
+        "n": 12
+      }
+    ],
+    "sustained_over_1core_sec": 10.0
+  },
+  "evaluation": [
+    {
+      "budget": "rss_over_baseline",
+      "limit_bytes": 1073741824,
+      "observed_bytes": 495718400,
+      "pass": true
+    },
+    {
+      "budget": "final4h_growth",
+      "limit_bytes_per_hour": 104857600,
+      "observed_bytes_per_hour": 4165906433.7366896,
+      "pass": false
+    },
+    {
+      "budget": "idle_cpu_15min_avg",
+      "limit_cores": 0.2,
+      "observed_worst_cores": -0.07208333333333329,
+      "pass": true
+    },
+    {
+      "budget": "cpu_sustained",
+      "limit_sec": 300,
+      "observed_sec": 10.0,
+      "pass": true
+    }
+  ],
+  "allPass": false
+}
