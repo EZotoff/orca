@@ -24,6 +24,7 @@ const terminal = (overrides: Partial<LiveTerminalHandle> = {}): LiveTerminalHand
 })
 
 const correlation = (overrides: Partial<HookCorrelation> = {}): HookCorrelation => ({
+  executionHostId: 'local',
   tabId: 'tab-1',
   leafId: LEAF_A,
   launchToken: 'tok-1',
@@ -82,7 +83,12 @@ describe('reconcileIdentityBridge', () => {
     const result = reconcile(
       [
         record({ sessionID: 'ses-1', launchToken: 'tok-1' }),
-        record({ sessionID: 'ses-2', launchToken: 'tok-2', leafId: LEAF_B, terminalHandle: 'term-2' })
+        record({
+          sessionID: 'ses-2',
+          launchToken: 'tok-2',
+          leafId: LEAF_B,
+          terminalHandle: 'term-2'
+        })
       ],
       [terminal(), terminal({ leafId: LEAF_B, terminalHandle: 'term-2' })],
       [
@@ -104,7 +110,7 @@ describe('reconcileIdentityBridge', () => {
         terminal(),
         terminal({ executionHostId: 'ssh:box', leafId: LEAF_B, terminalHandle: 'term-remote' })
       ],
-      [correlation(), correlation({ leafId: LEAF_B })],
+      [correlation(), correlation({ executionHostId: 'ssh:box', leafId: LEAF_B })],
       ['local', 'ssh:box']
     )
     expect(result.rejected).toEqual([])
@@ -112,12 +118,7 @@ describe('reconcileIdentityBridge', () => {
   })
 
   test('remote disconnect keeps the mapping as stale, never rejects it', () => {
-    const result = reconcile(
-      [record({ executionHostId: 'ssh:box' })],
-      [],
-      [],
-      ['local']
-    )
+    const result = reconcile([record({ executionHostId: 'ssh:box' })], [], [], ['local'])
     expect(result.rejected).toEqual([])
     expect(result.verified).toHaveLength(1)
     expect(result.verified[0].lifecycle).toBe('stale')
@@ -166,9 +167,11 @@ describe('reconcileIdentityBridge', () => {
   })
 
   test('unverified: a correlation naming a different session does not confirm', () => {
-    const result = reconcile([record({ sessionID: 'ses-1' })], [terminal()], [
-      correlation({ sessionID: 'ses-other' })
-    ])
+    const result = reconcile(
+      [record({ sessionID: 'ses-1' })],
+      [terminal()],
+      [correlation({ sessionID: 'ses-other' })]
+    )
     expect(result.rejected.map((entry) => entry.reason)).toEqual(['unverified'])
   })
 
@@ -191,7 +194,7 @@ describe('reconcileIdentityBridge', () => {
     ])
   })
 
-  test('duplicate root: same session on the same leaf keeps the newest revision', () => {
+  test('duplicate root: same session on the same leaf rejects both without a unique launch identity', () => {
     const result = reconcile(
       [
         record({ launchToken: 'tok-1', revision: 2 }),
@@ -200,9 +203,11 @@ describe('reconcileIdentityBridge', () => {
       [terminal()],
       [correlation({ launchToken: 'tok-1' }), correlation({ launchToken: 'tok-2' })]
     )
-    expect(result.verified).toHaveLength(1)
-    expect(result.verified[0].launchToken).toBe('tok-2')
-    expect(result.rejected.map((entry) => entry.reason)).toEqual(['duplicate-root'])
+    expect(result.verified).toEqual([])
+    expect(result.rejected.map((entry) => entry.reason)).toEqual([
+      'duplicate-root',
+      'duplicate-root'
+    ])
   })
 
   test('never invents a mapping for a correlation with no live terminal', () => {
@@ -216,5 +221,19 @@ describe('reconcileIdentityBridge', () => {
     expect(result.rejected).toEqual([])
     expect(result.verified).toHaveLength(1)
     expect(result.verified[0].lifecycle).toBe('released')
+  })
+
+  test('one host correlation cannot create a mapping for an identical leaf on another host', () => {
+    const result = reconcile(
+      [],
+      [
+        terminal({ launchToken: 'tok-1' }),
+        terminal({ executionHostId: 'ssh:box', terminalHandle: 'remote', launchToken: 'tok-1' })
+      ],
+      [correlation()],
+      ['local', 'ssh:box']
+    )
+    expect(result.verified).toHaveLength(1)
+    expect(result.verified[0].executionHostId).toBe('local')
   })
 })
