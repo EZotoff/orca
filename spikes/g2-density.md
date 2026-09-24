@@ -23,33 +23,35 @@ defines the operator's ACTUAL project inventory from the stage-a baseline:
 
 ## Measurement summary
 
-### Hidden project rows count — **GAP: NOT MEASURED**
+### Hidden project rows count — **MEASURED (board mode): 8 of 22 hidden**
 
-The armed prototype was never captured rendering the board. All four post-arm
-screenshots (`g2-shot1..4.png`, inspected 2026-09-24) show the app empty state
-("Select a workspace from the workspace sidebar to begin") with **0 board rows,
-0 status columns, no escalation card** — the `g2proto` panel never painted a
-snapshot. The earlier capture run (g2-03..13) documents onboarding and the
-Add-a-project modal, not the density view. No hidden-rows number exists.
+Board mode FAILS the hidden-rows=0 requirement: at the live render only 14 of
+22 cards are visible; 8 sit below the vertical fold (numbers from the live
+board capture below, g2-14). The earlier empty-state shots (`g2-shot1..4.png`)
+predate the render. The dense-list render itself is not yet screenshotted —
+minor residual GAP on the list mode only.
 
-### Keystrokes-to-session table — **GAP for G2; rehearsal data only**
+### Keystrokes-to-session chord table — **GAP: rehearsal data only**
 
-No G2 jump log was produced (`__g2.jump` results never captured to a file).
-Rehearsal context from the Task 8 pass (`task8-table.md`, `task8-stats.txt`):
-n=26 pairwise probes, in-tab 1–4 chords, cross-tab fall-through 1 chord;
-renderer-internal latency p50=1 / p95=16.4 / max=21.6 ms (n=26, latn=26).
-Those are Task 8 navigation numbers, not G2 panel-jump numbers.
+No per-session G2 chord-count table was produced (the jump log measures
+end-to-end jump latency, not chord counts). Rehearsal context from the Task 8
+pass (`task8-table.md`, `task8-stats.txt`): n=26 pairwise probes, in-tab 1–4
+chords, cross-tab fall-through 1 chord; renderer-internal latency p50=1 /
+p95=16.4 / max=21.6 ms (n=26, latn=26). Those are Task 8 navigation numbers,
 
-### Escalation-spot visibility — **GAP: NOT MEASURED**
+### Escalation-spot visibility — **MET (live)**
 
-The synthetic escalation never rendered (no board paint), so time-to-spot
-without scrolling/fullscreen was not observed.
+The synthetic Supervisor escalation renders as the top NEEDS YOU card, fully
+visible with zero scrolling in the live board capture (g2-14) — measured,
 
-### Board render (live, third worker's captures g2-14/g2-15, ~05:46)
+### Board render (live capture, ~05:46)
 
-The third worker's run DID render the armed board at a narrowed panel
-(~337 px on-screen, narrow-window case) before its stdout was lost — the
-screenshots carry the numbers:
+The live run DID render the armed board at a narrowed panel
+(~337 px on-screen, narrow-window case). Note: g2-14-density-live.png and
+g2-15-board-wide.png are byte-identical — one capture saved under two names
+(md5 ff509ca06af0a3abfd7541f52b7744b5); the numbers below come from that single
+screenshot. g2-16-post-jump.png shows the focused 5-pane workspace after the
+jump run. The screenshots carry the numbers:
 
 - **Only 2 of 4 status columns visible** (NEEDS YOU, WORKING) with a
   horizontal scrollbar — the board branch's 'all four columns without
@@ -141,10 +143,13 @@ Tasks 10/11 consume this decision.
   bridge-backed re-run stays queued on Task 14 per the plan.
 
 **Verdict: PASS-WITH-GAP** — the geometry decision is encoded with the
-static-geometry numbers (column min-width vs panel width) plus a passing
-prototype fast-switch measurement; remaining GAPs are the live board-visibility
-metrics and multi-tab jump coverage. The geometry decision STANDS for Tasks
-density proof before P6 promotion.
+static-geometry numbers (column min-width vs panel width) plus live evidence:
+board mode hides 8/22 rows and scrolls horizontally (g2-14), the escalation
+is visible without scroll, and the prototype fast-switch gate passes 24/24
+(max 20 ms) with the single-tab coverage caveat above. Remaining GAPs: the
+multi-tab jump coverage (re-queued on Task 14) and a list-mode render
+screenshot. The geometry decision STANDS for Tasks 10/11; nothing in the new
+data contradicts its premises.
 
 ## Cleanup receipt (2026-09-24)
 
