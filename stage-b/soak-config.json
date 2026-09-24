@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "task": "orca-transition Task 25 — G5 Stage B coexistence soak",
+  "designRef": "40-oracle-design.md §8 Stage B (pre-registered thresholds)",
+  "registeredAt": "2026-09-24T07:20:00+02:00",
+  "registeredBy": "sisyphus-junior (agent) — PRE-REGISTERED before the run; do not tune after start",
+  "budgets": {
+    "rss_over_baseline_bytes": 1073741824,
+    "rss_over_baseline_note": "aggregate Orca-owned RSS must stay below the start-of-full-load baseline + 1 GiB",
+    "final4h_growth_bytes_per_hour": 104857600,
+    "final4h_growth_note": "growth over the final four active hours below 100 MiB/hour",
+    "idle_cpu_cores_15min_avg": 0.2,
+    "idle_cpu_note": "idle-period aggregate CPU averages below 20% of one core over 15-minute windows",
+    "cpu_sustained_cores": 1.0,
+    "cpu_sustained_window_sec": 300,
+    "cpu_sustained_note": "never sustain above one core for five minutes absent a known job"
+  },
+  "schedule": {
+    "warmup": "a few projects (synthetic, labeled) to validate the harness",
+    "full_load": "operator's real 10-14-project/session shape",
+    "active_hours": 8,
+    "restarts": 2,
+    "overnight_idle": true
+  },
+  "baseline": {
+    "source": "stage-a/baseline-2026-09-24.md",
+    "machine": "32 cores, 31 GiB RAM; load ~23 at baseline (loaded, not idle)",
+    "note": "Stage B budgets are measured against the loaded baseline, not an idle machine"
+  },
+  "operator_cap_note": "Design §8: if the baseline already exceeds acceptable machine headroom, the OPERATOR sets a stricter cap before testing. No stricter cap was set at registration time, so the design defaults apply.",
+  "measurement": {
+    "process_set": "Orca-owned processes sampled by orca-workspace-watchdog.service (electron main/renderers/gpu/utility/zygote, orcad/relay, orca helpers); agent PTYs excluded and reported separately",
+    "sampler_state": "~/.local/state/orca-workspace-watchdog/samples.jsonl",
+    "sampler_interval_sec": 10
+  }
+}
