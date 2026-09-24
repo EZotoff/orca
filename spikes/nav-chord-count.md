@@ -144,3 +144,26 @@ timing), not here.
 - Operator's own processes (llama-server, zellij/opencode, rc-build Orca)
   untouched. Throwaway `app.asar` retains the Alt+[/] patch (matches the
   committed source; original backed up at `/tmp/opencode/app.asar.bak`).
+
+## History — concurrent cancelled-worker pass (kept for provenance)
+
+The cancelled measurement worker's pass landed on the branch mid-FINISH
+(commit d6ccf7aab2, run window ~03:30–04:10): same fixture construction
+(21 panes, 6 real OpenCode TUIs + 15 synthetic sleeps — this FINISH pass
+inherited that exact fixture via `task8-userdata` restore), CDP-timed
+per-jump latency (p50 1 ms, p95 16 ms, renderer-internal), and a FAIL
+verdict at "8 chords far cross-tab". Differences vs this artifact:
+
+- Their 8-chord figure came from the pairwise chase routing; the
+  cold-start, tab-aware traces here measure the same far corner
+  (T1-L1 → T3-R3) at **7** baseline / **5** after the Alt+[/] fix. The
+  cold-start number supersedes the pairwise count (per plan: the gate is
+  cold-start reachability per session, not pairwise minima).
+- Their latency stats (p50 1 ms / p95 16 ms renderer-internal) complement
+  the fast-switch rehearsal note above; the formal G2b gate still belongs
+  to Task 14.
+
+Raw evidence from that pass retained on the branch: `task8-jumps.sh`,
+`task8-layout.sh`, `task8-parse.mjs`, `task8-jumplog-{A,B,C}.txt`,
+`task8-rows.jsonl`, `task8-stats.txt`, `task8-2*.png`, and the
+`task8-table.md` pairwise rows (committed by this pass).
