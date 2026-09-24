@@ -1,0 +1,15 @@
+[Unit]
+Description=Orca workspace watchdog sampler (design 3b)
+Documentation=file:///home/ezotoff/ez-omo-config/.omo/notes/orca-transition/40-oracle-design.md
+OnFailure=orca-workspace-fallback.service
+
+[Service]
+Type=notify
+NotifyAccess=main
+WatchdogSec=30s
+ExecStart=@LIBDIR@/orca-workspace-sampler --orca-prefix /home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7 --cgroup-procs /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/orca-operator.service/cgroup.procs --pid-record-glob /home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/scratch-userdata/daemon/daemon-*.pid
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

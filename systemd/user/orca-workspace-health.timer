@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the Orca workspace health check every 15 s (Clause 3b)
+
+[Timer]
+OnBootSec=15s
+OnUnitActiveSec=15s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

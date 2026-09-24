@@ -1,0 +1,7 @@
+[Unit]
+Description=Orca workspace health check (Clause 3b: watches the watchdog)
+Documentation=file:///home/ezotoff/ez-omo-config/.omo/notes/orca-transition/40-oracle-design.md
+
+[Service]
+Type=oneshot
+ExecStart=@LIBDIR@/orca-workspace-health --orca-prefix /home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7 --cgroup-procs /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/orca-operator.service/cgroup.procs

@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""orca-workspace-fallback (design §3b OnFailure action).
+
+Atomically sets the launcher selector to zellij (idempotent) and records
+the trigger. Fired by OnFailure= when the sampler dies or is killed by the
+systemd watchdog (WatchdogSec=30s).
+"""
+from __future__ import annotations
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import orca_watchdog_lib as lib  # noqa: E402
+
+
+def main() -> int:
+    env = lib.Env()
+    env.ensure_dirs()
+    flipped = env.flip_selector(
+        reason="OnFailure: orca-workspace-watchdog died or missed WatchdogSec=30s",
+        actor="systemd-onfailure")
+    print("fallback: selector=%s flipped=%s" % (env.read_selector(), flipped))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

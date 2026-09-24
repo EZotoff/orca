@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""orca-workspace-watchdog sampler (design §3b, plan Task 23).
+
+Runs as a Type=notify systemd user service with WatchdogSec=30s and
+OnFailure=orca-workspace-fallback.service. Every 10 s it samples the
+workspace-visible signals (cgroup PIDs + registered daemon PIDs, /proc
+identity, RSS/CPU aggregates), writes timestamped state atomically, touches
+the heartbeat, and pets the watchdog via sd_notify WATCHDOG=1 (petting
+reflects sampler liveness per plan amendment: no pet within 30 s → systemd
+kills the sampler → OnFailure flips the selector). On a sustained Orca
+breach it atomically flips the launcher selector to zellij and emits an
+alert itself — it never kills PTYs or touches OpenCode/Supervisor data.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import orca_watchdog_lib as lib  # noqa: E402
+
+
+def parse_args(argv):
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--cgroup-procs", required=True,
+                   help="path to orca-operator.service cgroup.procs")
+    p.add_argument("--pid-record-glob", required=True,
+                   help="glob for Orca daemon pid-record files")
+    p.add_argument("--interval", type=float,
+                   default=float(os.environ.get("ORCA_WATCHDOG_INTERVAL", "10")))
+    p.add_argument("--orca-prefix",
+                   default=os.environ.get("ORCA_WATCHDOG_ORCA_PREFIX"),
+                   help="RC install dir; scope members must match this prefix")
+    p.add_argument("--once", action="store_true",
+                   help="run a single cycle and exit (tests/verification)")
+    p.add_argument("--cycles", type=int, default=0,
+                   help="exit after N cycles (0 = forever; tests)")
+    return p.parse_args(argv)
+
+
+def run(env: lib.Env, args) -> int:
+    env.ensure_dirs()
+    if not env.read_selector():
+        _init_selector(env)
+    prev_cpu = None
+    baseline_rss = None
+    breach_streaks: dict[str, int] = {}
+    rss_breach_streak = 0
+    cpu_over_streak = 0
+    cycle = 0
+    env.sd_notify("READY=1")
+    while True:
+        sample, prev_cpu = lib.sample_once(env, args.cgroup_procs,
+                                           args.pid_record_glob, prev_cpu,
+                                           orca_prefix=args.orca_prefix)
+        env.append_line("samples.jsonl", sample)
+        env.write_atomic("current.json", json.dumps(sample, indent=2) + "\n")
+        healthy, reasons = lib.evaluate(sample)
+        # baseline = start-of-full-load RSS (first valid sample)
+        if baseline_rss is None and sample.get("valid"):
+            baseline_rss = sample.get("rss_total_bytes")
+        rss_breach = (baseline_rss is not None
+                      and sample.get("valid")
+                      and sample["rss_total_bytes"] - baseline_rss > lib.RSS_BREACH_BYTES)
+        rss_breach_streak = rss_breach_streak + 1 if rss_breach else 0
+        cpu_over = (sample.get("cpu_cores_est") or 0.0) > lib.CPU_SUSTAINED_CORES
+        cpu_over_streak = cpu_over_streak + 1 if cpu_over else 0
+        decision = {"ts": lib.iso_now(), "cycle": cycle, "healthy": healthy,
+                    "reasons": reasons, "rss_breach_streak": rss_breach_streak,
+                    "cpu_over_streak": cpu_over_streak, "action": "none"}
+        for r in reasons:
+            breach_streaks[r] = breach_streaks.get(r, 0) + 1
+        sustained = [r for r, n in breach_streaks.items() if n >= lib.RSS_BREACH_STREAK]
+        if sustained:
+            decision["action"] = "selector-flip"
+            decision["sustained_reasons"] = sustained
+            env.flip_selector(reason=";".join(sustained), actor="sampler")
+        elif rss_breach_streak >= lib.RSS_BREACH_STREAK:
+            decision["action"] = "selector-flip"
+            decision["sustained_reasons"] = ["rss-budget-breach"]
+            env.flip_selector(reason="rss-budget-breach (+1GiB over baseline "
+                              "sustained %d samples)" % rss_breach_streak,
+                              actor="sampler")
+        elif cpu_over_streak >= lib.CPU_SUSTAINED_SAMPLES:
+            decision["action"] = "selector-flip"
+            decision["sustained_reasons"] = ["cpu-sustained-breach"]
+            env.flip_selector(reason="cpu-sustained-breach (>1 core for 5 min)",
+                              actor="sampler")
+        if healthy:
+            breach_streaks.clear()
+        env.append_line("decisions.jsonl", decision)
+        env.write_atomic("last-decision.json", json.dumps(decision, indent=2) + "\n")
+        # Heartbeat + pet reflect sampler liveness (Clause 3b: sampler touches
+        # the heartbeat every 10 s; sd_notify WATCHDOG=1 per plan amendment).
+        env.touch_heartbeat()
+        env.sd_notify("WATCHDOG=1")
+        cycle += 1
+        if args.once or (args.cycles and cycle >= args.cycles):
+            return 0
+        time.sleep(args.interval)
+
+
+def _init_selector(env: lib.Env):
+    env.ensure_dirs()
+    tmp = env.selector + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write("orca\n")
+    os.rename(tmp, env.selector)
+
+
+def main() -> int:
+    args = parse_args(sys.argv[1:])
+    return run(lib.Env(), args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,19 @@
+[Unit]
+Description=Orca operator (RC packaged Orca candidate, design 3b wrapper)
+Documentation=file:///home/ezotoff/ez-omo-config/.omo/notes/orca-transition/40-oracle-design.md
+# Transparent wrapper: preserves the app's own launch/update/quit behavior.
+# No WatchdogSec here (Electron has no sd_notify); liveness policy is owned
+# by orca-workspace-watchdog.service per design 3b / plan Task 23.
+
+[Service]
+Type=simple
+Environment=DISPLAY=:1
+Environment=XDG_SESSION_TYPE=x11
+WorkingDirectory=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7
+ExecStart=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/orca-ide --no-sandbox --user-data-dir=/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/scratch-userdata
+Restart=on-failure
+RestartSec=2
+# wrapper discipline: no KillMode changes, no cgroup blanket-kill tweaks
+
+[Install]
+WantedBy=default.target

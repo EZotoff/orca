@@ -1,0 +1,7 @@
+[Unit]
+Description=Orca selector fallback (OnFailure action, design 3b)
+Documentation=file:///home/ezotoff/ez-omo-config/.omo/notes/orca-transition/40-oracle-design.md
+
+[Service]
+Type=oneshot
+ExecStart=@LIBDIR@/orca-workspace-fallback

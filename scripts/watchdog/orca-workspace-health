@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""orca-workspace-health (Clause 3b amendment).
+
+Run every 15 s by orca-workspace-health.timer, outside the Orca cgroup.
+If the sampler heartbeat is older than 30 s while the Orca cgroup is
+non-empty, atomically flip the launcher selector to zellij, emit the
+user-visible alert and record the breach. Never kills PTYs, never touches
+OpenCode/Supervisor data. No-op otherwise.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import orca_watchdog_lib as lib  # noqa: E402
+
+HEARTBEAT_STALE_SEC = 30.0
+
+
+def main(argv) -> int:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--cgroup-procs", required=True,
+                   help="path to orca-operator.service cgroup.procs")
+    p.add_argument("--orca-prefix",
+                   default=os.environ.get("ORCA_WATCHDOG_ORCA_PREFIX"),
+                   help="RC install dir; app-orca-*.scope members matching "
+                        "this prefix count as live Orca")
+    args = p.parse_args(argv)
+    env = lib.Env()
+    age = env.heartbeat_age()
+    cgroup_pids = lib.read_cgroup_pids(args.cgroup_procs)
+    if not cgroup_pids and args.orca_prefix:
+        cgroup_pids = list(lib.discover_scope_pids(
+            os.path.dirname(os.path.dirname(os.path.abspath(args.cgroup_procs))),
+            args.orca_prefix, env.proc_root))
+    if age is None or age > HEARTBEAT_STALE_SEC:
+        if cgroup_pids:
+            env.ensure_dirs()
+            flipped = env.flip_selector(
+                reason="sampler heartbeat stale (%s) while Orca cgroup non-empty"
+                       % ("missing" if age is None else "%.0fs old" % age),
+                actor="health-timer")
+            print("health: stale sampler heartbeat with live Orca cgroup"
+                  "%s — selector=%s" % ("; flipped" if flipped else "",
+                                        env.read_selector()))
+            return 0
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
