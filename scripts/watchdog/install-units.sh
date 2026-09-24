@@ -14,6 +14,7 @@ mkdir -p "$LIBDIR" "$UNIT_DIR"
 install -m 0755 "$REPO_ROOT/scripts/watchdog/orca-workspace-sampler" "$LIBDIR/"
 install -m 0755 "$REPO_ROOT/scripts/watchdog/orca-workspace-health" "$LIBDIR/"
 install -m 0755 "$REPO_ROOT/scripts/watchdog/orca-workspace-fallback" "$LIBDIR/"
+install -m 0755 "$REPO_ROOT/scripts/watchdog/orca-launcher" "$LIBDIR/"
 install -m 0644 "$REPO_ROOT/scripts/watchdog/orca_watchdog_lib.py" "$LIBDIR/"
 
 for unit in orca-operator.service orca-workspace-watchdog.service \

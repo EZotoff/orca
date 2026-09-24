@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Login launcher (design 40-oracle-design.md §8, plan Task 24).
+#
+# Reads the persistent launcher-selector file on EVERY invocation and refuses
+# `orca` unless watchdog health is current (sampler heartbeat age < 30 s).
+# On refusal it falls back to zellij and records the refusal. It never kills
+# anything and never edits OpenCode/Supervisor data.
+#
+# This is the THIRD layer of the rollback contract: the sampler flips the
+# selector on a sustained Orca breach, the health timer flips it when the
+# sampler itself is stale, and this launcher refuses a stale `orca` selector
+# for any FUTURE launch. It does not flip the selector itself.
+#
+# Env overrides (tests / non-default installs):
+#   ORCA_WATCHDOG_STATE_DIR          state dir (default ~/.local/state/orca-workspace-watchdog)
+#   ORCA_WATCHDOG_SELECTOR_FILE      selector path (default <state>/launcher-selector)
+#   ORCA_LAUNCHER_MAX_HEARTBEAT_AGE  max heartbeat age in seconds (default 30)
+#   ORCA_LAUNCHER_ORCA_CMD           command to launch Orca (default systemctl start)
+#   ORCA_LAUNCHER_ZELLIJ_CMD         command to launch zellij (default zellij)
+set -euo pipefail
+
+STATE_DIR="${ORCA_WATCHDOG_STATE_DIR:-$HOME/.local/state/orca-workspace-watchdog}"
+SELECTOR_FILE="${ORCA_WATCHDOG_SELECTOR_FILE:-$STATE_DIR/launcher-selector}"
+HEARTBEAT="$STATE_DIR/heartbeat"
+MAX_AGE="${ORCA_LAUNCHER_MAX_HEARTBEAT_AGE:-30}"
+ORCA_CMD="${ORCA_LAUNCHER_ORCA_CMD:-systemctl --user start orca-operator.service}"
+ZELLIJ_CMD="${ORCA_LAUNCHER_ZELLIJ_CMD:-zellij}"
+
+heartbeat_age() {
+  # Prints integer seconds since the sampler last touched the heartbeat.
+  # Returns non-zero (no output) when the heartbeat is missing/unreadable.
+  [ -f "$HEARTBEAT" ] || return 1
+  local now mtime
+  now=$(date +%s)
+  mtime=$(stat -c %Y "$HEARTBEAT" 2>/dev/null) || return 1
+  echo $(( now - mtime ))
+}
+
+read_selector() {
+  local s
+  s=$(cat "$SELECTOR_FILE" 2>/dev/null || true)
+  # strip all whitespace
+  s="${s//[[:space:]]/}"
+  printf '%s' "$s"
+}
+
+# decide: prints the effective launcher ("orca" or "zellij") and exits 0.
+decide() {
+  local selector age
+  selector=$(read_selector)
+  if [ "$selector" = "orca" ]; then
+    if age=$(heartbeat_age) && [ "$age" -le "$MAX_AGE" ]; then
+      printf 'orca'
+      return 0
+    fi
+    printf 'zellij'
+    return 0
+  fi
+  printf 'zellij'
+}
+
+record_refusal() {
+  # Only reached when the selector said orca but health was stale.
+  local age
+  age=$(heartbeat_age || echo "missing")
+  mkdir -p "$STATE_DIR"
+  printf '%s launcher: refused orca (watchdog heartbeat %ss old, max %ss); falling back to zellij\n' \
+    "$(date -Is)" "$age" "$MAX_AGE" >> "$STATE_DIR/launcher-refusals.log"
+}
+
+case "${1:-}" in
+  --decide)
+    decide
+    printf '\n'
+    exit 0
+    ;;
+  --help|-h)
+    echo "usage: orca-launcher [--decide]"
+    exit 0
+    ;;
+esac
+
+selector=$(read_selector)
+choice=$(decide)
+if [ "$choice" = "orca" ]; then
+  exec $ORCA_CMD
+fi
+if [ "$selector" = "orca" ]; then
+  record_refusal
+fi
+exec $ZELLIJ_CMD

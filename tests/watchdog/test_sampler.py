@@ -29,9 +29,9 @@ spec2.loader.exec_module(sampler)
 PAGE = 4096
 
 
-def make_stat(pid, ppid, comm, utime=100, stime=100):
+def make_stat(pid, ppid, comm, utime=100, stime=100, state="S"):
     # fields 3..24 of /proc/pid/stat (after "pid (comm) ")
-    f = ["S"] + ["1"] * 20  # fields 3..22+
+    f = [state] + ["1"] * 20  # fields 3..22+
     f[1] = str(ppid)        # field 4 (ppid)
     f[11] = str(utime)      # field 14
     f[12] = str(stime)      # field 15
@@ -57,13 +57,13 @@ class Fixture:
         self.sock.settimeout(0.05)
         self._next_pid = [100]
 
-    def add(self, comm, cmdline, ppid=1, rss_pages=10):
+    def add(self, comm, cmdline, ppid=1, rss_pages=10, state="S"):
         pid = self._next_pid[0]
         self._next_pid[0] += 1
         d = os.path.join(self.proc, str(pid))
         os.makedirs(d)
         with open(os.path.join(d, "stat"), "w") as fh:
-            fh.write(make_stat(pid, ppid, comm))
+            fh.write(make_stat(pid, ppid, comm, state=state))
         with open(os.path.join(d, "cmdline"), "wb") as fh:
             fh.write(("\0".join(cmdline) + "\0").encode())
         with open(os.path.join(d, "statm"), "w") as fh:
@@ -230,6 +230,51 @@ class SamplerTests(unittest.TestCase):
         self.assertEqual(self.fx.env().read_selector(), "orca")
         self.assertEqual(self.fx.decisions()[-1]["action"], "none")
 
+    def test_hung_electron_main_flips_after_sustained_breach(self):
+        # Forced Electron hang: the required main is SIGSTOPped (state T).
+        main, daemon = self.healthy_fixture()
+        d = os.path.join(self.fx.proc, str(main))
+        with open(os.path.join(d, "stat"), "w") as fh:
+            fh.write(make_stat(main, 1, "orca-ide", state="T"))
+        self.fx.run_sampler(cycles=3)
+        s = self.fx.samples()[0]
+        self.assertEqual(s["per_pid"][str(main)]["state"], "T")
+        self.assertIn("electron-main-hung", self.fx.decisions()[0]["reasons"])
+        self.assertEqual(self.fx.env().read_selector(), "zellij")
+        self.assertEqual(self.fx.decisions()[-1]["action"], "selector-flip")
+
+    def test_hung_main_short_does_not_flip(self):
+        main, daemon = self.healthy_fixture()
+        d = os.path.join(self.fx.proc, str(main))
+        with open(os.path.join(d, "stat"), "w") as fh:
+            fh.write(make_stat(main, 1, "orca-ide", state="T"))
+        self.fx.run_sampler(cycles=2)
+        self.assertEqual(self.fx.env().read_selector(), "orca")
+
+    def test_zombie_main_is_hung(self):
+        main, daemon = self.healthy_fixture()
+        d = os.path.join(self.fx.proc, str(main))
+        with open(os.path.join(d, "stat"), "w") as fh:
+            fh.write(make_stat(main, 1, "orca-ide", state="Z"))
+        self.fx.run_sampler(cycles=1)
+        self.assertIn("electron-main-hung", self.fx.decisions()[0]["reasons"])
+
+    def test_threshold_env_override(self):
+        # The pre-Stage-C threshold simulation relies on env-overridable
+        # constants; verify the module reads them at import.
+        import subprocess
+        code = ("import importlib.util,os;"
+                "spec=importlib.util.spec_from_file_location('l','" +
+                os.path.join(HERE, '..', '..', 'scripts', 'watchdog',
+                             'orca_watchdog_lib.py') + "');"
+                "m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);"
+                "print(m.RSS_BREACH_BYTES, m.CPU_SUSTAINED_SAMPLES)")
+        env = dict(os.environ, ORCA_WATCHDOG_RSS_BREACH_BYTES="7",
+                   ORCA_WATCHDOG_CPU_SUSTAINED_SAMPLES="2")
+        out = subprocess.run(["python3", "-c", code], env=env,
+                             capture_output=True, text=True, check=True)
+        self.assertEqual(out.stdout.strip(), "7 2")
+
     def test_escaped_registered_daemon_is_gate_failure(self):
         main, daemon = self.healthy_fixture()
         # daemon registered but RUNNING OUTSIDE the operator cgroup
@@ -251,6 +296,31 @@ class SamplerTests(unittest.TestCase):
         s = self.fx.samples()[0]
         self.assertEqual(len(s["missing_daemons"]), 1)
         self.assertFalse(self.fx.decisions()[0]["healthy"])
+        self.assertEqual(self.fx.env().read_selector(), "zellij")
+
+    def test_json_pid_record_parsed(self):
+        # Live daemon pid-records are JSON ({\"pid\":N,...}), not bare ints.
+        path = os.path.join(self.fx.pid_records, "daemon-v36.pid")
+        with open(path, "w") as fh:
+            fh.write('{"pid":4242,"startedAtMs":1.5,"bootId":"x"}')
+        reg = lib.load_registered_daemons(self.fx.proc,
+                                        os.path.join(self.fx.pid_records, "daemon-*.pid"))
+        self.assertEqual(reg, {4242: path})
+        # bare-int fixture shape still parses
+        with open(path, "w") as fh:
+            fh.write("4243\n")
+        reg = lib.load_registered_daemons(self.fx.proc,
+                                        os.path.join(self.fx.pid_records, "daemon-*.pid"))
+        self.assertEqual(reg, {4243: path})
+
+    def test_missing_orcad_flips(self):
+        # Required daemon gone AND its pid-record removed: the scope no longer
+        # yields an orcad, so the sampler must flag missing-orcad.
+        main, daemon = self.healthy_fixture()
+        os.remove(os.path.join(self.fx.pid_records, "daemon-v36.pid"))
+        self.fx.set_cgroup([main])
+        self.fx.run_sampler(cycles=3)
+        self.assertIn("missing-orcad", self.fx.decisions()[0]["reasons"])
         self.assertEqual(self.fx.env().read_selector(), "zellij")
 
     def test_invalid_sample_unhealthy(self):
@@ -308,6 +378,31 @@ class SamplerTests(unittest.TestCase):
         with open(os.path.join(self.fx.state, "breaches.jsonl")) as fh:
             lines = [ln for ln in fh if ln.strip()]
         self.assertEqual(len(lines), 1)
+
+    def test_flip_atomicity_concurrent_reader(self):
+        # A concurrent reader must never observe a partial/empty selector:
+        # flip_selector writes a temp file + fsync + rename.
+        import threading
+        env = self.fx.env()
+        env.ensure_dirs()
+        env.write_atomic("launcher-selector", "orca\n")
+        stop = [False]
+        bad = []
+
+        def reader():
+            while not stop[0]:
+                v = env.read_selector()
+                if v not in ("orca", "zellij"):
+                    bad.append(repr(v))
+
+        t = threading.Thread(target=reader)
+        t.start()
+        for _ in range(1000):
+            env.write_atomic("launcher-selector", "orca\n")
+            env.flip_selector("atomicity", "tester")
+        stop[0] = True
+        t.join()
+        self.assertEqual(bad, [])
 
 
 if __name__ == "__main__":

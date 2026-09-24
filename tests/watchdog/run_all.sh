@@ -5,6 +5,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 bash "$HERE/test_units_verify.sh"
+bash "$HERE/test_launcher.sh"
 python3 "$HERE/test_sampler.py"
 python3 "$HERE/test_health.py"
 bash "$HERE/test_watchdog_expiry_live.sh"

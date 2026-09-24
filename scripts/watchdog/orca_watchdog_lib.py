@@ -17,11 +17,13 @@ import time
 
 DEFAULT_STATE = os.path.expanduser("~/.local/state/orca-workspace-watchdog")
 
-# Design §3b thresholds (Stage-B budgets).
-RSS_BREACH_BYTES = 1 << 30          # +1 GiB over start-of-full-load baseline
-RSS_BREACH_STREAK = 3               # sustained over 3 samples (30 s)
-CPU_SUSTAINED_SAMPLES = 30          # 5 min at 10 s cadence
-CPU_SUSTAINED_CORES = 1.0           # >1 core sustained
+# Design §3b thresholds (Stage-B budgets). Env-overridable so the pre-Stage-C
+# demonstrations can simulate a threshold breach against a real Orca instance
+# without allocating a real GiB or burning a real 5-minute CPU window.
+RSS_BREACH_BYTES = int(os.environ.get("ORCA_WATCHDOG_RSS_BREACH_BYTES", 1 << 30))
+RSS_BREACH_STREAK = int(os.environ.get("ORCA_WATCHDOG_RSS_BREACH_STREAK", 3))
+CPU_SUSTAINED_SAMPLES = int(os.environ.get("ORCA_WATCHDOG_CPU_SUSTAINED_SAMPLES", 30))
+CPU_SUSTAINED_CORES = float(os.environ.get("ORCA_WATCHDOG_CPU_SUSTAINED_CORES", 1.0))
 CLK_TCK = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
 
 AGENT_PTY_EXCLUDED_CLASSES = ("agent-pty",)
@@ -147,6 +149,7 @@ def read_pid_meta(pid: str, proc_root: str) -> dict | None:
     # field N (1-based, N>=3) == tail[N-3]
     return {
         "pid": int(pid),
+        "state": tail[0],                    # field 3 (R/S/D/T/t/Z)
         "ppid": int(tail[1]),                 # field 4
         "starttime": tail[19],                # field 22 (string keeps precision)
         "utime": int(tail[11]),               # field 14
@@ -197,11 +200,31 @@ def load_registered_daemons(proc_root: str, pid_record_glob: str) -> dict[int, s
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 txt = fh.read().strip()
-            pid = int(txt.split()[0])
+            pid = _parse_pid_record(txt)
+            if pid is None:
+                continue
             registered[pid] = path
         except (OSError, ValueError, IndexError):
             continue
     return registered
+
+
+def _parse_pid_record(txt: str) -> int | None:
+    """Parse an Orca daemon pid-record. Live records are JSON
+    ({\"pid\":N,...}); the Task-23 test fixtures wrote a bare integer.
+    Accept both; return None when neither shape yields a pid."""
+    txt = txt.strip()
+    if not txt:
+        return None
+    if txt.startswith("{"):
+        try:
+            return int(json.loads(txt)["pid"])
+        except (ValueError, KeyError, TypeError):
+            return None
+    try:
+        return int(txt.split()[0])
+    except (ValueError, IndexError):
+        return None
 
 
 def _type_arg(cmdline: list[str]) -> str | None:
@@ -301,7 +324,8 @@ def sample_once(env: Env, cgroup_procs: str, pid_record_glob: str,
             "ts": ts, "valid": True, "cgroup_pids": sorted(int(p) for p in cgroup_pid_list),
             "scope_pids": {str(p): scope for p, scope in scope_pids.items()},
             "counts": counts, "excluded_agent_ptys": excluded,
-            "per_pid": {str(p): {"class": cls[p], "starttime": metas[p]["starttime"],
+            "per_pid": {str(p): {"class": cls[p], "state": metas[p]["state"],
+                                 "starttime": metas[p]["starttime"],
                                  "ppid": metas[p]["ppid"],
                                  "rss_bytes": metas[p]["rss_bytes"]}
                         for p in sorted(metas)},
@@ -323,8 +347,18 @@ def evaluate(sample: dict) -> tuple[bool, list[str]]:
     counts = sample.get("counts", {})
     if counts.get("electron-main", 0) < 1:
         reasons.append("missing-electron-main")
+    elif any(info.get("class") == "electron-main"
+             and info.get("state") in ("T", "t", "Z")
+             for info in sample.get("per_pid", {}).values()):
+        # Independently observable failed health gate: the required Electron
+        # main is stopped (SIGSTOP) or a zombie — a forced hang, not a live app.
+        reasons.append("electron-main-hung")
     if sample.get("escaped_daemons"):
         reasons.append("escaped-registered-daemon")
     if sample.get("missing_daemons"):
         reasons.append("missing-registered-daemon")
+    if counts.get("orcad", 0) < 1 and counts.get("relay", 0) < 1:
+        # Required Orca daemon/relay absent (covers a dead daemon whose
+        # pid-record was removed, not just a stale registered pid).
+        reasons.append("missing-orcad")
     return (not reasons), reasons

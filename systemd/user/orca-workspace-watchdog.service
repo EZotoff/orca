@@ -8,8 +8,12 @@ Type=notify
 NotifyAccess=main
 WatchdogSec=30s
 ExecStart=@LIBDIR@/orca-workspace-sampler --orca-prefix /home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7 --cgroup-procs /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/orca-operator.service/cgroup.procs --pid-record-glob /home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/scratch-userdata/daemon/daemon-*.pid
-Restart=on-failure
-RestartSec=5
+# Restart=on-failure would move the unit to auto-restart instead of the
+# failed state, and systemd 249 then does NOT trigger OnFailure= (verified
+# 2026-09-24: watchdog kill -> 'Failed with result watchdog' -> restart, no
+# OnFailure). The design requires OnFailure to fire when the sampler itself
+# hangs/dies, so the sampler is NOT auto-restarted: a dead sampler means the
+# rollback fires and the operator is returned to zellij.
 
 [Install]
 WantedBy=default.target
