@@ -1,0 +1,128 @@
+### A1-AltRight-from-L2 origin=L2 key=alt+Right 2026-09-24T03:15:54+02:00
+-- origin-active: {"cx":1003,"cy":806,"tag":"TEXTAREA"}
+-- cdp-events:
+{"t":1790212554261,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212554280,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212554282,"type":"keyup","key":"ArrowRight","code":"ArrowRight","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- dest-active: {"cx":1730,"cy":419,"tag":"TEXTAREA"}
+### A2-AltL-from-L2 origin=L2 key=alt+l 2026-09-24T03:15:55+02:00
+-- origin-active: {"cx":1730,"cy":419,"tag":"TEXTAREA"}
+-- cdp-events:
+{"t":1790212555232,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212555246,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212555251,"type":"keyup","key":"l","code":"KeyL","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- dest-active: {"cx":1730,"cy":419,"tag":"TEXTAREA"}
+### A3-Alth-from-R2 origin=R2 key=alt+h 2026-09-24T03:15:55+02:00
+### A3-Alth-from-R2 origin=(1730,1193) key=alt+h 2026-09-24T03:16:36+02:00
+-- origin-active: {"cx":1730,"cy":1193}
+-- cdp-window-events:
+{"t":1790212597374,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212597399,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212597406,"type":"keyup","key":"h","code":"KeyH","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"h","code":"KeyH","alt":true,"ts":1790212597384},{"m":"stopImm","type":"keydown","key":"h","code":"KeyH","alt":true,"ts":1790212597384}]
+-- dest-active: {"cx":1003,"cy":806}
+### B1-AltRight-from-L2 origin=(1003,806) key=alt+Right 2026-09-24T03:16:50+02:00
+-- origin-active: {"cx":1003,"cy":806}
+-- cdp-window-events:
+{"t":1790212610937,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212610955,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212610962,"type":"keyup","key":"ArrowRight","code":"ArrowRight","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"ArrowRight","code":"ArrowRight","alt":true,"ts":1790212610943},{"m":"stopImm","type":"keydown","key":"ArrowRight","code":"ArrowRight","alt":true,"ts":1790212610943}]
+-- dest-active: {"cx":1730,"cy":419}
+### B2-AltL-from-L2 origin=(1003,806) key=alt+l 2026-09-24T03:16:52+02:00
+-- origin-active: {"cx":1003,"cy":806}
+-- cdp-window-events:
+{"t":1790212614870,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212614911,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212614911,"type":"keyup","key":"l","code":"KeyL","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"l","code":"KeyL","alt":true,"ts":1790212614889},{"m":"stopImm","type":"keydown","key":"l","code":"KeyL","alt":true,"ts":1790212614889}]
+-- dest-active: {"cx":1730,"cy":419}
+### B3-AltLeft-from-R1 origin=(1730,419) key=alt+Left 2026-09-24T03:16:55+02:00
+-- origin-active: {"cx":1730,"cy":419}
+-- cdp-window-events:
+{"t":1790212616754,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212616793,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212616794,"type":"keyup","key":"ArrowLeft","code":"ArrowLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"ArrowLeft","code":"ArrowLeft","alt":true,"ts":1790212616766},{"m":"stopImm","type":"keydown","key":"ArrowLeft","code":"ArrowLeft","alt":true,"ts":1790212616766}]
+-- dest-active: {"cx":1003,"cy":806}
+### B4-AltUp-from-R2 origin=(1730,1193) key=alt+Up 2026-09-24T03:16:57+02:00
+-- origin-active: {"cx":1730,"cy":1193}
+-- cdp-window-events:
+{"t":1790212618437,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212618460,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212618465,"type":"keyup","key":"ArrowUp","code":"ArrowUp","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"ArrowUp","code":"ArrowUp","alt":true,"ts":1790212618443},{"m":"stopImm","type":"keydown","key":"ArrowUp","code":"ArrowUp","alt":true,"ts":1790212618443}]
+-- dest-active: {"cx":1730,"cy":419}
+### B5-AltK-from-R2 origin=(1730,1193) key=alt+k 2026-09-24T03:16:59+02:00
+-- origin-active: {"cx":1730,"cy":1193}
+-- cdp-window-events:
+{"t":1790212620101,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212620121,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212620125,"type":"keyup","key":"k","code":"KeyK","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"k","code":"KeyK","alt":true,"ts":1790212620107},{"m":"stopImm","type":"keydown","key":"k","code":"KeyK","alt":true,"ts":1790212620107}]
+-- dest-active: {"cx":1730,"cy":419}
+### B6-AltDown-from-R1 origin=(1730,419) key=alt+Down 2026-09-24T03:17:00+02:00
+-- origin-active: {"cx":1730,"cy":419}
+-- cdp-window-events:
+{"t":1790212622410,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212622435,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212622435,"type":"keyup","key":"ArrowDown","code":"ArrowDown","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"ArrowDown","code":"ArrowDown","alt":true,"ts":1790212622415},{"m":"stopImm","type":"keydown","key":"ArrowDown","code":"ArrowDown","alt":true,"ts":1790212622415}]
+-- dest-active: {"cx":1730,"cy":1193}
+### B7-AltJ-from-R1 origin=(1730,419) key=alt+j 2026-09-24T03:17:03+02:00
+-- origin-active: {"cx":1730,"cy":419}
+-- cdp-window-events:
+{"t":1790212625265,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212625280,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212625286,"type":"keyup","key":"j","code":"KeyJ","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"j","code":"KeyJ","alt":true,"ts":1790212625270},{"m":"stopImm","type":"keydown","key":"j","code":"KeyJ","alt":true,"ts":1790212625270}]
+-- dest-active: {"cx":1730,"cy":1193}
+### C1-Alth-from-L2 origin=(1003,806) key=alt+h 2026-09-24T03:17:15+02:00
+-- origin-active: {"cx":1003,"cy":806}
+-- cdp-window-events:
+{"t":1790212636716,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212636740,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212636740,"type":"keyup","key":"h","code":"KeyH","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"h","code":"KeyH","alt":true,"ts":1790212636724},{"m":"stopImm","type":"keydown","key":"h","code":"KeyH","alt":true,"ts":1790212636724}]
+-- dest-active: {"cx":519,"cy":806}
+### C2-AltUp-edge-from-L2 origin=(1003,806) key=alt+Up 2026-09-24T03:17:17+02:00
+-- origin-active: {"cx":1003,"cy":806}
+-- cdp-window-events:
+{"t":1790212638268,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212638282,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212638290,"type":"keyup","key":"ArrowUp","code":"ArrowUp","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"ArrowUp","code":"ArrowUp","alt":true,"ts":1790212638273},{"m":"stopImm","type":"keydown","key":"ArrowUp","code":"ArrowUp","alt":true,"ts":1790212638273}]
+-- dest-active: {"cx":1003,"cy":806}
+### C3-AltDown-edge-from-L2 origin=(1003,806) key=alt+Down 2026-09-24T03:17:19+02:00
+-- origin-active: {"cx":1003,"cy":806}
+-- cdp-window-events:
+{"t":1790212639810,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212639826,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212639832,"type":"keyup","key":"ArrowDown","code":"ArrowDown","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"ArrowDown","code":"ArrowDown","alt":true,"ts":1790212639818},{"m":"stopImm","type":"keydown","key":"ArrowDown","code":"ArrowDown","alt":true,"ts":1790212639818}]
+-- dest-active: {"cx":1003,"cy":806}
+### C4-AltLeft-tabedge-from-L2 origin=(1003,806) key=alt+Left 2026-09-24T03:17:20+02:00
+-- origin-active: {"cx":1003,"cy":806}
+-- cdp-window-events:
+{"t":1790212641428,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212641452,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212641452,"type":"keyup","key":"ArrowLeft","code":"ArrowLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"ArrowLeft","code":"ArrowLeft","alt":true,"ts":1790212641437},{"m":"stopImm","type":"keydown","key":"ArrowLeft","code":"ArrowLeft","alt":true,"ts":1790212641437}]
+-- dest-active: {"cx":519,"cy":806}
+### D1-AltK-edge-from-L2 origin=(1003,806) key=alt+k 2026-09-24T03:18:51+02:00
+-- origin-active: {"cx":1003,"cy":806}
+-- cdp-window-events:
+{"t":1790212732428,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212732445,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+{"t":1790212732450,"type":"keyup","key":"k","code":"KeyK","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"TEXTAREA.xterm-helper-textarea"}
+-- consume-log: [{"m":"preventDefault","type":"keydown","key":"k","code":"KeyK","alt":true,"ts":1790212732431},{"m":"stopImm","type":"keydown","key":"k","code":"KeyK","alt":true,"ts":1790212732431}]
+-- dest-active: {"cx":1003,"cy":806}
+### M1-AltRight-modal origin=(1280,400) key=alt+Right 2026-09-24T03:19:37+02:00
+-- origin-active: {"err":"no pane"}
+-- cdp-window-events:
+{"t":1790212778504,"type":"keydown","key":"Alt","code":"AltLeft","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"BODY"}
+{"t":1790212778512,"type":"keydown","key":"ArrowRight","code":"ArrowRight","alt":true,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"BODY"}
+{"t":1790212778517,"type":"keyup","key":"Alt","code":"AltLeft","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"BODY"}
+{"t":1790212778524,"type":"keyup","key":"ArrowRight","code":"ArrowRight","alt":false,"ctrl":false,"shift":false,"meta":false,"defPrev":false,"target":"BODY"}
+-- consume-log: []
+-- dest-active: {"err":"no pane"}
