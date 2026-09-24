@@ -211,7 +211,14 @@ export const KEYBINDING_DEFINITION_CORE_2: readonly KeybindingDefinition[] = [
     group: 'Tab Navigation',
     scope: 'tabs',
     searchKeywords: ['shortcut', 'tab', 'terminal', 'next', 'switch'],
-    defaultBindings: platformBindings(['Ctrl+PageDown']),
+    // Why: orca-transition Task 8 — direct adjacent-terminal-tab chord (plan default
+    // set Alt+]) so cold-start reachability does not depend on edge fall-through
+    // walks. Linux/Windows only: on macOS Option+symbol is text composition.
+    defaultBindings: {
+      darwin: ['Ctrl+PageDown'],
+      linux: ['Ctrl+PageDown', 'Alt+BracketRight'],
+      win32: ['Ctrl+PageDown', 'Alt+BracketRight']
+    },
     allowInTerminal: true
   },
   {
@@ -220,7 +227,11 @@ export const KEYBINDING_DEFINITION_CORE_2: readonly KeybindingDefinition[] = [
     group: 'Tab Navigation',
     scope: 'tabs',
     searchKeywords: ['shortcut', 'tab', 'terminal', 'previous', 'switch'],
-    defaultBindings: platformBindings(['Ctrl+PageUp']),
+    defaultBindings: {
+      darwin: ['Ctrl+PageUp'],
+      linux: ['Ctrl+PageUp', 'Alt+BracketLeft'],
+      win32: ['Ctrl+PageUp', 'Alt+BracketLeft']
+    },
     allowInTerminal: true
   },
   {
