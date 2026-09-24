@@ -22,10 +22,10 @@ Builds ran under `systemd-run --user` transient units (survive tool-call interru
 
 ## 2. Artifacts
 
-| Candidate | Path (persistent) | Size | Files | Manifest | `sha256sum -c` |
-|---|---|---|---|---|---|
-| **rc-a** (first RC) | `/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/` | 567 M | 3598 | `SHA256SUMS` (3598 lines) | **exit 0 — 3598/3598 OK** |
-| **rc-b** (next candidate) | `/home/ezotoff/src/orca/builds/rc-2026-09-24-b-802aadd7/` | 558 M | 3600 | `SHA256SUMS` (3599 lines) | **exit 0 — 3599/3599 OK** |
+| Candidate | Path (persistent) | Size | Manifest entries | `sha256sum -c` |
+|---|---|---|---|---|
+| **rc-a** (first RC) | `/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/` | 567 M | 3598 | **exit 0 — 3598/3598 OK** |
+| **rc-b** (next candidate) | `/home/ezotoff/src/orca/builds/rc-2026-09-24-b-802aadd7/` | 558 M | 3599 | **exit 0 — 3599/3599 OK** |
 
 - `orca-ide --version` = **1.4.197** for both.
 - `rc-b` was produced by a real `pnpm run build:unpack` (EXIT=0, `builds/rc-b-build.log`), then a
