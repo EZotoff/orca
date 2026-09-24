@@ -41,3 +41,14 @@ Prefer a first-party view rather than broadening experimental plugin APIs merely
   artifact with the tag.
 - Integrate upstream release-to-release into `operator/main` (never auto-follow head);
   see `docs/upstream-intake.md` for triage cadence, intake windows and the gate matrix.
+
+## Operator additions beyond the modify-narrowly list
+
+First-party features added by the operator fork (design/plan refs in each doc):
+
+- Overview panel + rail + widgets, Supervisor relay view, identity bridge,
+  focus action — see `docs/` and `spikes/` in this repo (orca-transition plan
+  Tasks 10–14).
+- Telegram file sharing v1 (Task 20): explicit share action on the overview
+  panel; credentials sealed in main via safeStorage. Setup and security:
+  `docs/fileshare.md`.
