@@ -21,8 +21,13 @@ function leafKey(tabId: string, leafId: string): string {
   return `${tabId}${SEP}${leafId}`
 }
 
-function leafTokenKey(tabId: string, leafId: string, launchToken: string): string {
-  return `${tabId}${SEP}${leafId}${SEP}${launchToken}`
+function leafTokenKey(
+  host: ExecutionHostId,
+  tabId: string,
+  leafId: string,
+  launchToken: string
+): string {
+  return `${host}${SEP}${tabId}${SEP}${leafId}${SEP}${launchToken}`
 }
 
 function sessionKey(host: ExecutionHostId, canonicalRoot: string, sessionID: string): string {
@@ -56,9 +61,10 @@ function validateRecord(
   if (!connectedHosts.has(record.executionHostId)) {
     return 'stale'
   }
-  const terminals = terminalsByLeaf.get(leafKey(record.tabId, record.leafId))
-  if (!terminals || terminals.length === 0) {
-    return 'stale-handle'
+  const bucket = terminalsByLeaf.get(leafKey(record.tabId, record.leafId)) ?? []
+  const terminals = bucket.filter((terminal) => terminal.executionHostId === record.executionHostId)
+  if (terminals.length === 0) {
+    return bucket.length > 0 ? 'host-mismatch' : 'stale-handle'
   }
   if (terminals.length > 1) {
     return 'ambiguous-leaf'
@@ -67,14 +73,11 @@ function validateRecord(
   if (terminal.terminalHandle !== record.terminalHandle) {
     return 'stale-handle'
   }
-  if (terminal.executionHostId !== record.executionHostId) {
-    return 'host-mismatch'
-  }
   if (terminal.launchToken !== undefined && terminal.launchToken !== record.launchToken) {
     return 'reused-terminal'
   }
   const correlations = correlationsByLeafToken.get(
-    leafTokenKey(record.tabId, record.leafId, record.launchToken)
+    leafTokenKey(record.executionHostId, record.tabId, record.leafId, record.launchToken)
   )
   if (!correlations || correlations.length === 0) {
     return 'unverified'
@@ -92,8 +95,10 @@ function buildCandidate(
   terminalsByLeaf: ReadonlyMap<string, LiveTerminalHandle[]>,
   now: number
 ): IdentityBridgeRecord | null {
-  const terminals = terminalsByLeaf.get(leafKey(correlation.tabId, correlation.leafId))
-  if (!terminals || terminals.length !== 1) {
+  const terminals = (
+    terminalsByLeaf.get(leafKey(correlation.tabId, correlation.leafId)) ?? []
+  ).filter((terminal) => terminal.executionHostId === correlation.executionHostId)
+  if (terminals.length !== 1) {
     return null
   }
   const terminal = terminals[0]
@@ -137,12 +142,7 @@ function resolveAmbiguity(
       }
       continue
     }
-    // Same leaf, multiple records (re-hosted): keep the newest revision.
-    const sorted = [...group].sort(
-      (left, right) => right.revision - left.revision || right.lastSeenAt - left.lastSeenAt
-    )
-    kept.push(sorted[0])
-    for (const record of sorted.slice(1)) {
+    for (const record of group) {
       rejected.push({ record, reason: 'duplicate-root' })
     }
   }
@@ -159,7 +159,12 @@ export function reconcileIdentityBridge(input: {
     leafKey(terminal.tabId, terminal.leafId)
   )
   const correlationsByLeafToken = indexBy(input.correlations, (correlation) =>
-    leafTokenKey(correlation.tabId, correlation.leafId, correlation.launchToken)
+    leafTokenKey(
+      correlation.executionHostId,
+      correlation.tabId,
+      correlation.leafId,
+      correlation.launchToken
+    )
   )
   const connectedHosts = new Set(input.inventory.connectedHosts)
 

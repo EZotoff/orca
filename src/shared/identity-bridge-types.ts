@@ -73,6 +73,7 @@ export type LiveInventory = {
 
 /** What the authenticated hook reports for one live PTY (Task 16). */
 export type HookCorrelation = {
+  readonly executionHostId: ExecutionHostId
   readonly tabId: string
   readonly leafId: string
   readonly launchToken: string
