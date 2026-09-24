@@ -49,6 +49,12 @@ vi.mock('@/store/selectors', () => ({
       : null
 }))
 
+vi.mock('../status-bar/StatusBarProviderSegment', () => ({
+  ProviderSegment: ({ p }: { p: { provider: string } }) => (
+    <span data-provider-segment-stub={p.provider} />
+  )
+}))
+
 import { OverviewPanel } from './OverviewPanel'
 
 function card(overrides: Partial<DashboardCard> & { paneKey: string }): DashboardCard {
@@ -210,6 +216,28 @@ describe('OverviewPanel', () => {
     expect(container.querySelector('[data-overview-rail-dirty="alpha"]')).not.toBeNull()
     // Cardless project without git identity renders no indicator.
     expect(container.querySelector('[data-overview-rail-git="quiet"]')).toBeNull()
+  })
+
+  it('mounts the existing provider usage meter in the panel footer (widget 5)', () => {
+    useAppStore.setState({
+      ...useAppStore.getState(),
+      statusBarItems: ['claude'],
+      detectedAgentIds: ['claude'],
+      rateLimits: {
+        ...useAppStore.getState().rateLimits,
+        claude: {
+          provider: 'claude',
+          session: { usedPercent: 42, windowMinutes: 300, resetsAt: null, resetDescription: null },
+          weekly: null,
+          updatedAt: 1,
+          error: null,
+          status: 'ok'
+        }
+      }
+    })
+    const { container } = render(<OverviewPanel />)
+    expect(container.querySelector('[data-overview-provider-meter]')).not.toBeNull()
+    expect(container.querySelector('[data-provider-segment-stub="claude"]')).not.toBeNull()
   })
 
   it('renders the fixed bucket-count chips (Needs You / Working / Done / Idle)', () => {

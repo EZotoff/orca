@@ -19,6 +19,7 @@ import { buildOverviewCountChips, cardLabelsOf } from './overview-counts'
 import { buildOverviewRailEntries, type OverviewRailEntry } from './overview-rail-entries'
 import { OverviewRail } from './OverviewRail'
 import { SupervisorRelayView } from '../supervisor-relay/SupervisorRelayView'
+import { OverviewProviderMeter } from './OverviewProviderMeter'
 
 /**
  * First-party overview panel + persistent project rail (orca-transition Task 10,
@@ -238,6 +239,7 @@ export function OverviewPanel(): React.JSX.Element {
               )
             )}
           </div>
+          <OverviewProviderMeter />
         </section>
       )}
       <OverviewRail
