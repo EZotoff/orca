@@ -19,6 +19,7 @@ import { buildOverviewCountChips, cardLabelsOf } from './overview-counts'
 import { buildOverviewRailEntries, type OverviewRailEntry } from './overview-rail-entries'
 import { OverviewRail } from './OverviewRail'
 import { SupervisorRelayView } from '../supervisor-relay/SupervisorRelayView'
+import { FileShareControl } from './FileShareControl'
 import { OverviewProviderMeter } from './OverviewProviderMeter'
 
 /**
@@ -205,6 +206,7 @@ export function OverviewPanel(): React.JSX.Element {
                 </span>
               ))}
             </span>
+            <FileShareControl />
           </header>
           <div data-overview-supervisor="" className="shrink-0 border-b border-border">
             <SupervisorRelayView />

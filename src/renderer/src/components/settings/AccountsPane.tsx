@@ -58,6 +58,7 @@ import {
   renderOpenCodeAccountsSection
 } from './accounts-pane-provider-setting-sections'
 import { renderMiniMaxAccountsSection } from './accounts-pane-minimax-section'
+import { FileShareSettingsSection } from './FileShareSettingsSection'
 import { renderAccountsRemovalDialogs } from './accounts-pane-removal-dialogs'
 
 export { getAccountsPaneSearchEntries }
@@ -389,6 +390,8 @@ export function AccountsPane({
           {section}
         </div>
       ))}
+      <Separator />
+      <FileShareSettingsSection key="fileshare" />
     </div>
   )
 }

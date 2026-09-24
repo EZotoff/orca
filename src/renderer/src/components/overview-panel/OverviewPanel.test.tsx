@@ -42,6 +42,10 @@ vi.mock('../supervisor-relay/SupervisorRelayView', () => ({
   SupervisorRelayView: () => <section data-supervisor-relay-stub="" />
 }))
 
+vi.mock('./FileShareControl', () => ({
+  FileShareControl: () => <span data-fileshare-stub="" />
+}))
+
 vi.mock('@/store/selectors', () => ({
   useWorktreeById: (worktreeId: string | null) =>
     worktreeId === 'w'
