@@ -97,9 +97,9 @@ async function readTarget(pluginPath: string): Promise<{ kind: 'absent' } | { ki
   return { kind: 'file', content: await readFile(pluginPath, 'utf8') }
 }
 
-async function writeOutcomeRecord(
+export async function writeOutcomeRecord(
   stateDir: string,
-  outcome: GlobalHookInstallOutcome | GlobalHookUninstallOutcome,
+  outcome: GlobalHookInstallOutcome | GlobalHookUninstallOutcome | { readonly status: string; readonly reason: string },
   now: Date
 ): Promise<void> {
   // Why: the install outcome is already decided by the time we record it; a record-write
@@ -150,12 +150,19 @@ async function backupExisting(
 export async function installGlobalOpenCodeHook(
   options: GlobalHookInstallerOptions
 ): Promise<GlobalHookInstallOutcome> {
+  const pluginPath = join(options.paths.pluginsDir, GLOBAL_HOOK_PLUGIN_FILE)
+  return withFileTransactionLock(pluginPath, () => installGlobalOpenCodeHookUnlocked(options))
+}
+
+/** Lock-free core — the caller MUST already hold the installer lock on the plugin path. */
+export async function installGlobalOpenCodeHookUnlocked(
+  options: GlobalHookInstallerOptions
+): Promise<GlobalHookInstallOutcome> {
   const now = options.now ?? (() => new Date())
   const pluginPath = join(options.paths.pluginsDir, GLOBAL_HOOK_PLUGIN_FILE)
   const body = getGlobalHookPluginBody()
   const expectedDigest = hashGlobalHookBody(body)
-
-  return withFileTransactionLock(pluginPath, async () => {
+  {
     const target = await readTarget(pluginPath)
     let outcome: GlobalHookInstallOutcome
     if (target.kind === 'symlink') {
@@ -198,7 +205,7 @@ export async function installGlobalOpenCodeHook(
     }
     await writeOutcomeRecord(options.paths.stateDir, outcome, now())
     return outcome
-  })
+  }
 }
 
 // Why: derive the plugin's directory from its path so backup listing stays local.
@@ -210,10 +217,17 @@ function pluginPathDir(pluginPath: string): string {
 export async function uninstallGlobalOpenCodeHook(
   options: GlobalHookInstallerOptions
 ): Promise<GlobalHookUninstallOutcome> {
+  const pluginPath = join(options.paths.pluginsDir, GLOBAL_HOOK_PLUGIN_FILE)
+  return withFileTransactionLock(pluginPath, () => uninstallGlobalOpenCodeHookUnlocked(options))
+}
+
+/** Lock-free core — the caller MUST already hold the installer lock on the plugin path. */
+export async function uninstallGlobalOpenCodeHookUnlocked(
+  options: GlobalHookInstallerOptions
+): Promise<GlobalHookUninstallOutcome> {
   const now = options.now ?? (() => new Date())
   const pluginPath = join(options.paths.pluginsDir, GLOBAL_HOOK_PLUGIN_FILE)
-
-  return withFileTransactionLock(pluginPath, async () => {
+  {
     const target = await readTarget(pluginPath)
     if (target.kind === 'absent') {
       return { status: 'absent' } satisfies GlobalHookUninstallOutcome
@@ -251,7 +265,7 @@ export async function uninstallGlobalOpenCodeHook(
     const outcome = { status: 'removed' } as const
     await writeOutcomeRecord(options.paths.stateDir, outcome, now())
     return outcome
-  })
+  }
 }
 
 async function newestBackupInner(pluginPath: string): Promise<string | null> {

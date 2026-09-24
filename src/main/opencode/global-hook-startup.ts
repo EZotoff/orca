@@ -15,6 +15,12 @@ import {
   buildGlobalHookChildEnv,
   createGlobalHookIdentityToken
 } from './global-hook-env'
+import { createProcfsProcessIdentityReader } from './global-hook-consumer-registry'
+  import {
+  registerGlobalHookConsumer,
+  reconcileGlobalHookConsumers,
+  type GlobalHookConsumerRegistrationOutcome
+} from './global-hook-ownership'
 
 const ENABLE_ENV = 'ORCA_ENABLE_GLOBAL_HOOK_INSTALL'
 const STATE_DIR_NAME = 'opencode-global-hook'
@@ -51,6 +57,38 @@ export function provisionGlobalHookChildEnv(args: {
   }
 }
 
+/**
+ * Task 18 lifetime-ownership seam for the PTY spawn path: mint the identity env
+ * AND register the consumer's ownership record (pid + start time + boot id +
+ * token hash + generation) BEFORE the PTY handoff, under the installer lock.
+ * The env is still returned when registration refuses (corrupt registry /
+ * unreadable identity) — the refusal is reported for logging, and the §6 checked
+ * uninstall remains conservative either way.
+ */
+export async function provisionGlobalHookConsumerEnv(args: {
+  readonly parentEnv: Record<string, string | undefined>
+  readonly homeDir: string
+  readonly userDataDir: string
+  readonly consumerId: string
+  readonly pid: number
+}): Promise<{
+  readonly identityToken: string
+  readonly env: Record<string, string>
+  readonly registration: GlobalHookConsumerRegistrationOutcome
+}> {
+  const { identityToken, env } = provisionGlobalHookChildEnv(args)
+  const paths = globalHookPathsFor(args.homeDir, args.userDataDir)
+  const registration = await registerGlobalHookConsumer({
+    paths,
+    consumer: {
+      consumerId: args.consumerId,
+      pid: args.pid,
+      identityToken
+    }
+  })
+  return { identityToken, env, registration }
+}
+
 export async function maybeInstallGlobalOpenCodeHook(args: {
   readonly homeDir: string
   readonly userDataDir: string
@@ -65,7 +103,20 @@ export async function maybeInstallGlobalOpenCodeHook(args: {
     console.log(`[opencode-global-hook] install outcome: ${outcome.status}`, outcome)
   } catch (error) {
     // Why: never block or fail startup on the hook; log and continue.
-    console.warn('[opencode-global-hook] install failed:', error)
+  }
+  try {
+    // Design §6: stale-record GC also runs on Orca start.
+    const reconciled = await reconcileGlobalHookConsumers({
+      paths,
+      reader: createProcfsProcessIdentityReader()
+    })
+    if (reconciled.status !== 'ok') {
+      console.warn(`[opencode-global-hook] consumer registry unreadable: ${reconciled.status}`)
+    } else if (reconciled.pruned.length > 0) {
+      console.log(`[opencode-global-hook] pruned ${reconciled.pruned.length} stale consumer record(s)`)
+    }
+  } catch (error) {
+    console.warn('[opencode-global-hook] consumer reconcile failed:', error)
   }
   await logGlobalHookDigestCheck(paths.pluginsDir)
 }
