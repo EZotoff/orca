@@ -1,5 +1,0 @@
-owner: stablyai
-repo: orca
-provider: github
-releaseType: draft
-updaterCacheDirName: orca-updater

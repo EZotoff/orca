@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-exec '/home/ezotoff/src/orca-nav/spikes/throwaway-nav/app/resources/bin/orca-ide' "$@"

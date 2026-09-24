@@ -1,4 +1,0 @@
-: 1790212380:0;cat -v
-: 1790212436:0;opencode
-: 1790212488:0;cat -v | tee |home/ezotoff/src/orca-nav/spikes/nav-pty-L2.log
-: 1790212490:0;cat -v | tee /home/ezotoff/src/orca-nav/spikes/nav-pty-R1.log
