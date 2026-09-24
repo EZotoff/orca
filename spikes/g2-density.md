@@ -49,12 +49,23 @@ without scrolling/fullscreen was not observed.
 
 Fixture includes CJK + long names (see above), but no render evidence exists.
 
-### Fast-switch (G2b) rehearsal — **GAP; formal gate deferred per plan**
+### Fast-switch (G2b) — measured against the prototype store seam
 
-No ≥20-jump G2 measurement. The plan's FAIL branch (Task 14 text) explicitly
-routes the formal ≥20-jump ≤1 s gate to Task 14's run against the real identity
-bridge when "not already satisfied in G2" — that re-run is the standing
-obligation, queued on Task 14.
+A third concurrent worker's run landed `g2-jump-rows.jsonl` mid-decision
+(2026-09-24 05:44; `window.__g2.jump` = identity lookup +
+`activateTabAndFocusPane` + rAF focus verification, 120 ms cadence):
+
+- **n=24 jumps (≥20 required), 24/24 verified, p50=15 ms, p95=19 ms,
+  max=20 ms, 0 over 1 s** — computed from `g2-jump-rows.jsonl` (raw rows on
+  disk; the runner's summary stdout was not captured).
+- **Caveat (recorded honestly):** all 24 rows activated the SAME tab
+  (1 distinct tabId) — the fixture's leafIds resolved into one real tab, so
+  quadrant/tab COVERAGE of the project set is incomplete even though the
+  per-jump latency passes with two orders of magnitude of margin.
+
+The plan's formal gate still re-runs in Task 14 against the real identity
+bridge (its explicit allowance), which will also fix tab coverage; these
+numbers establish the panel-side seam is not the latency bottleneck.
 
 ## Probe-filter result (code + test — verified)
 
@@ -103,16 +114,18 @@ Tasks 10/11 consume this decision.
 
 - All projects discoverable in one keyboard search / always-visible rail:
   geometry chosen so, but **not demonstrated live — GAP**.
-- Top escalation visible without opening another surface: **GAP** (never rendered).
-- No project silently absent: **GAP**.
+- Top escalation visible without opening another surface: **GAP** (board
+  render metrics from the third worker's run went to uncaptured stdout).
+- No project silently absent: **GAP** (same uncaptured board metrics).
 - Terminal usable at favored width: n/a this task (T8 pass evidence stands).
-- Fast-switch gate (≥20 jumps ≤1 s): **deferred to Task 14** per the plan's
-  explicit FAIL-branch allowance.
+- Fast-switch gate (≥20 jumps ≤1 s): **met at the prototype seam** — 24/24
+  verified, max 20 ms — with the single-tab coverage caveat above; the formal
+  bridge-backed re-run stays queued on Task 14 per the plan.
 
-**Verdict: PASS-WITH-GAP** — the geometry decision is encoded with the numbers
-that exist (column min-width vs panel width) and the deferred fast-switch gate
-is the plan-sanctioned path. The geometry decision STANDS for Tasks 10/11; the
-GAP ledger above is the re-measurement checklist if the operator wants live
+**Verdict: PASS-WITH-GAP** — the geometry decision is encoded with the
+static-geometry numbers (column min-width vs panel width) plus a passing
+prototype fast-switch measurement; remaining GAPs are the live board-visibility
+metrics and multi-tab jump coverage. The geometry decision STANDS for Tasks
 density proof before P6 promotion.
 
 ## Cleanup receipt (2026-09-24)
@@ -124,3 +137,6 @@ density proof before P6 promotion.
   `orca-g2/dist` process.
 - Post-check: `pgrep -af 'orca-g2/dist'` → 0 app processes (only the probing
   shell matches); CDP port 18250 free. No operator-owned processes touched.
+- Follow-up (05:45): a third worker's concurrent measurement relaunched the
+  spike app (systemd-free, CDP 18250) and produced `g2-jump-rows.jsonl`;
+  its app processes were killed by PID after the rows landed.
