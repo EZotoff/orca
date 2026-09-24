@@ -12,29 +12,31 @@ DELIVERED = reached renderer (CDP keydown with correct modifier state) · CONSUM
 
 | Chord | Terminal pane (PTY focus) | Sidebar | Floating pane | Modal | IME | Locked / pass-through |
 |---|---|---|---|---|---|---|
-| Alt+Left  | DELIVERED+FORWARDED→**PTY LEAK** `^[b` — CDP 01:45:14 (keydown ArrowLeft absent at window-capture; PTY bytes prove renderer saw it), defPrev=false | GAP (focus unmovable, see note S) | SKIPPED-ENV (no float feature) | DELIVERED/FORWARDED — CDP 01:02:24, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+Right | DELIVERED+FORWARDED→**PTY LEAK** `^[f` — CDP 01:45:15 (same keydown anomaly), defPrev=false | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:25, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+Up    | DELIVERED+FORWARDED→**PTY LEAK** `^[[1;3A` — CDP 01:45:16 keydown alt=true, defPrev=false | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:25, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+Down  | DELIVERED+FORWARDED→**PTY LEAK** `^[[1;3B` — CDP 01:45:17 keydown alt=true, defPrev=false | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:26, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+h     | DELIVERED+FORWARDED→**PTY LEAK** `^[h`; zsh executed `run-help` (its Meta-h binding) at 01:43 — CDP 01:45:18, defPrev=false | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:27, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+j     | DELIVERED+FORWARDED→**PTY LEAK** `^[j` — CDP 01:45:19, defPrev=false | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:27, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+k     | DELIVERED+FORWARDED→**PTY LEAK** `^[k` — CDP 01:45:20, defPrev=false | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:28, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+l     | DELIVERED+FORWARDED→**PTY LEAK** `^[l` — CDP 01:45:21, defPrev=false | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:28, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+n     | GAP (probe-set; not required, terminal not probed) | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:29, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+f     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:29, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+i     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:30, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+o     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:30, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+p     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:31, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+[     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:31, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+]     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:31, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
-| Alt++     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | **GAP — CDP 01:02:32: `=` keydown never arrived** (only Alt down/up + Equal keyup) | SKIPPED-ENV | SKIPPED-ENV |
-| Alt+-     | GAP (probe-set) | GAP (note S) | SKIPPED-ENV | **NOT-PRESENT — CDP 01:02:33: zero events** | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+Left  | DELIVERED+FORWARDED→**PTY LEAK** `^[b` — CDP 01:45:14 (keydown ArrowLeft absent at window-capture; PTY bytes prove renderer saw it), defPrev=false | SKIPPED-ENV (no keyboard-focusable sidebar; note S) | SKIPPED-ENV (no float feature) | DELIVERED/FORWARDED — CDP 01:02:24, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+Right | DELIVERED+FORWARDED→**PTY LEAK** `^[f` — CDP 01:45:15 (same keydown anomaly), defPrev=false | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:25, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+Up    | DELIVERED+FORWARDED→**PTY LEAK** `^[[1;3A` — CDP 01:45:16 keydown alt=true, defPrev=false | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:25, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+Down  | DELIVERED+FORWARDED→**PTY LEAK** `^[[1;3B` — CDP 01:45:17 keydown alt=true, defPrev=false | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:26, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+h     | DELIVERED+FORWARDED→**PTY LEAK** `^[h`; zsh executed `run-help` (its Meta-h binding) at 01:43 — CDP 01:45:18, defPrev=false | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:27, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+j     | DELIVERED+FORWARDED→**PTY LEAK** `^[j` — CDP 01:45:19, defPrev=false | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:27, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+k     | DELIVERED+FORWARDED→**PTY LEAK** `^[k` — CDP 01:45:20, defPrev=false | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:28, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+l     | DELIVERED+FORWARDED→**PTY LEAK** `^[l` — CDP 01:45:21, defPrev=false | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:28, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+n     | GAP (probe-set; not required, terminal not probed) | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:29, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+f     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:29, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+i     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:30, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+o     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:30, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+p     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:31, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+[     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:31, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+]     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | DELIVERED/FORWARDED — 01:02:31, defPrev=false | SKIPPED-ENV | SKIPPED-ENV |
+| Alt++     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | **GAP — CDP 01:02:32: `=` keydown never arrived** (only Alt down/up + Equal keyup) | SKIPPED-ENV | SKIPPED-ENV |
+| Alt+-     | GAP (probe-set) | SKIPPED-ENV (note S) | SKIPPED-ENV | **NOT-PRESENT — CDP 01:02:33: zero events** | SKIPPED-ENV | SKIPPED-ENV |
 
 All timestamps 2026-09-24 +02:00. Sources: [g1-raw-modal.log](g1-raw-modal.log) (modal column), [g1-raw-terminal-cdp.log](g1-raw-terminal-cdp.log) + [g1-raw-terminal-pty.log](g1-raw-terminal-pty.log) + [g1-raw-terminal-pty.png](g1-raw-terminal-pty.png) (terminal column), [gnome-sweep.log](gnome-sweep.log) (GNOME column below).
 
-**Note S (sidebar GAP reason):** the base build monopolizes keyboard focus on the xterm textarea — `input.focus()` on the sidebar Search field reverts immediately (CDP 01:46:36 check: `activeElement=xterm-helper-textarea`), Tab cycling returns to it, background clicks unverifiable. No keyboard-focusable sidebar state exists in this build to probe. Re-probe in the fork build if sidebar focus becomes keyboard-reachable.
+**Note S (sidebar = SKIPPED-ENV, not GAP):** the base build monopolizes keyboard focus on the xterm textarea — `input.focus()` on the sidebar Search field reverts immediately (CDP 01:46:36 check: `activeElement=xterm-helper-textarea`), Tab cycling returns to it, background clicks unverifiable. A keyboard-focusable sidebar state therefore does not exist in this build, so every sidebar cell is SKIPPED-ENV (surface state absent), not an un-probed gap. Re-probe in the fork build once sidebar focus is keyboard-reachable.
 
 **CDP keydown anomaly (alt+Left/alt+Right):** window-capture listeners saw Alt keydown + arrow KEYUP but not the arrow keydown, on every terminal round, while the PTY simultaneously received the translated bytes (`^[b`/`^[f`) — delivery is proven at PTY level; the window-capture miss is an instrumentation artifact (likely xterm.js interception ordering), not evidence of non-delivery.
+
+**Gap-fill decision (FINISH pass):** the terminal-pane surface was already gap-filled live (rounds 1-3, `g1-raw-terminal-cdp.log`; PTY byte capture `g1-raw-terminal-pty.log`). No further relaunch was performed: the remaining uncovered cells cannot change the verdict — terminal-pane probe-set chords (Alt+n/f/i/o/p/[/]/+/-) are non-required and are already probed on the modal column; sidebar is SKIPPED-ENV (no keyboard-focusable state, Note S); floating pane / IME / locked mode do not exist as reachable states in the base build. Relaunching the throwaway GUI would risk focus theft and orphan processes for zero verdict value.
 
 ## GNOME reserved-chord sweep (gnome-sweep.log, 2026-09-24T00:52:28+02:00)
 
@@ -57,7 +59,7 @@ No remapping required → no operator replacement-chord approval needed from thi
 
 1. **Delivery: PROVEN.** All 8 required navigation chords (Alt+arrows, Alt+hjkl) traverse GNOME/X11 → Chromium → renderer → xterm reliably on the terminal-pane surface (raw bytes at PTY), and 16/18 chords reach the renderer on the modal surface. No WM/GNOME theft of any plain-Alt chord.
 2. **Intended owner: NOT REACHED — no owner exists.** The unmodified base build consumes none of the chords (`defPrev=false` everywhere); every chord forwards. On the terminal pane this means **all 8 required chords leak into the PTY as meta/escape sequences** (`^[b ^[f ^[[1;3A ^[[1;3B ^[h ^[j ^[k ^[l`), and `alt+h` demonstrably triggers zsh's `run-help`. Clause "no meta chars leak into the OpenCode PTY": **VIOLATED in the unbound build** — this is implementation-pending (the fork MUST bind and consume all 8), not a delivery defect.
-3. **Locked/pass-through pass-through and IME composition: SKIPPED-ENV** — neither exists in the unmodified base build; must be re-gated on the fork build (Stage B).
+3. **Locked/pass-through, IME composition, sidebar keyboard focus, floating pane: SKIPPED-ENV** — none exists as a keyboard-reachable state in the unmodified base build (sidebar focus reverts to the xterm textarea — Note S; float/IME/locked are fork functionality); all must be re-gated on the fork build (Stage B).
 4. Probe-set anomalies on modal: `alt+minus` NOT-PRESENT, `alt+plus` partial (`=` keydown missing) — must be re-checked before binding those chords.
 
 Findings and remediation: `.omo/notes/orca-transition/50-g1-findings.md` (ez-omo-config).
@@ -66,3 +68,5 @@ Findings and remediation: `.omo/notes/orca-transition/50-g1-findings.md` (ez-omo
 
 - Pre-relaunch (this session start): `pgrep -af orca-ide | grep orca-spikes` → 0 processes (orchestrator's earlier kill of the 9 throwaway processes confirmed).
 - Gap-fill relaunch killed by PGID/PID (`kill -TERM -- -2280082`, then daemon PID 2280479) at ~01:49; re-verified `pgrep -af orca-ide | grep orca-spikes` → **0 processes**, port 18240 **free**.
+- FINISH pass (2026-09-24T02:00+02:00, this session): independent cleanup verification — `ps -eo pid,args | grep -E '[o]rca-spikes/spikes/throwaway'` → **0**; `pgrep -af orca-ide | grep -E '[o]rca-spikes/spikes/throwaway'` → **0**; `pgrep -c '[x]ev'` → 0; `ss -ltn` → no listener on 18240. **ZERO throwaway-path spike processes remain** — nothing to kill (the throwaway PIDs the orchestrator flagged were already gone before this pass).
+- Out-of-scope note: concurrent `orca-ide` processes from `/home/ezotoff/src/orca/builds/rc-2026-09-24-802aadd7/` (their own `scratch-userdata`, (re)launched ~01:56-02:01 by another task) are a DIFFERENT build. Per the spike's kill-scope rule (throwaway path only) they were **deliberately left untouched**.
