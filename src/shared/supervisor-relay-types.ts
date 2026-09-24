@@ -8,6 +8,8 @@
 // paths, socket metadata, or auth tokens. Binding spec:
 // docs/portable-supervisor-contract.md "Operator read model" + design
 // 40-oracle-design.md §5.
+import type { ResolveRejectionReason } from './identity-bridge-types'
+
 
 export const SUPERVISOR_RELAY_SCHEMA_VERSION = 1
 
@@ -39,6 +41,8 @@ export type SupervisorRelayCard = {
   readonly age: number
   readonly severity: 'A' | 'B' | 'C' | 'D'
   readonly jumpAvailable: boolean
+  /** Present when the identity bridge cannot verify the session (design §5 unhosted handling); jump is disabled and the fixed label below renders. */
+  readonly unhostedReason?: SupervisorRelayUnhostedReason
 }
 
 export type SupervisorRelayPayload = {
@@ -51,5 +55,17 @@ export type SupervisorRelayPayload = {
   readonly cards: readonly SupervisorRelayCard[]
 }
 
+
+
+/** Why a card is unhosted: the bridge's rejection classes (scalar enum, never raw error text). */
+export type SupervisorRelayUnhostedReason = ResolveRejectionReason
+
+/** Renderer-safe jump outcome. 'failed' is focus-API failure with no state change; no raw error text crosses the boundary. */
+export type SupervisorRelayFocusOutcome =
+  | { readonly status: 'focused' }
+  | { readonly status: 'failed' }
+  | { readonly status: 'unhosted'; readonly reason: SupervisorRelayUnhostedReason }
+
 export const SUPERVISOR_RELAY_UPDATE_CHANNEL = 'supervisorRelay:update'
 export const SUPERVISOR_RELAY_SNAPSHOT_CHANNEL = 'supervisorRelay:getSnapshot'
+export const SUPERVISOR_RELAY_FOCUS_CHANNEL = 'supervisorRelay:focus'

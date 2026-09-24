@@ -13,6 +13,7 @@ import {
   type IdentityBridgeRecord,
   type LiveInventorySource,
   type ReconciliationResult,
+  type ResolveOutcome,
   type ResolvedLeaf
 } from '../../shared/identity-bridge-types'
 import type { IdentityBridgeStore } from './identity-bridge-store'
@@ -143,17 +144,31 @@ export class IdentityBridge {
       return null
     }
     const match = matches[0]
-    return {
-      executionHostId: match.executionHostId,
-      canonicalRoot: match.canonicalRoot,
-      sessionID: match.sessionID,
-      launchToken: match.launchToken,
-      worktreeIdentity: match.worktreeIdentity,
-      tabId: match.tabId,
-      leafId: match.leafId,
-      terminalHandle: match.terminalHandle,
-      revision: match.revision
+    return match === undefined ? null : toResolvedLeaf(match)
+  }
+
+  /** Reconcile, then classify the outcome for one session — rejection class included, for the relay's unhosted rendering. */
+  async resolveOutcome(query: SessionQuery): Promise<ResolveOutcome> {
+    const result = await this.reconcile()
+    const forSession = (record: IdentityBridgeRecord) =>
+      record.executionHostId === query.executionHostId &&
+      record.canonicalRoot === query.canonicalRoot &&
+      record.sessionID === query.sessionID
+    const matches = result.verified.filter(
+      (record) => record.lifecycle === 'active' && forSession(record)
+    )
+    if (matches.length > 1) {
+      return { status: 'rejected', reason: 'ambiguous-session' }
     }
+    const match = matches[0]
+    if (match === undefined) {
+      const rejected = result.rejected.find((entry) => forSession(entry.record))
+      return {
+        status: 'rejected',
+        reason: rejected?.reason ?? 'not-hosted'
+      }
+    }
+    return { status: 'verified', leaf: toResolvedLeaf(match) }
   }
 
   /** PTY exit: mark every mapping for this terminal released. */
@@ -203,5 +218,19 @@ export class IdentityBridge {
     if (changed) {
       await this.store.save(this.records)
     }
+  }
+}
+
+function toResolvedLeaf(match: IdentityBridgeRecord): ResolvedLeaf {
+  return {
+    executionHostId: match.executionHostId,
+    canonicalRoot: match.canonicalRoot,
+    sessionID: match.sessionID,
+    launchToken: match.launchToken,
+    worktreeIdentity: match.worktreeIdentity,
+    tabId: match.tabId,
+    leafId: match.leafId,
+    terminalHandle: match.terminalHandle,
+    revision: match.revision
   }
 }

@@ -1,16 +1,20 @@
 // First-party Supervisor relay view (orca-transition plan Task 12) — the
 // read-only ambient consumer of the Supervisor's operator-view.json read
-// model. Self-contained by design: Task 10 mounts it into the main-window
-// shell; nothing here may assume a particular mount point.
+// model, plus the Task 14 focus action: the jump button runs the trusted
+// resolve-then-focus pipeline in main and renders only scalar outcomes.
 //
 // Trust boundary: every string arrives pre-validated and pre-redacted from
 // the trusted main process and is rendered as an escaped React text node —
 // no raw HTML, no Markdown interpretation, no auto-links. The jump affordance
 // is a trusted internal button keyed by validated card id, never a URL in
-// text (wiring lands with Task 13/14).
+// text. Unhosted cards (bridge cannot verify) render a fixed neutral label
+// with the jump disabled — never a silent no-op, never a fabricated focus.
+import { useEffect, useRef, useState } from 'react'
 import type {
   SupervisorRelayCard,
-  SupervisorRelayPayload
+  SupervisorRelayFocusOutcome,
+  SupervisorRelayPayload,
+  SupervisorRelayUnhostedReason
 } from '../../../../shared/supervisor-relay-types'
 import { useSupervisorRelay } from './useSupervisorRelay'
 
@@ -19,6 +23,23 @@ const STALE_LABEL = 'Supervisor state stale'
 /** v1 exposes no ack/snooze/reply/SKIP/HOLD/DND — link the binding contract section. */
 const UNAVAILABLE_ACTIONS_NOTE =
   'Acknowledge, snooze, and reply are unavailable in v1 (portable-supervisor-contract.md, "Operator read model").'
+
+/** Fixed neutral labels keyed by the scalar unhosted reason — no raw error text ever reaches this map. */
+const UNHOSTED_LABELS: Record<SupervisorRelayUnhostedReason, string> = {
+  'not-hosted': 'Not open in Orca',
+  unverified: 'Session not verified',
+  'stale-handle': 'Session pane no longer exists',
+  'host-mismatch': 'Session host changed',
+  'reused-terminal': 'Terminal was reused',
+  'duplicate-root': 'Duplicate project roots',
+  'ambiguous-leaf': 'Session location ambiguous',
+  'ambiguous-session': 'Session location ambiguous'
+}
+
+/** Neutral inline note when the focus API itself fails; the card stays and retry remains possible. */
+const FOCUS_FAILED_NOTE = 'Could not focus this session'
+
+const FOCUSED_PULSE_MS = 1500
 
 function severityLabel(severity: SupervisorRelayCard['severity']): string {
   return `Severity ${severity}`
@@ -34,18 +55,31 @@ function formatAge(ageSeconds: number): string {
   return `${Math.floor(ageSeconds / 3600)}h`
 }
 
+type JumpOutcome = SupervisorRelayFocusOutcome | undefined
+
 function RelayCard({
   card,
-  live
+  live,
+  outcome,
+  jumped,
+  onJump
 }: {
   card: SupervisorRelayCard
   live: boolean
+  outcome: JumpOutcome
+  jumped: boolean
+  onJump: (card: SupervisorRelayCard) => void
 }) {
-  const jumpEnabled = live && card.jumpAvailable
+  const unhostedReason =
+    card.unhostedReason ?? (outcome?.status === 'unhosted' ? outcome.reason : undefined)
+  const jumpEnabled = live && card.jumpAvailable && unhostedReason === undefined
   return (
     <li
-      className={`supervisor-relay-card${live ? '' : ' supervisor-relay-card--stale'}`}
+      className={`supervisor-relay-card${live ? '' : ' supervisor-relay-card--stale'}${
+        unhostedReason !== undefined ? ' supervisor-relay-card--unhosted' : ''
+      }${jumped ? ' supervisor-relay-card--focused' : ''}`}
       data-card-id={card.id}
+      data-unhosted={unhostedReason ?? undefined}
     >
       <div className="supervisor-relay-card__head">
         <span className="supervisor-relay-card__severity">{severityLabel(card.severity)}</span>
@@ -62,18 +96,25 @@ function RelayCard({
           ))}
         </ul>
       )}
+      {unhostedReason !== undefined && (
+        <p className="supervisor-relay-card__unhosted-label">{UNHOSTED_LABELS[unhostedReason]}</p>
+      )}
+      {outcome?.status === 'failed' && (
+        <p className="supervisor-relay-card__focus-note">{FOCUS_FAILED_NOTE}</p>
+      )}
       <button
         type="button"
         className="supervisor-relay-card__jump"
         disabled={!jumpEnabled}
         data-card-id={card.id}
         title={
-          jumpEnabled
-            ? 'Focus the session behind this card'
-            : 'Jump is disabled while Supervisor state is stale'
+          unhostedReason !== undefined
+            ? UNHOSTED_LABELS[unhostedReason]
+            : jumpEnabled
+              ? 'Focus the session behind this card'
+              : 'Jump is disabled while Supervisor state is stale'
         }
-        // Task 13/14 wire the focus bridge; v1 never navigates from card text.
-        onClick={() => undefined}
+        onClick={() => onJump(card)}
       >
         Jump
       </button>
@@ -86,8 +127,45 @@ function RelayCard({
  * tests and for Task 10 mounting; ambient usage goes through
  * <SupervisorRelayView /> which owns the subscription.
  */
-export function SupervisorRelayCards({ payload }: { payload: SupervisorRelayPayload }) {
+export function SupervisorRelayCards({
+  payload,
+  focusCard
+}: {
+  payload: SupervisorRelayPayload
+  focusCard?: (cardId: string) => Promise<SupervisorRelayFocusOutcome>
+}) {
   const live = payload.state === 'live'
+  const [outcomes, setOutcomes] = useState<Record<string, JumpOutcome>>({})
+  const [jumpedCardId, setJumpedCardId] = useState<string | undefined>(undefined)
+  const pulseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    return () => {
+      if (pulseTimer.current !== undefined) {
+        clearTimeout(pulseTimer.current)
+      }
+    }
+  }, [])
+
+  const handleJump = (card: SupervisorRelayCard): void => {
+    if (focusCard === undefined) {
+      return
+    }
+    void focusCard(card.id).then((outcome) => {
+      setOutcomes((prev) => ({ ...prev, [card.id]: outcome }))
+      if (outcome.status === 'focused') {
+        setJumpedCardId(card.id)
+        if (pulseTimer.current !== undefined) {
+          clearTimeout(pulseTimer.current)
+        }
+        pulseTimer.current = setTimeout(() => {
+          setJumpedCardId(undefined)
+          pulseTimer.current = undefined
+        }, FOCUSED_PULSE_MS)
+      }
+    })
+  }
+
   if (payload.state === 'error') {
     // Neutral error card: no card data, no action (design §5 failure semantics).
     return (
@@ -118,7 +196,14 @@ export function SupervisorRelayCards({ payload }: { payload: SupervisorRelayPayl
       ) : (
         <ul className="supervisor-relay__cards">
           {payload.cards.map((card) => (
-            <RelayCard key={card.id} card={card} live={live} />
+            <RelayCard
+              key={card.id}
+              card={card}
+              live={live}
+              outcome={outcomes[card.id]}
+              jumped={jumpedCardId === card.id}
+              onJump={handleJump}
+            />
           ))}
         </ul>
       )}
@@ -142,5 +227,5 @@ export function SupervisorRelayView(): React.JSX.Element {
       </section>
     )
   }
-  return <SupervisorRelayCards payload={payload} />
+  return <SupervisorRelayCards payload={payload} focusCard={window.api.supervisorRelay.focus} />
 }

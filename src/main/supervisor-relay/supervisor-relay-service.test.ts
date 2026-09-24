@@ -199,3 +199,53 @@ describe('supervisor relay service', () => {
     })
   })
 })
+
+describe('supervisor relay service card verification (Task 14)', () => {
+  test('bridge verification drives jumpAvailable and the unhosted reason', async () => {
+    const emitted: SupervisorRelayPayload[] = []
+    const service = new SupervisorRelayService({
+      path: 'operator-view.json',
+      onPayload: (payload) => emitted.push(payload),
+      fs: memFs(() =>
+        snapshot({
+          cards: [card('att_1'), card('att_2')]
+        })
+      ),
+      wallMs: () => T0,
+      monoMs: () => 0,
+      cardVerifier: async () => new Map([['att_2', 'not-hosted']])
+    })
+    await service.poll()
+    expect(emitted[0]?.cards[0]).toMatchObject({ id: 'att_1', jumpAvailable: true })
+    expect(emitted[0]?.cards[1]).toMatchObject({
+      id: 'att_2',
+      jumpAvailable: false,
+      unhostedReason: 'not-hosted'
+    })
+  })
+
+  test('currentView exposes the trusted view (with sessionRefs) for the focus action', async () => {
+    const service = new SupervisorRelayService({
+      path: 'operator-view.json',
+      onPayload: () => undefined,
+      fs: memFs(() =>
+        snapshot({
+          cards: [
+            {
+              ...card('att_1'),
+              sessionRef: {
+                executionHostId: 'local',
+                canonicalRoot: '/repo',
+                sessionID: 'ses-a'
+              }
+            }
+          ]
+        })
+      ),
+      wallMs: () => T0,
+      monoMs: () => 0
+    })
+    await service.poll()
+    expect(service.currentView()?.cards[0]?.sessionRef).toMatchObject({ sessionID: 'ses-a' })
+  })
+})
