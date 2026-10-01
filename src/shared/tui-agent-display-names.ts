@@ -25,6 +25,7 @@ export const TUI_AGENT_DISPLAY_NAMES: Record<TuiAgent, string> = {
   omp: 'OMP',
   'prime-agent': 'Prime Agent',
   qoder: 'Qoder CLI',
+  omo: 'omo (OMO Native)',
   gemini: 'Gemini',
   antigravity: 'Antigravity',
   aider: 'Aider',

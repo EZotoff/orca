@@ -26,6 +26,7 @@ export const SKILLS_CLI_AGENT_KEY_BY_TUI_AGENT = {
   omp: null,
   'prime-agent': null,
   qoder: 'qoder',
+  omo: null,
   gemini: 'gemini-cli',
   antigravity: 'antigravity',
   aider: null,

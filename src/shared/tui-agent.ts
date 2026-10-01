@@ -13,6 +13,7 @@ export type TuiAgent =
   | 'pi' // Pi (pi.dev)
   | 'omp' // OMP (omp.sh)
   | 'qoder' // Qoder CLI
+  | 'omo' // omo (OMO Native / senpi, npm omo-ai)
   | 'gemini' // Gemini CLI
   | 'antigravity' // Google Antigravity CLI
   | 'aider' // Aider

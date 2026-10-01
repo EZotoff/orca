@@ -131,6 +131,16 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     // Why: OMP wraps Pi's TUI, so the bytes land in a Pi reader that decodes CSI-u (see pi above).
     windowsShiftEnterEncoding: 'csi-u'
   },
+  omo: {
+    // Why: oa5 is the operator's wrapper around `bunx omo-ai` (same agent); alias matches the kimi precedent so
+    // foreground-process recognition works through the wrapper.
+    detectCmd: 'omo',
+    detectCmdAliases: ['oa5'],
+    // NOTE(live-probe): default TUI passthrough for now — omo's prompt-injection flags/PTY quirks are unverified;
+    // a live probe must confirm the injection mode (and any draft-prompt env via the managed prefill extension)
+    // before tightening this.
+    promptInjectionMode: 'stdin-after-start'
+  },
   'prime-agent': {
     detectCmd: 'prime-agent',
     // Why: `prime-agent [options] [@files...] [message...]` takes the task as positional argv.

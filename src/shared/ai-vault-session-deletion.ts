@@ -39,6 +39,7 @@ export const AI_VAULT_DELETABLE_AGENTS = [
   'droid',
   'pi',
   'omp',
+  'omo',
   'claude',
   'codebuddy',
   'rovo',
