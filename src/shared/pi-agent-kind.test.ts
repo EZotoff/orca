@@ -84,3 +84,22 @@ describe('detectExplicitPiAgentKindFromCommand', () => {
     )
   })
 })
+
+describe('omo detection', () => {
+  it('classifies omo launches as the omo kind', () => {
+    expect(detectExplicitPiAgentKindFromCommand('omo')).toBe('omo')
+    expect(detectExplicitPiAgentKindFromCommand('/usr/local/bin/omo --resume')).toBe('omo')
+    expect(detectPiAgentKindFromCommand('omo')).toBe('omo')
+  })
+
+  it('classifies the oa5 wrapper alias as the omo kind', () => {
+    expect(detectExplicitPiAgentKindFromCommand('oa5')).toBe('omo')
+    expect(detectExplicitPiAgentKindFromCommand('/home/user/.local/bin/oa5')).toBe('omo')
+    expect(detectPiAgentKindFromCommand('oa5 --resume x')).toBe('omo')
+  })
+
+  it('keeps omo and pi kinds distinct', () => {
+    expect(detectExplicitPiAgentKindFromCommand('pi')).toBe('pi')
+    expect(detectExplicitPiAgentKindFromCommand('bunx --bun --package omo-ai@5.1.5 omo')).toBeNull()
+  })
+})
