@@ -16,6 +16,7 @@ import { resolveMuseSessionsDir } from './session-scanner-muse-paths'
 import { OMP_SESSION_ARTIFACT_DIR_PATTERN } from './session-scanner-omp-subagent-transcripts'
 import {
   claudeProjectsRootDirs,
+  omoSessionsRootDirs,
   ompSessionsRootDirs,
   sessionRootDirs
 } from './session-scanner-roots'
@@ -234,6 +235,11 @@ export const AI_VAULT_AGENT_SOURCES: AiVaultAgentSourceTable = {
     // own picker only globs `*/*.jsonl`, so it never offers them either.
     // Depth 0 is the workspace dir, which is never an artifact dir.
     directoryPredicate: (name, depth) => depth === 0 || !OMP_SESSION_ARTIFACT_DIR_PATTERN.test(name)
+  },
+  omo: {
+    rootDirs: (options, wslHomeDirs) =>
+      omoSessionsRootDirs({ omoSessionsDir: options.omoSessionsDir, wslHomeDirs }),
+    extensions: ['.jsonl']
   },
   'prime-agent': {
     rootDirs: (options, wslHomeDirs) =>

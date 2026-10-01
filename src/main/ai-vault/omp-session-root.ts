@@ -15,7 +15,7 @@ function normalizedProfile(value: string | undefined): string | undefined | null
     : null
 }
 
-function safeRoot(value: string): string {
+export function safeRoot(value: string): string {
   const trimmed = value.trim()
   const normalized = normalize(trimmed)
   return !trimmed ||

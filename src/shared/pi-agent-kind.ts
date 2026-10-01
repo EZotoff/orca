@@ -14,6 +14,9 @@ import { getCommandTokenPathBasename, getFirstCommandToken } from './command-tok
  */
 export type PiAgentKind = 'pi' | 'omp' | 'prime-agent' | 'omo'
 
+/** Pi-family kinds whose relay overlays are per-agent directories. */
+export type LegacyOverlayAgentKind = Exclude<PiAgentKind, 'prime-agent'>
+
 export const PRIMARY_AGENT_DIR_ENV_BY_KIND: Readonly<Record<PiAgentKind, string>> = {
   pi: 'PI_CODING_AGENT_DIR',
   omp: 'PI_CODING_AGENT_DIR',

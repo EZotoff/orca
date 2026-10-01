@@ -1,5 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { resolveOmoSessionsDir } from './omo-session-root'
 import { resolveOmpSessionsDir } from './omp-session-root'
 
 // The default local roots for the two agents whose subagent transcripts are
@@ -35,6 +36,19 @@ export function ompSessionsRootDirs(args: {
       // process cwd — an empty root would silently allowlist it.
       .filter((rootDir) => rootDir.trim().length > 0)
   )
+}
+
+// The local host and each WSL distro's omo sessions root (`<agentDir>/sessions`,
+// agent dir from omo's own env precedence).
+export function omoSessionsRootDirs(args: {
+  omoSessionsDir?: string
+  wslHomeDirs?: readonly string[]
+}): string[] {
+  return sessionRootDirs(
+    resolveOmoSessionsDir({ sessionsDir: args.omoSessionsDir }),
+    normalizedWslHomeDirs(args.wslHomeDirs),
+    ['.omo', 'agent', 'sessions']
+  ).filter((rootDir) => rootDir.trim().length > 0)
 }
 
 export function normalizedWslHomeDirs(homeDirs: readonly string[] | undefined): string[] {

@@ -30,7 +30,8 @@ import {
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { mirrorEntry, safeRemoveOverlay } from '../main/pty/overlay-mirror'
-import type { PiAgentKind } from '../shared/pi-agent-kind'
+import { PI_AGENT_HOME_DIR_NAME, PI_OVERLAY_SUBDIR_BY_KIND } from './plugin-overlay-pi-dir-names'
+import type { LegacyOverlayAgentKind, PiAgentKind } from '../shared/pi-agent-kind'
 import {
   installOpenCodePluginInCanonicalConfig,
   isRelayOpenCodeOverlayPath,
@@ -41,14 +42,9 @@ import {
   openCodeTuiPluginDirName,
   writeOpenCodeTuiPlugin
 } from '../shared/opencode-tui-plugin-install'
-type LegacyOverlayAgentKind = Exclude<PiAgentKind, 'prime-agent'>
 const RELAY_HOOKS_DIR = '.orca-relay'
 const OPENCODE_OVERLAY_SUBDIR = 'opencode-overlays'
 const OPENCODE2_OVERLAY_SUBDIR = 'opencode2-overlays'
-const PI_OVERLAY_SUBDIR_BY_KIND: Record<LegacyOverlayAgentKind, string> = {
-  pi: 'pi-overlays',
-  omp: 'omp-overlays'
-}
 const OPENCODE_PLUGIN_FILE = 'orca-opencode-status.js'
 const OPENCODE2_PLUGIN_FILE = 'orca-opencode2-status.js'
 // Orca's own entries (either major, file and TUI copy) are never mirrored from user config.
@@ -72,11 +68,6 @@ function withOrcaManagedPiExtensionMarker(source: string): string {
 // the relay PtyEnvAugmenter ctx; never derived from disk presence (a
 // cross-agent fallback shadows the other agent's user extensions when both
 // are installed).
-const PI_AGENT_HOME_DIR_NAME: Record<PiAgentKind, string> = {
-  pi: '.pi',
-  omp: '.omp',
-  'prime-agent': '.prime'
-}
 function safeDirName(input: string): string {
   // Why: paneKey embeds tabId:paneId where tabId may itself contain
   // filesystem-unsafe characters in some Orca builds. Hash to a fixed-width
@@ -123,6 +114,7 @@ export class PluginOverlayManager {
   private piExtensionSources: Record<PiAgentKind, string | null> = {
     pi: null,
     omp: null,
+    omo: null,
     'prime-agent': null
   }
   private homeDir: string
@@ -136,7 +128,8 @@ export class PluginOverlayManager {
     this.opencode2Root = join(home, RELAY_HOOKS_DIR, OPENCODE2_OVERLAY_SUBDIR)
     this.piRoots = {
       pi: join(home, RELAY_HOOKS_DIR, PI_OVERLAY_SUBDIR_BY_KIND.pi),
-      omp: join(home, RELAY_HOOKS_DIR, PI_OVERLAY_SUBDIR_BY_KIND.omp)
+      omp: join(home, RELAY_HOOKS_DIR, PI_OVERLAY_SUBDIR_BY_KIND.omp),
+      omo: join(home, RELAY_HOOKS_DIR, PI_OVERLAY_SUBDIR_BY_KIND.omo)
     }
   }
   /** Replace the cached source bodies. Called from relay.ts when Orca sends

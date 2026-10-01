@@ -62,6 +62,15 @@ export const SYNTHETIC_AGENT_TITLE_PROFILES: Record<string, SyntheticAgentTitleP
     // working title (src/main/pi/titlebar-extension-source.ts). See pi above.
     synthesizeWorkingTitle: false
   },
+  omo: {
+    workingLabel: 'omo',
+    permissionLabel: 'omo - action required',
+    idleLabel: 'omo ready',
+    titleIdentityGroup: 'pi-compatible',
+    // Why: same as OMP above — Orca's managed titlebar extension (pi-compatible layer)
+    // writes the working title on an Orca-hosted omo pane.
+    synthesizeWorkingTitle: false
+  },
   droid: {
     workingLabel: 'Droid',
     permissionLabel: 'Droid - action required',

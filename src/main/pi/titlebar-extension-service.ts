@@ -18,7 +18,7 @@ import {
   safeRemoveOverlay
 } from '../pty/overlay-mirror'
 import { migrateLegacyOmpOverlayState } from './legacy-omp-overlay-migration'
-import type { PiAgentKind } from '../../shared/pi-agent-kind'
+import type { LegacyOverlayAgentKind, PiAgentKind } from '../../shared/pi-agent-kind'
 
 // Why: the Pi test suite imports `isSafeDescendCandidate` from this module's
 // public surface to lock in the Windows-junction ordering invariant against
@@ -38,14 +38,13 @@ type PiManagedExtensionEnv = {
   statusExtensionPath?: string
 }
 
-type LegacyOverlayAgentKind = Exclude<PiAgentKind, 'prime-agent'>
-
 // Why: old Orca versions used per-kind overlay roots. Keep the names so
 // upgrade-time cleanup can remove stale PTY-scoped Pi/OMP overlay dirs without
 // guessing which agent a terminated pane launched.
 const OVERLAY_ROOT_DIR_NAME: Record<LegacyOverlayAgentKind, string> = {
   pi: 'pi-agent-overlays',
-  omp: 'omp-agent-overlays'
+  omp: 'omp-agent-overlays',
+  omo: 'omo-agent-overlays'
 }
 
 // Why: the managed extension target is chosen by which agent is being launched, NOT
@@ -56,6 +55,7 @@ const OVERLAY_ROOT_DIR_NAME: Record<LegacyOverlayAgentKind, string> = {
 const AGENT_HOME_DIR_NAME: Record<PiAgentKind, string> = {
   pi: '.pi',
   omp: '.omp',
+  omo: '.omo',
   'prime-agent': '.prime'
 }
 
@@ -229,6 +229,11 @@ export class PiTitlebarExtensionService {
       if (installed.statusExtensionPath) {
         env.ORCA_OMP_STATUS_EXTENSION = installed.statusExtensionPath
       }
+    } else if (kind === 'omo') {
+      // Why: omo reads its own OMO_CODING_AGENT_DIR/SENPI_CODING_AGENT_DIR chain (oa5
+      // sets those itself), so like every pi-kind PTY Orca injects only the source
+      // pointer, never the agent's primary dir.
+      env.ORCA_OMO_SOURCE_AGENT_DIR = installed.sourceAgentDir
     } else if (kind === 'prime-agent') {
       env.ORCA_PRIME_AGENT_SOURCE_AGENT_DIR = installed.sourceAgentDir
     } else {
