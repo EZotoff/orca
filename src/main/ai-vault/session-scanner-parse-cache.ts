@@ -66,6 +66,7 @@ function resumableStateFactoryFor(
     case 'openclaw':
     case 'pi':
     case 'omp':
+    case 'omo':
     case 'prime-agent': {
       const agent = candidate.agent
       return (messages) => createMessageGraphSessionResumeState(agent, candidate.file, messages)

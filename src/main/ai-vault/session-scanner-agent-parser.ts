@@ -146,6 +146,8 @@ export async function parseAgentSessionFile(
       return parseMessageGraphSessionFile('pi', candidate.file, platform, messages)
     case 'omp':
       return parseMessageGraphSessionFile('omp', candidate.file, platform, messages)
+    case 'omo':
+      return parseMessageGraphSessionFile('omo', candidate.file, platform, messages)
     case 'prime-agent':
       return parseMessageGraphSessionFile('prime-agent', candidate.file, platform, messages)
     case 'droid':
