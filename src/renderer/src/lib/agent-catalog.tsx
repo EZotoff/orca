@@ -158,7 +158,7 @@ export const getAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[] =>
     faviconDomain: 'primeintellect.ai',
     homepageUrl: 'https://github.com/PrimeIntellect-ai/prime-agent'
   },
-  ...OMO_CATALOG_ENTRY,
+  OMO_CATALOG_ENTRY,
   {
     id: 'gemini',
     label: translate('auto.lib.agent.catalog.12e6baa4f7', 'Gemini'),
