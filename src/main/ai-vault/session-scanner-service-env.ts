@@ -44,6 +44,9 @@ const AGENT_ROOT_ENV_ALLOWLIST = [
   'KIMI_CODE_HOME',
   'OMP_CODING_AGENT_DIR',
   'OMP_PROFILE',
+  // Why: omo's agent-dir precedence starts at OMO_CODING_AGENT_DIR
+  // (omo-session-root.ts mirrors it); dropping it hides relocated omo homes.
+  'OMO_CODING_AGENT_DIR',
   'OPENCLAW_STATE_DIR',
   'OPENCODE_DB',
   'PI_CODING_AGENT_DIR',
