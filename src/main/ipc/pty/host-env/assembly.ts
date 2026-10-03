@@ -2,7 +2,8 @@ import { resolveSetupAgentSequenceLaunchCommand } from '../../../../shared/setup
 import { selectOpenCodeHookAgent } from '../../../../shared/opencode-launch-command'
 import {
   detectExplicitPiAgentKindFromCommand,
-  isPiCompatibleAgentType
+  isPiCompatibleAgentType,
+  type PiAgentKind
 } from '../../../../shared/pi-agent-kind'
 import { applyTerminalGitCredentialPromptGuard } from '../../terminal-git-credential-guard'
 import { openCode2HookService, openCodeHookService } from '../../../opencode/hook-service'
@@ -25,12 +26,13 @@ import type { BuildPtyHostEnvOptions } from './types'
 import { stripInheritedOrcaCodexHomeOverride } from './codex-home'
 import {
   clearPiAgentShadowEnv,
+  assignOmoManagedExtensionEnv,
   exposePiManagedExtensionEnv,
   isMimoLaunchCommand,
   resolveMimocodeSourceHome,
   resolveOpenCodeSourceConfigDir,
   resolvePiAgentSourceDir,
-  resolveScopedPiAgentSourceDir,
+  resolveTargetPiAgentSourceDir,
   restoreOrStripOverlayEnv
 } from './pi-agent'
 import { AGENT_HOOK_RUNTIME_ENV_KEYS } from './spawn-env-keys'
@@ -91,22 +93,21 @@ export function buildPtyHostEnv(
   })
 
   const shouldPrepareOmpShadow = piAgentKind === 'omp' || !hasLaunchCommand
-  const shouldInstallPiExtensions =
-    opts.agentStatusHooksEnabled && isTuiAgentEnabled('pi', opts.disabledTuiAgents)
-  const shouldInstallOmpExtensions =
-    opts.agentStatusHooksEnabled && isTuiAgentEnabled('omp', opts.disabledTuiAgents)
-  const shouldInstallPrimeAgentExtensions =
-    opts.agentStatusHooksEnabled && isTuiAgentEnabled('prime-agent', opts.disabledTuiAgents)
+  const isHookEnabled = (agent: PiAgentKind): boolean =>
+    opts.agentStatusHooksEnabled && isTuiAgentEnabled(agent, opts.disabledTuiAgents)
+  const shouldInstallPiExtensions = isHookEnabled('pi')
+  const shouldInstallOmpExtensions = isHookEnabled('omp')
+  const shouldInstallPrimeAgentExtensions = isHookEnabled('prime-agent')
+  const shouldInstallOmoExtensions = isHookEnabled('omo')
   // Why: source shadows are agent-scoped; trusting the other kind's source reintroduces Pi/OMP extension-state shadowing.
   const preexistingPiAgentDir = resolvePiAgentSourceDir(baseEnv, 'pi')
-  const preexistingOmpAgentDir =
-    piAgentKind === 'omp'
-      ? resolvePiAgentSourceDir(baseEnv, 'omp')
-      : resolveScopedPiAgentSourceDir(baseEnv, 'omp')
-  const preexistingPrimeAgentDir =
-    piAgentKind === 'prime-agent'
-      ? resolvePiAgentSourceDir(baseEnv, 'prime-agent')
-      : resolveScopedPiAgentSourceDir(baseEnv, 'prime-agent')
+  const preexistingOmpAgentDir = resolveTargetPiAgentSourceDir(baseEnv, piAgentKind, 'omp')
+  const preexistingPrimeAgentDir = resolveTargetPiAgentSourceDir(
+    baseEnv,
+    piAgentKind,
+    'prime-agent'
+  )
+  const preexistingOmoAgentDir = resolveTargetPiAgentSourceDir(baseEnv, piAgentKind, 'omo')
 
   restoreOrStripOverlayEnv(
     baseEnv,
@@ -197,9 +198,9 @@ export function buildPtyHostEnv(
 
   // Why: PI_CODING_AGENT_DIR is the user's config/session root; install only Orca-owned extension files, don't override it.
   if (opts.agentStatusHooksEnabled) {
-    clearPiAgentShadowEnv(baseEnv, 'pi')
-    clearPiAgentShadowEnv(baseEnv, 'omp')
-    clearPiAgentShadowEnv(baseEnv, 'prime-agent')
+    for (const kind of ['pi', 'omp', 'prime-agent', 'omo'] as const) {
+      clearPiAgentShadowEnv(baseEnv, kind)
+    }
     // Why: bare shells historically defaulted to Pi + OMP shadow prep and
     // created ~/.<agent>/agent even when the user never launches those agents
     // (#10196). Only create default homes on an explicit Pi/OMP launch;
@@ -241,6 +242,11 @@ export function buildPtyHostEnv(
       Object.assign(baseEnv, primeEnv)
       exposePiManagedExtensionEnv(baseEnv, 'prime-agent', primeEnv)
     }
+
+    if (shouldInstallOmoExtensions && piAgentKind === 'omo') {
+      // Why: omo reads its own OMO_CODING_AGENT_DIR chain (probe 96); Orca injects only the source pointer.
+      assignOmoManagedExtensionEnv(baseEnv, id, preexistingOmoAgentDir, explicitPiAgentKind)
+    }
   } else {
     // Why: nested PTYs must not inherit stale source or overlay state from another agent.
     restoreOrStripOverlayEnv(baseEnv, {
@@ -259,6 +265,7 @@ export function buildPtyHostEnv(
     delete baseEnv.ORCA_OMP_STATUS_EXTENSION
     delete baseEnv.ORCA_PRIME_AGENT_SOURCE_AGENT_DIR
     delete baseEnv.ORCA_PRIME_AGENT_STATUS_EXTENSION
+    delete baseEnv.ORCA_OMO_SOURCE_AGENT_DIR
   }
 
   if (opts.isWsl && opts.agentStatusHooksEnabled) {

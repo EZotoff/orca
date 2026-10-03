@@ -1,3 +1,4 @@
+import { piTitlebarExtensionService } from '../../../pi/titlebar-extension-service'
 import {
   getCommandTokenPathBasename,
   getFirstCommandToken
@@ -61,6 +62,16 @@ export function resolveScopedPiAgentSourceDir(
   return readEnvWithProcessFallback(baseEnv, SOURCE_AGENT_DIR_ENV_BY_KIND[kind])
 }
 
+export function resolveTargetPiAgentSourceDir(
+  baseEnv: Record<string, string>,
+  activeKind: PiAgentKind,
+  targetKind: PiAgentKind
+): string | undefined {
+  return activeKind === targetKind
+    ? resolvePiAgentSourceDir(baseEnv, targetKind)
+    : resolveScopedPiAgentSourceDir(baseEnv, targetKind)
+}
+
 export function clearPiAgentShadowEnv(baseEnv: Record<string, string>, kind: PiAgentKind): void {
   if (kind === 'omp') {
     delete baseEnv.ORCA_OMP_CODING_AGENT_DIR
@@ -73,8 +84,29 @@ export function clearPiAgentShadowEnv(baseEnv: Record<string, string>, kind: PiA
     delete baseEnv.ORCA_PRIME_AGENT_STATUS_EXTENSION
     return
   }
+  if (kind === 'omo') {
+    delete baseEnv.ORCA_OMO_SOURCE_AGENT_DIR
+    return
+  }
   delete baseEnv.ORCA_PI_CODING_AGENT_DIR
   delete baseEnv.ORCA_PI_SOURCE_AGENT_DIR
+}
+
+/**
+ * Installs Orca-managed Pi extensions for an explicit omo launch and exposes only
+ * ORCA_OMO_SOURCE_AGENT_DIR to the child (probe 96: never inject omo's primary dir).
+ */
+export function assignOmoManagedExtensionEnv(
+  baseEnv: Record<string, string>,
+  id: string,
+  preexistingOmoAgentDir: string | undefined,
+  explicitKind: PiAgentKind | null
+): void {
+  const managedEnv = piTitlebarExtensionService.buildPtyEnv(id, preexistingOmoAgentDir, 'omo', {
+    materializeDefaultHome: explicitKind === 'omo'
+  })
+  Object.assign(baseEnv, managedEnv)
+  exposePiManagedExtensionEnv(baseEnv, 'omo', managedEnv)
 }
 
 export function exposePiManagedExtensionEnv(
@@ -101,6 +133,14 @@ export function exposePiManagedExtensionEnv(
       baseEnv.ORCA_PRIME_AGENT_SOURCE_AGENT_DIR = managedEnv.ORCA_PRIME_AGENT_SOURCE_AGENT_DIR
     } else {
       delete baseEnv.ORCA_PRIME_AGENT_SOURCE_AGENT_DIR
+    }
+    return
+  }
+  if (kind === 'omo') {
+    if (managedEnv.ORCA_OMO_SOURCE_AGENT_DIR) {
+      baseEnv.ORCA_OMO_SOURCE_AGENT_DIR = managedEnv.ORCA_OMO_SOURCE_AGENT_DIR
+    } else {
+      delete baseEnv.ORCA_OMO_SOURCE_AGENT_DIR
     }
     return
   }
