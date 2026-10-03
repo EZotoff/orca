@@ -1,4 +1,5 @@
 import { getCatalogPlatform } from './agent-catalog-platform'
+import { OMO_CATALOG_ENTRY } from './agent-catalog-omo'
 import type React from 'react'
 import { ClaudeIcon, DroidIcon, OpenAIIcon } from '@/components/status-bar/icons'
 import openClaudeLogoUrl from '../../../../resources/openclaude-logo.png?url'
@@ -157,6 +158,7 @@ export const getAgentCatalog = createLocalizedCatalog((): AgentCatalogEntry[] =>
     faviconDomain: 'primeintellect.ai',
     homepageUrl: 'https://github.com/PrimeIntellect-ai/prime-agent'
   },
+  ...OMO_CATALOG_ENTRY,
   {
     id: 'gemini',
     label: translate('auto.lib.agent.catalog.12e6baa4f7', 'Gemini'),
